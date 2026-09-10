@@ -15,12 +15,20 @@
 //!   "workspaces": [{ "path": "C:\\…\\menu-forge", "name": "menu-forge", "lastOpened": "2026-09-10T08:00:00.000Z" }],
 //!   "libraries": [{ "id": "vanilla", "name": "…", "root": "C:\\…", "ownership": "third-party" }],
 //!   "ui": { "defaultZoom": 0, "showGrid": true, "confirmations": { "delete": true, "discardChanges": true } },
-//!   "export": { "enderiumResources": null, "namespace": "menuforge", "packFormat": 46 }
+//!   "export": { "enderiumResources": null, "namespace": "menuforge", "packFormat": 46 },
+//!   "discord": { "enabled": true, "clientId": null, "showDocument": true }
 //! }
 //! ```
 //!
 //! `ui.defaultZoom` : entier de 0 à 12 ; 0 signifie « Ajuster » (le plus
 //! grand palier de zoom qui tient dans la toile), 1 à 12 un palier fixe.
+//!
+//! `discord` : Rich Presence (voir [`crate::presence`]). `enabled` active la
+//! présence ; `clientId` est l’identifiant de l’application Discord (texte de
+//! 17 à 20 chiffres) ou `null` tant qu’aucune application n’est configurée ;
+//! `showDocument` affiche le nom du document ouvert (sinon un texte
+//! générique). Un fichier sans section `discord` se relit avec ces valeurs
+//! par défaut.
 
 use std::fs;
 use std::io::{self, Write};
@@ -78,6 +86,27 @@ pub struct ExportSettings {
     pub pack_format: u64,
 }
 
+/// Rich Presence Discord.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiscordSettings {
+    pub enabled: bool,
+    /// Identifiant de l’application Discord (17 à 20 chiffres), s’il est connu.
+    pub client_id: Option<String>,
+    /// Afficher le nom du document ouvert (sinon un texte générique).
+    pub show_document: bool,
+}
+
+impl Default for DiscordSettings {
+    fn default() -> Self {
+        Self { enabled: true, client_id: None, show_document: true }
+    }
+}
+
+/// Identifiant d’application Discord : 17 à 20 chiffres.
+pub fn is_valid_discord_id(id: &str) -> bool {
+    (17..=20).contains(&id.len()) && id.bytes().all(|b| b.is_ascii_digit())
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Settings {
     pub active_workspace: String,
@@ -86,6 +115,7 @@ pub struct Settings {
     pub libraries: Vec<LibrarySource>,
     pub ui: UiSettings,
     pub export: ExportSettings,
+    pub discord: DiscordSettings,
 }
 
 impl Settings {
@@ -106,6 +136,7 @@ impl Settings {
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 pack_format: DEFAULT_PACK_FORMAT,
             },
+            discord: DiscordSettings::default(),
         }
     }
 
@@ -154,6 +185,12 @@ impl Settings {
         export.insert("namespace".into(), Value::String(self.export.namespace.clone()));
         export.insert("packFormat".into(), Value::from(self.export.pack_format));
         root.insert("export".into(), Value::Object(export));
+
+        let mut discord = Map::new();
+        discord.insert("enabled".into(), Value::Bool(self.discord.enabled));
+        discord.insert("clientId".into(), self.discord.client_id.clone().map(Value::String).unwrap_or(Value::Null));
+        discord.insert("showDocument".into(), Value::Bool(self.discord.show_document));
+        root.insert("discord".into(), Value::Object(discord));
         Value::Object(root)
     }
 
@@ -341,14 +378,14 @@ pub fn parse_library(value: &Value, key: &str, check_root: bool) -> Result<Libra
 
 /// Applique un document (complet ou partiel) sur `base`.
 ///
-/// Clés de premier niveau inconnues refusées ; `ui`, `export` et
+/// Clés de premier niveau inconnues refusées ; `ui`, `export`, `discord` et
 /// `ui.confirmations` sont fusionnés clé par clé ; `workspaces` et `libraries`
 /// sont remplacés en entier. `check_paths` : vérifier sur le disque les
 /// chemins **nouveaux ou modifiés** par rapport à `base` (un réglage relu tel
 /// quel ne devient pas invalide parce qu’un disque est débranché).
 pub fn apply_patch(base: &Settings, patch: &Value, check_paths: bool) -> Result<Settings, String> {
     let patch = patch.as_object().ok_or("Les réglages doivent être un objet JSON")?;
-    unknown_keys(patch, &["version", "activeWorkspace", "workspaces", "libraries", "ui", "export"], "")?;
+    unknown_keys(patch, &["version", "activeWorkspace", "workspaces", "libraries", "ui", "export", "discord"], "")?;
     let mut next = base.clone();
 
     if let Some(version) = patch.get("version") {
@@ -463,6 +500,29 @@ pub fn apply_patch(base: &Settings, patch: &Value, check_paths: bool) -> Result<
         }
         if let Some(value) = export.get("packFormat") {
             next.export.pack_format = integer(value, "export.packFormat", 1, 1000)?;
+        }
+    }
+
+    if let Some(value) = patch.get("discord") {
+        let discord = object(value, "discord")?;
+        unknown_keys(discord, &["enabled", "clientId", "showDocument"], "discord.")?;
+        if let Some(flag) = discord.get("enabled") {
+            next.discord.enabled = boolean(flag, "discord.enabled")?;
+        }
+        if let Some(value) = discord.get("clientId") {
+            next.discord.client_id = match value {
+                Value::Null => None,
+                Value::String(id) if is_valid_discord_id(id) => Some(id.clone()),
+                _ => {
+                    return Err(
+                        "« discord.clientId » doit valoir null ou un identifiant d’application Discord (texte de 17 à 20 chiffres)"
+                            .to_owned(),
+                    );
+                }
+            };
+        }
+        if let Some(flag) = discord.get("showDocument") {
+            next.discord.show_document = boolean(flag, "discord.showDocument")?;
         }
     }
     Ok(next)
@@ -580,11 +640,46 @@ mod tests {
             (json!({"libraries": [{"id": "A", "root": "/x"}]}), "« libraries[0].id » invalide"),
             (json!({"libraries": [{"id": "a", "root": "x"}]}), "« libraries[0].root » doit être un chemin absolu"),
             (json!({"libraries": [{"id": "a", "root": ABSOLUTE, "ownership": "mine"}]}), "« libraries[0].ownership »"),
+            (json!({"discord": true}), "« discord » doit être un objet"),
+            (json!({"discord": {"token": "x"}}), "Réglage inconnu : « discord.token »"),
+            (json!({"discord": {"enabled": 1}}), "« discord.enabled » doit valoir true ou false"),
+            (json!({"discord": {"showDocument": "non"}}), "« discord.showDocument » doit valoir true ou false"),
+            (json!({"discord": {"clientId": "abc"}}), "« discord.clientId » doit valoir null ou un identifiant"),
+            (json!({"discord": {"clientId": "1234567890123456"}}), "« discord.clientId » doit valoir null"),
+            (json!({"discord": {"clientId": "123456789012345678901"}}), "« discord.clientId » doit valoir null"),
+            (json!({"discord": {"clientId": 123456789012345678u64}}), "« discord.clientId » doit valoir null"),
+            (json!({"discord": {"clientId": " 123456789012345678"}}), "« discord.clientId » doit valoir null"),
         ];
         for (patch, expected) in cases {
             let error = apply_patch(&base(), &patch, false).unwrap_err();
             assert!(error.starts_with(expected), "{patch} → {error}");
         }
+    }
+
+    #[test]
+    fn discord_section_merges_key_by_key() {
+        assert_eq!(base().discord, DiscordSettings { enabled: true, client_id: None, show_document: true });
+        let next = apply_patch(&base(), &json!({"discord": {"clientId": "123456789012345678"}}), false).unwrap();
+        assert_eq!(next.discord.client_id.as_deref(), Some("123456789012345678"));
+        assert!(next.discord.enabled && next.discord.show_document);
+        let next = apply_patch(&next, &json!({"discord": {"showDocument": false}}), false).unwrap();
+        assert_eq!(next.discord.client_id.as_deref(), Some("123456789012345678"));
+        assert!(!next.discord.show_document);
+        let next = apply_patch(&next, &json!({"discord": {"clientId": null, "enabled": false}}), false).unwrap();
+        assert_eq!(next.discord, DiscordSettings { enabled: false, client_id: None, show_document: false });
+        for id in ["12345678901234567", "12345678901234567890"] {
+            assert!(is_valid_discord_id(id), "{id}");
+        }
+        assert_eq!(apply_patch(&next, &next.to_value(), false).unwrap(), next);
+    }
+
+    #[test]
+    fn file_without_discord_section_uses_defaults() {
+        let mut old = base().to_value();
+        old.as_object_mut().unwrap().remove("discord");
+        let settings = apply_patch(&base(), &old, false).unwrap();
+        assert_eq!(settings.discord, DiscordSettings::default());
+        assert_eq!(settings.to_value()["discord"], json!({"enabled": true, "clientId": null, "showDocument": true}));
     }
 
     #[test]

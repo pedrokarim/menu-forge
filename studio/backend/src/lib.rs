@@ -5,7 +5,8 @@
 //! mêmes codes HTTP, mêmes messages d’erreur, même JSON octet pour octet,
 //! même cache disque
 //! d’index. S’y ajoutent les routes de l’application (réglages, espaces de
-//! travail, documents récents, gestion des bibliothèques), voir [`app`].
+//! travail, documents récents, gestion des bibliothèques, Rich Presence
+//! Discord), voir [`app`] et [`presence`].
 //!
 //! L’API est indépendante du transport : [`Backend::handle`] reçoit une
 //! [`Request`] dont le chemin est **ce qui suit `/api`**, tel qu’il arrive sur
@@ -28,6 +29,7 @@ mod fsutil;
 pub mod js;
 pub mod libraries;
 pub mod paths;
+pub mod presence;
 pub mod server;
 pub mod settings;
 pub mod workspace;
@@ -212,6 +214,8 @@ pub struct Backend {
     /// ne compte pas comme un premier lancement.
     first_launch: bool,
     state: RwLock<Runtime>,
+    /// Rich Presence Discord : son fil s’arrête (et efface l’activité) avec le backend.
+    presence: presence::Presence,
 }
 
 impl Backend {
@@ -223,6 +227,7 @@ impl Backend {
         let workspace_override = config.workspace_override.map(|path| paths::resolve(&[&path]));
         let active = workspace_override.clone().unwrap_or_else(|| settings.active_workspace.clone());
         let libraries = config.libraries_override.clone().unwrap_or_else(|| settings.libraries.clone());
+        let presence = presence::Presence::start(settings.discord.clone());
         let runtime = Runtime {
             workspace: Arc::new(Workspace::new(active, templates_root.clone())),
             libraries: Arc::new(Libraries::new(libraries, library_cache_dir.clone())),
@@ -238,6 +243,7 @@ impl Backend {
             library_cache_dir,
             first_launch,
             state: RwLock::new(runtime),
+            presence,
         }
     }
 

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AppInfo, LibraryCounts, SettingsPatch, StudioSettings, WorkspaceSummary } from '../lib/appApi';
+import { fetchPresence } from '../lib/appApi';
+import type { AppInfo, DiscordSettings, LibraryCounts, PresenceStatus, SettingsPatch, StudioSettings, WorkspaceSummary } from '../lib/appApi';
 import { NBSP, plural } from '../lib/format';
 import { isTauri, pickFolder, revealInExplorer } from '../lib/native';
 import { Notice, ScreenFrame } from '../shell/ScreenFrame';
@@ -16,6 +17,17 @@ const PACK_FORMATS: ReadonlyArray<{ value: number; label: string }> = [
   { value: 34, label: '34 · Minecraft 1.21 et 1.21.1' },
   { value: 46, label: '46 · Minecraft 1.21.4' },
 ];
+
+const DEFAULT_DISCORD: DiscordSettings = { enabled: true, clientId: null, showDocument: true };
+
+/** Pastille d’état de la connexion à Discord. */
+function presenceBadge(discord: DiscordSettings, status: PresenceStatus | null): { label: string; className: string } {
+  if (!discord.enabled) return { label: 'désactivée', className: 'badge' };
+  if (!discord.clientId) return { label: 'à configurer', className: 'badge badge-dirty' };
+  if (!status) return { label: 'état inconnu', className: 'badge' };
+  if (status.connected) return { label: 'connectée', className: 'badge badge-clean' };
+  return { label: 'Discord introuvable', className: 'badge badge-missing' };
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -86,6 +98,27 @@ interface SettingsScreenProps {
 export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, onReindexAll, onBrowseWorkspaces }: SettingsScreenProps) {
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [presence, setPresence] = useState<PresenceStatus | null>(null);
+
+  // État de la connexion à Discord, relu régulièrement tant que l’écran est ouvert.
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () =>
+      fetchPresence().then(
+        (status) => {
+          if (!cancelled) setPresence(status);
+        },
+        () => {
+          if (!cancelled) setPresence(null);
+        },
+      );
+    void poll();
+    const timer = window.setInterval(() => void poll(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const save = async (patch: SettingsPatch, label: string) => {
     setNotice(null);
@@ -128,6 +161,8 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
     );
   }
   const { ui, export: exportSettings } = settings;
+  const discord = settings.discord ?? DEFAULT_DISCORD;
+  const badge = presenceBadge(discord, presence);
   const packFormats = PACK_FORMATS.some((format) => format.value === exportSettings.packFormat)
     ? PACK_FORMATS
     : [...PACK_FORMATS, { value: exportSettings.packFormat, label: `${exportSettings.packFormat} · valeur personnalisée` }];
@@ -249,6 +284,52 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
                 </option>
               ))}
             </select>
+          </SettingRow>
+        </div>
+      </section>
+
+      <section className="screen-section" aria-labelledby="settings-discord">
+        <h2 id="settings-discord" className="screen-section-title">
+          Discord
+        </h2>
+        <div className="card setting-list">
+          <SettingRow title="Rich Presence" text="Affiche sur ton profil Discord ce que tu fais dans le studio.">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={discord.enabled}
+                onChange={(event) => void save({ discord: { enabled: event.target.checked } }, 'Rich Presence')}
+              />
+              Afficher mon activité
+            </label>
+            <span className={badge.className}>{badge.label}</span>
+          </SettingRow>
+          <SettingRow
+            title="Identifiant d’application"
+            text={
+              <>
+                Portail développeur Discord, ton application, <em>Application ID</em>. Image à téléverser sous la clé{' '}
+                <code>logo</code>.
+              </>
+            }
+          >
+            <CommitInput
+              mono
+              label="Identifiant d’application Discord"
+              value={discord.clientId ?? ''}
+              placeholder="Non défini"
+              onCommit={(value) => void save({ discord: { clientId: value.trim() === '' ? null : value.trim() } }, 'Identifiant Discord')}
+            />
+          </SettingRow>
+          <SettingRow title="Nom du document" text="Sinon, Discord affiche seulement « Édite un menu ».">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={discord.showDocument}
+                onChange={(event) => void save({ discord: { showDocument: event.target.checked } }, 'Nom du document')}
+              />
+              Afficher le nom du document ouvert
+            </label>
           </SettingRow>
         </div>
       </section>

@@ -9,10 +9,23 @@ import {
   forgetWorkspace,
   openWorkspace,
   reindexLibrary,
+  updatePresence,
   updateSettings,
 } from './lib/appApi';
-import type { AppInfo, LibraryCounts, RecentDocument, SettingsPatch, StudioSettings, WorkspaceList } from './lib/appApi';
+import type {
+  AppInfo,
+  LibraryCounts,
+  PresenceActivity,
+  RecentDocument,
+  SettingsPatch,
+  StudioSettings,
+  WorkspaceList,
+} from './lib/appApi';
 import { NBSP } from './lib/format';
+import { isTauri } from './lib/native';
+import { SCREEN_TITLES, describeActivity } from './shell/activity';
+import type { OpenDocument } from './shell/activity';
+import { TitleBar } from './shell/TitleBar';
 import { AboutScreen } from './screens/AboutScreen';
 import { EditorScreen } from './screens/EditorScreen';
 import type { EditorPreferences, EditorRequest } from './screens/EditorScreen';
@@ -60,6 +73,11 @@ export default function App() {
   const [librariesVersion, setLibrariesVersion] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [welcomed, setWelcomed] = useState(false);
+  const [openDocument, setOpenDocument] = useState<OpenDocument | null>(null);
+
+  const handleDocumentChange = useCallback((kind: OpenDocument['kind'] | null, name: string | null) => {
+    setOpenDocument(kind && name ? { kind, name } : null);
+  }, []);
 
   const refreshShell = useCallback(async () => {
     try {
@@ -205,6 +223,26 @@ export default function App() {
   };
 
   const activeWorkspace = workspaces?.workspaces.find((candidate) => candidate.active) ?? null;
+
+  // Titre (barre de titre, onglet, barre des tâches) : l’écran, ou le document ouvert dans l’éditeur.
+  const titleContext = screen === 'editor' && openDocument ? openDocument.name : SCREEN_TITLES[screen];
+  useEffect(() => {
+    document.title = `menu-forge · ${titleContext}`;
+  }, [titleContext]);
+
+  // Rich Presence Discord : l’activité suit l’écran et le document (le backend la transmet à Discord).
+  const activityKey = JSON.stringify(describeActivity(screen, openDocument, activeWorkspace?.name ?? null));
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void updatePresence(JSON.parse(activityKey) as PresenceActivity).catch(() => undefined);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [activityKey]);
+
+  const confirmClose = () =>
+    !editorDirty ||
+    !preferences.confirmDiscard ||
+    window.confirm(`Des modifications ne sont pas enregistrées. Quitter quand même${NBSP}?`);
   const pill = (
     <WorkspacePill
       name={activeWorkspace?.name ?? '…'}
@@ -214,7 +252,9 @@ export default function App() {
   );
 
   return (
-    <div className="shell">
+    <div className={isTauri ? 'app-frame has-titlebar' : 'app-frame'}>
+      {isTauri && <TitleBar context={titleContext} confirmClose={confirmClose} />}
+      <div className="shell">
       <ScreenRail current={screen} onSelect={goTo} onShowShortcuts={() => setShowShortcuts(true)} />
       <div className="shell-main">
         {loadError && (
@@ -238,6 +278,7 @@ export default function App() {
               librariesVersion={librariesVersion}
               workspacePill={pill}
               onDirtyChange={setEditorDirty}
+              onDocumentChange={handleDocumentChange}
             />
           )}
         </div>
@@ -293,6 +334,7 @@ export default function App() {
         {screen === 'about' && <AboutScreen pill={pill} app={app} />}
       </div>
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      </div>
     </div>
   );
 }

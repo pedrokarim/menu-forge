@@ -21,6 +21,9 @@ tiny_http = "0.12"
 rayon = "1"
 # Tri identique à `String.prototype.localeCompare` (collation Unicode d’ICU).
 icu_collator = "2"
+# Rich Presence Discord : client IPC en Rust pur (canal nommé `discord-ipc-0`
+# sous Windows, socket Unix ailleurs), sans dépendance native.
+discord-rich-presence = "1.1"
 
 [profile.release]
 lto = "thin"

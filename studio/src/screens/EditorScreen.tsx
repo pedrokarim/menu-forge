@@ -116,6 +116,8 @@ export interface EditorScreenProps {
   /** Pastille de l’espace de travail, en tête de la barre d’outils. */
   workspacePill: ReactNode;
   onDirtyChange: (dirty: boolean) => void;
+  /** Document ouvert (titre de la fenêtre, Rich Presence Discord). */
+  onDocumentChange: (kind: 'menu' | 'asset' | null, name: string | null) => void;
 }
 
 /** Éditeur : menus (toile, couches, slots, inspecteur) et assets du mode libre. */
@@ -128,6 +130,7 @@ export function EditorScreen({
   librariesVersion,
   workspacePill,
   onDirtyChange,
+  onDocumentChange,
 }: EditorScreenProps) {
   const [workspace, setWorkspace] = useState<WorkspaceSnapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -686,6 +689,12 @@ export function EditorScreen({
   const menuIsOnDisk = menu !== null && knownMenus.some((candidate) => candidate.id === menu.id);
   // Affichage seulement : les messages d’échec passent en rouge dans la barre d’outils.
   const statusIsError = /^(Échec|Impossible)/.test(status);
+
+  const documentKind = mode === 'menus' ? (menu ? 'menu' : null) : currentAsset ? 'asset' : null;
+  const documentName = mode === 'menus' ? (menu?.name ?? null) : (currentAsset?.name ?? null);
+  useEffect(() => {
+    if (active) onDocumentChange(documentKind, documentName);
+  }, [active, documentKind, documentName, onDocumentChange]);
 
   return (
     <div className="app">

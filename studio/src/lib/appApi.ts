@@ -46,6 +46,15 @@ export interface KnownWorkspace {
   lastOpened: string;
 }
 
+/** Rich Presence Discord. */
+export interface DiscordSettings {
+  enabled: boolean;
+  /** Identifiant de l’application Discord (portail développeur) ; `null` = non configuré. */
+  clientId: string | null;
+  /** Afficher le nom du document ouvert (sinon un texte générique). */
+  showDocument: boolean;
+}
+
 export interface StudioSettings {
   version: 1;
   activeWorkspace: string;
@@ -53,6 +62,7 @@ export interface StudioSettings {
   libraries: LibrarySetting[];
   ui: UiSettings;
   export: ExportSettings;
+  discord?: DiscordSettings;
 }
 
 /** Document partiel pour `PUT /settings` (fusion clé par clé côté serveur). */
@@ -61,6 +71,23 @@ export interface SettingsPatch {
   libraries?: LibrarySetting[];
   ui?: Partial<Omit<UiSettings, 'confirmations'>> & { confirmations?: Partial<Confirmations> };
   export?: Partial<ExportSettings>;
+  discord?: Partial<DiscordSettings>;
+}
+
+/** Activité envoyée à Discord. */
+export interface PresenceActivity {
+  details: string;
+  state?: string;
+  /** Remplace `details` si le nom du document ne doit pas être montré. */
+  genericDetails?: string;
+}
+
+export interface PresenceStatus {
+  enabled: boolean;
+  /** Identifiant d’application défini. */
+  configured: boolean;
+  connected: boolean;
+  error: string | null;
 }
 
 export interface WorkspaceSummary extends KnownWorkspace {
@@ -124,5 +151,7 @@ export const forgetWorkspace = (path: string) => call<void>('/workspaces', 'DELE
 export const fetchRecentDocuments = () => call<RecentDocument[]>('/documents/recent');
 export const addLibrary = (library: LibrarySetting) => call<LibrarySetting>('/libraries', 'POST', library);
 export const removeLibrary = (id: string) => call<void>(`/libraries/${encodeURIComponent(id)}`, 'DELETE');
+export const updatePresence = (activity: PresenceActivity) => call<void>('/presence', 'PUT', activity);
+export const fetchPresence = () => call<PresenceStatus>('/presence');
 export const reindexLibrary = (id: string) =>
   call<LibraryCounts>(`/libraries/${encodeURIComponent(id)}/reindex`, 'POST');

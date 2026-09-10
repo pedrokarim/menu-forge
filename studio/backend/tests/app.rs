@@ -115,6 +115,7 @@ fn first_launch_imports_libraries_and_persists_atomically() {
     assert!(same(settings["libraries"][0]["root"].as_str().unwrap(), &dir.path("packs").join("vanilla")));
     assert_eq!(settings["ui"], json!({"defaultZoom": 0, "showGrid": true, "confirmations": {"delete": true, "discardChanges": true}}));
     assert_eq!(settings["export"], json!({"enderiumResources": null, "namespace": "menuforge", "packFormat": 46}));
+    assert_eq!(settings["discord"], json!({"enabled": true, "clientId": null, "showDocument": true}));
     assert_eq!(saved_settings(&dir), settings);
     // Écriture atomique : aucun fichier temporaire ne reste.
     let leftovers: Vec<_> = fs::read_dir(dir.path("config")).unwrap().map(|entry| entry.unwrap().file_name()).collect();
@@ -207,6 +208,87 @@ fn put_settings_validates_and_applies() {
     assert!(same(next["activeWorkspace"].as_str().unwrap(), &other));
     assert!(other.join("menus").is_dir() && other.join("assets").is_dir() && other.join("textures").is_dir());
     assert!(same(&backend.workspace_root(), &other));
+}
+
+#[test]
+fn settings_file_without_discord_section_is_read_with_defaults() {
+    let dir = TempDir::new("no-discord");
+    fs::create_dir_all(dir.path("config")).unwrap();
+    let old = json!({
+        "version": 1,
+        "activeWorkspace": dir.text("default"),
+        "workspaces": [],
+        "libraries": [],
+        "ui": {"defaultZoom": 3, "showGrid": false, "confirmations": {"delete": true, "discardChanges": true}},
+        "export": {"enderiumResources": null, "namespace": "menuforge", "packFormat": 46}
+    });
+    fs::write(dir.path("config/settings.json"), old.to_string()).unwrap();
+    let backend = Backend::new(config(&dir));
+    let (_, settings, _) = call(&backend, "GET", "/settings", Value::Null);
+    assert_eq!(settings["ui"]["defaultZoom"], 3);
+    assert_eq!(settings["discord"], json!({"enabled": true, "clientId": null, "showDocument": true}));
+    assert_eq!(call(&backend, "GET", "/app", Value::Null).1["firstLaunch"], false);
+    let names: Vec<_> = fs::read_dir(dir.path("config")).unwrap().map(|entry| entry.unwrap().file_name()).collect();
+    assert_eq!(names, ["settings.json"], "rien n’est mis de côté");
+}
+
+#[test]
+fn presence_routes_and_discord_settings() {
+    let dir = TempDir::new("presence");
+    let backend = Backend::new(config(&dir));
+
+    let (status, presence, _) = call(&backend, "GET", "/presence", Value::Null);
+    assert_eq!(status, 200);
+    assert_eq!(presence, json!({"enabled": true, "configured": false, "connected": false, "error": null}));
+
+    // Activité retenue même sans Discord (appliquée à la connexion).
+    let activity = json!({"details": "Menu : boutique", "state": "12 zones", "genericDetails": "Édite un menu"});
+    let (status, _, body) = call(&backend, "PUT", "/presence", activity);
+    assert_eq!((status, body.as_str()), (204, ""));
+    assert_eq!(call(&backend, "PUT", "/presence", json!({"details": "x".repeat(500)})).0, 204);
+    for (body, expected) in [
+        (json!(["x"]), "Le corps de la requête doit être un objet JSON"),
+        (json!({}), "« details » est obligatoire (texte non vide)"),
+        (json!({"details": ""}), "« details » est obligatoire (texte non vide)"),
+        (json!({"details": 3}), "« details » est obligatoire (texte non vide)"),
+        (json!({"details": "ok", "state": 1}), "« state » doit être un texte"),
+        (json!({"details": "ok", "extra": 1}), "Champ inconnu : « extra »"),
+    ] {
+        let (status, _, message) = call(&backend, "PUT", "/presence", body.clone());
+        assert_eq!(status, 400, "{body}");
+        assert!(message.starts_with(expected), "{body} → {message}");
+    }
+    let response = backend.handle(&Request::new("PUT", "/presence", b"pas du json".to_vec()));
+    assert_eq!((response.status, response.body.as_slice()), (400, "JSON invalide".as_bytes()));
+
+    // Réglages : désactiver d’abord (pas de vraie connexion pendant les tests).
+    let (status, settings, _) = call(&backend, "PUT", "/settings", json!({"discord": {"enabled": false}}));
+    assert_eq!(status, 200);
+    assert_eq!(settings["discord"], json!({"enabled": false, "clientId": null, "showDocument": true}));
+    let (status, settings, _) =
+        call(&backend, "PUT", "/settings", json!({"discord": {"clientId": "123456789012345678", "showDocument": false}}));
+    assert_eq!(status, 200);
+    assert_eq!(settings["discord"], json!({"enabled": false, "clientId": "123456789012345678", "showDocument": false}));
+    assert_eq!(saved_settings(&dir)["discord"], settings["discord"]);
+    let (_, presence, _) = call(&backend, "GET", "/presence", Value::Null);
+    assert_eq!(presence, json!({"enabled": false, "configured": true, "connected": false, "error": null}));
+
+    for (patch, expected) in [
+        (json!({"discord": {"clientId": "abc"}}), "« discord.clientId » doit valoir null ou un identifiant d’application Discord"),
+        (json!({"discord": {"clientId": 123456789012345678u64}}), "« discord.clientId » doit valoir null"),
+        (json!({"discord": {"enabled": "oui"}}), "« discord.enabled » doit valoir true ou false"),
+        (json!({"discord": {"secret": 1}}), "Réglage inconnu : « discord.secret »"),
+    ] {
+        let (status, _, message) = call(&backend, "PUT", "/settings", patch.clone());
+        assert_eq!(status, 400, "{patch}");
+        assert!(message.starts_with(expected), "{patch} → {message}");
+    }
+    assert_eq!(saved_settings(&dir)["discord"]["clientId"], "123456789012345678");
+
+    // Oublier l’identifiant : plus configuré.
+    let (_, settings, _) = call(&backend, "PUT", "/settings", json!({"discord": {"clientId": null}}));
+    assert_eq!(settings["discord"]["clientId"], Value::Null);
+    assert_eq!(call(&backend, "GET", "/presence", Value::Null).1["configured"], false);
 }
 
 #[test]
@@ -432,6 +514,8 @@ fn legacy_behaviour_on_other_methods_is_unchanged() {
         ("PUT", "/libraries"),
         ("GET", "/libraries/vanilla/reindex"),
         ("PUT", "/libraries/vanilla"),
+        ("POST", "/presence"),
+        ("DELETE", "/presence"),
     ] {
         let (status, _, message) = call(&backend, method, path, Value::Null);
         assert_eq!((status, message), (404, format!("Route inconnue : {method} {path}")));

@@ -4,7 +4,9 @@
 //! | Route | Rôle |
 //! |---|---|
 //! | `GET /app` | `{ name, version, mode, settingsPath, platform, overrides, firstLaunch }` ; `firstLaunch` vaut `true` si le fichier de réglages n’existait pas au démarrage du backend |
-//! | `GET /settings`, `PUT /settings` | réglages (document partiel accepté, validé, appliqué aussitôt) |
+//! | `GET /settings`, `PUT /settings` | réglages (document partiel accepté, validé, appliqué aussitôt, présence Discord comprise) |
+//! | `PUT /presence` | `{ details, state?, genericDetails? }` : activité Discord (textes ajustés à 2–128 caractères) → 204, retenue même hors connexion |
+//! | `GET /presence` | `{ enabled, configured, connected, error }` : état de la Rich Presence Discord |
 //! | `GET /workspaces` | espaces connus, avec résumé (menus, assets, textures, existence) |
 //! | `POST /workspaces/open` | `{ path, name? }` : ouvre (et ajoute) un espace, qui devient actif |
 //! | `DELETE /workspaces` | `{ path }` : retire de la liste, **ne supprime aucun fichier** |
@@ -24,6 +26,7 @@ use crate::error::{fs_error, HttpError};
 use crate::js::{parse_lossy, stringify};
 use crate::libraries::Libraries;
 use crate::paths::decode_component;
+use crate::presence::Activity;
 use crate::settings::{
     absolute_path, apply_patch, existing_dir, iso_utc, library_value, parse_library, same_path,
     write_atomic, KnownWorkspace, Settings,
@@ -77,6 +80,12 @@ impl Backend {
             ("/app", "GET") => self.app_info(),
             ("/settings", "GET") => json(&self.read_state().effective_settings().to_value()),
             ("/settings", "PUT") => self.put_settings(&request.body)?,
+            ("/presence", "GET") => json(&self.presence.status().to_value()),
+            ("/presence", "PUT") => {
+                let activity = Activity::from_map(&body_object(&request.body)?).map_err(bad_request)?;
+                self.presence.set_activity(activity);
+                Response::no_content()
+            }
             ("/workspaces", "GET") => self.list_workspaces(),
             ("/workspaces", "DELETE") => self.forget_workspace(&request.body)?,
             ("/workspaces/open", "POST") => self.open_workspace(&request.body)?,
@@ -164,6 +173,9 @@ impl Backend {
             next.touch_workspace(&active, None);
         }
         self.commit(&mut state, next)?;
+        if patch.contains_key("discord") {
+            self.presence.configure(state.settings.discord.clone());
+        }
         if libraries_changed {
             self.swap_libraries(&mut state);
         }

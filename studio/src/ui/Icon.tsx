@@ -80,6 +80,26 @@ const Cursor = pixelIcon([
 /** Moins : la barre horizontale de « plus » (zoom arrière ; absent de pixelarticons). */
 const Minus = pixelIcon([[4, 11, 16, 2]]);
 
+/** Agrandir la fenêtre : un carré vide. */
+const WindowMaximize = pixelIcon([
+  [5, 5, 14, 2],
+  [5, 17, 14, 2],
+  [5, 7, 2, 10],
+  [17, 7, 2, 10],
+]);
+
+/** Restaurer la fenêtre : deux carrés décalés. */
+const WindowRestore = pixelIcon([
+  [4, 9, 11, 2],
+  [4, 18, 11, 2],
+  [4, 11, 2, 7],
+  [13, 11, 2, 7],
+  [8, 5, 11, 2],
+  [17, 7, 2, 9],
+  [8, 7, 2, 2],
+  [15, 14, 2, 2],
+]);
+
 /** Coffre : couvercle, corps et loquet (pour le mode Menus). */
 const Chest = pixelIcon([
   [4, 4, 16, 2],
@@ -139,6 +159,8 @@ const ICONS = {
   undo: Undo,
   upload: Upload,
   warning: WarningDiamond,
+  'window-maximize': WindowMaximize,
+  'window-restore': WindowRestore,
 } satisfies Record<string, IconComponent>;
 
 export type IconName = keyof typeof ICONS;
