@@ -6,10 +6,14 @@ import { MenuCanvas } from './components/MenuCanvas';
 import type { BackgroundMode, CanvasTool } from './components/MenuCanvas';
 import { NewMenuDialog } from './components/NewMenuDialog';
 import type { NewMenuInput } from './components/NewMenuDialog';
+import { LibraryPanel } from './components/LibraryPanel';
 import { OutlinePanel } from './components/OutlinePanel';
 import { PreviewPanel } from './components/PreviewPanel';
 import { fetchWorkspace, saveMenu, uploadTexture } from './lib/api';
 import type { WorkspaceSnapshot } from './lib/api';
+import { importFromLibrary } from './lib/libraryApi';
+import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from './lib/libraryApi';
+import { buildMenuFromFont } from './lib/libraryImport';
 import { useTextures } from './lib/textures';
 import { composeTitle } from './model/compose';
 import { GENERATOR_PRESETS, canvasToBlob, renderGenerator } from './model/generator';
@@ -78,6 +82,7 @@ export default function App() {
   const [showSlots, setShowSlots] = useState(true);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [status, setStatus] = useState('');
+  const [leftTab, setLeftTab] = useState<'outline' | 'library'>('outline');
 
   const menu = editor.menu;
   const dirty = menu !== null && JSON.stringify(menu) !== editor.savedJson;
@@ -313,6 +318,36 @@ export default function App() {
     setStatus(`Menu « ${id} » créé`);
   };
 
+  const handleLibraryLayer = async (source: LibrarySourceInfo, texture: LibraryTexture, top: number | null) => {
+    if (!menu) return;
+    const imported = await importFromLibrary(source.id, texture.path);
+    bumpTextures([imported]);
+    const base = sanitizeId(texture.path.split('/').pop()?.replace(/\.png$/i, '') ?? 'layer');
+    const id = uniqueId(base, menu.layers.map((layer) => layer.id));
+    change((draft) => {
+      draft.layers.push({ id, texture: imported, x: 0, y: top ?? 0 });
+    });
+    select({ kind: 'layer', id });
+    setStatus(`Couche « ${id} » ajoutée depuis ${source.name}`);
+    void refreshWorkspace();
+  };
+
+  const handleImportFont = async (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => {
+    if (workspace?.menus.some((candidate) => candidate.id === menuId)) {
+      throw new Error(`Un menu « ${menuId} » existe déjà`);
+    }
+    if (!confirmDiscard()) return;
+    const { menu: created, warnings } = await buildMenuFromFont(source, index, fontId, menuId, fontId);
+    await saveMenu(created);
+    bumpTextures(created.layers.map((layer) => layer.texture));
+    await refreshWorkspace();
+    dispatch({ type: 'load', menu: created });
+    setPreview(DEFAULT_PREVIEW);
+    setLeftTab('outline');
+    const notes = warnings.length > 0 ? ` · ${warnings.length} avertissement(s), dont : ${warnings[0]}` : '';
+    setStatus(`Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
+  };
+
   const generatorInitial = ((): GeneratorResult | null => {
     if (dialog?.kind !== 'generator' || !menu) return null;
     if (dialog.mode === 'edit') {
@@ -406,7 +441,31 @@ export default function App() {
 
       <main className="workspace">
         <aside className="sidebar">
-          {resolved && context && (
+          <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leftTab === 'outline'}
+              className={leftTab === 'outline' ? 'active' : ''}
+              onClick={() => setLeftTab('outline')}
+            >
+              Éléments
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leftTab === 'library'}
+              className={leftTab === 'library' ? 'active' : ''}
+              onClick={() => setLeftTab('library')}
+            >
+              Bibliothèque
+            </button>
+          </div>
+          {/* Les deux onglets restent montés : la bibliothèque garde ses filtres et son index. */}
+          <div hidden={leftTab !== 'library'}>
+            <LibraryPanel canAddLayer={menu !== null} onAddLayer={handleLibraryLayer} onImportFont={handleImportFont} />
+          </div>
+          {leftTab === 'outline' && resolved && context && (
             <OutlinePanel
               menu={resolved.menu}
               inherited={resolved.inherited}

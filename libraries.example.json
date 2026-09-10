@@ -1,0 +1,14 @@
+[
+  {
+    "id": "mon_pack",
+    "name": "Pack de mon serveur",
+    "root": "../chemin/vers/un/resource-pack-extrait",
+    "ownership": "own"
+  },
+  {
+    "id": "reference",
+    "name": "Pack de référence (tiers)",
+    "root": "C:/chemin/absolu/vers/un/autre-pack",
+    "ownership": "third-party"
+  }
+]

@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
+import { loadLibrarySources } from './server/libraries.ts'
 import { workspacePlugin } from './server/workspace.ts'
 
 const studioDir = path.dirname(fileURLToPath(import.meta.url))
@@ -13,7 +14,20 @@ const workspaceRoot = path.resolve(
 )
 const templatesRoot = path.join(studioDir, '../templates')
 
-export default defineConfig({
-  plugins: [react(), workspacePlugin({ workspaceRoot, templatesRoot })],
+// Bibliothèques d'assets : fichier local non versionné (voir libraries.example.json).
+const librariesFile = path.resolve(
+  process.env.MENU_FORGE_LIBRARIES ?? path.join(studioDir, '../libraries.local.json'),
+)
+
+export default defineConfig(async () => ({
+  plugins: [
+    react(),
+    workspacePlugin({
+      workspaceRoot,
+      templatesRoot,
+      libraries: await loadLibrarySources(librariesFile),
+      cacheDir: path.join(studioDir, '.cache'),
+    }),
+  ],
   server: { host: 'localhost' },
-})
+}))

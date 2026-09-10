@@ -139,7 +139,11 @@ font 5 px + 1).
 
 **Validé en jeu** pour `C a l i b r t o n x 1 6 8` : « Calibration » démarre à
 x = 8, « x168 » aligné à droite sur 168 finit à 167, « 88 » centré sur 88
-occupe 82 à 93. Les autres caractères de la table restent à confirmer.
+occupe 82 à 93. La **table complète** est aussi validée hors jeu : les avances
+des 95 caractères ASCII imprimables, recalculées depuis le vrai `ascii.png`
+(Minecraft 1.21.5) avec la règle du jeu (dernière colonne opaque + 1, puis + 1
+d’espacement), sont identiques à celles du studio et de la lib. Les accents
+courants (`é è à ç É`) avancent de 6, `€` de 7.
 
 ## 6. Pièges connus
 

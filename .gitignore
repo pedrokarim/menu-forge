@@ -6,6 +6,17 @@ build/
 out/
 *.class
 
+# Bibliothèques d’assets locales (chemins propres à la machine, packs tiers)
+libraries.local.json
+# Caches du studio (index des bibliothèques)
+.cache/
+
+# Contenu de l’espace de travail d’exemple : bac à sable, peut contenir des
+# textures importées depuis des packs tiers.
+examples/menus/
+examples/assets/
+examples/textures/
+
 # Environnement
 .env
 .env.*

@@ -1,9 +1,11 @@
+import type { AssetDefinition } from '../asset/model';
 import type { MenuDefinition } from '../model/menu';
 
 /** Contenu de l’espace de travail renvoyé par le serveur local. */
 export interface WorkspaceSnapshot {
   root: string;
   menus: MenuDefinition[];
+  assets: AssetDefinition[];
   templates: MenuDefinition[];
   textures: string[];
 }
@@ -31,6 +33,14 @@ export function saveMenu(menu: MenuDefinition): Promise<void> {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(menu, null, 2),
+  });
+}
+
+export function saveAsset(asset: AssetDefinition): Promise<void> {
+  return request<void>(`/api/assets/${encodeURIComponent(asset.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(asset, null, 2),
   });
 }
 
