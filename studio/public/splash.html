@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>menu-forge</title>
+<style>
+/* Écran de démarrage de menu-forge : autonome (aucune dépendance à l’appli),
+   chargé dans une petite fenêtre portrait sans bordure par Tauri. */
+@font-face {
+  font-family: 'Pixelify Sans';
+  font-weight: 400;
+  src: url('fonts/pixelify-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Pixelify Sans';
+  font-weight: 600;
+  src: url('fonts/pixelify-sans-600.woff2') format('woff2');
+}
+:root {
+  --slate: #1b1c21;
+  --panel: #26272e;
+  --outline: #0b0b0e;
+  --light: #44454f;
+  --dark: #1f2026;
+  --ink: #e6e3ec;
+  --muted: #9a97a6;
+  --gold: #f2c94c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--outline);
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+  color: var(--ink);
+  user-select: none;
+  cursor: default;
+}
+/* La fenêtre elle-même est le cadre biseauté. */
+.frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto auto auto auto;
+  justify-items: center;
+  gap: 10px;
+  padding: 26px 22px 18px;
+  background-color: var(--panel);
+  background-image: conic-gradient(#28292f 0 25%, #25262c 0 50%, #28292f 0 75%, #25262c 0);
+  background-size: 12px 12px;
+  border: 3px solid var(--outline);
+  box-shadow: inset 3px 3px 0 var(--light), inset -3px -3px 0 var(--dark);
+}
+.frame.shake { animation: shake 90ms steps(2) 1; }
+@keyframes shake {
+  0% { transform: translate(1px, 0); }
+  50% { transform: translate(-1px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+#scene {
+  align-self: end;
+  width: 240px;
+  height: 250px;
+  image-rendering: pixelated;
+}
+.wordmark {
+  margin: 0;
+  font-weight: 600;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-shadow: 3px 3px 0 var(--outline);
+}
+.wordmark span { color: var(--gold); }
+.tagline { margin: -4px 0 2px; font-size: 13px; color: var(--muted); }
+/* Barre d’action : la barre de chargement, en cases d’inventaire. */
+.hotbar {
+  display: grid;
+  grid-template-columns: repeat(9, 26px);
+  gap: 2px;
+  padding: 3px;
+  background: var(--outline);
+}
+.slot {
+  width: 26px;
+  height: 26px;
+  background: #8b8b8b;
+  box-shadow: inset 2px 2px 0 #373737, inset -2px -2px 0 #ffffff;
+  display: grid;
+  place-items: center;
+}
+.slot canvas { width: 16px; height: 16px; image-rendering: pixelated; }
+.slot.pop canvas { animation: pop 180ms steps(3) 1; }
+@keyframes pop {
+  0% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.status {
+  min-height: 1.3em;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: center;
+}
+.status::after { content: '▌'; color: var(--gold); animation: blink 800ms steps(1) infinite; margin-left: 2px; }
+@keyframes blink { 50% { opacity: 0; } }
+.version {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .frame.shake, .slot.pop canvas { animation: none; }
+}
+</style>
+</head>
+<body>
+<main class="frame" id="frame">
+  <canvas id="scene" width="48" height="50" aria-hidden="true"></canvas>
+  <h1 class="wordmark">menu<span>-forge</span></h1>
+  <p class="tagline">l’atelier des interfaces Minecraft</p>
+  <div class="hotbar" id="hotbar" aria-hidden="true"></div>
+  <div class="status" id="status" role="status">Chauffe de la forge…</div>
+  <div class="version">v0.1 · Deepslate</div>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  // --- Palette et sprites (mêmes que scripts/brand.py) ------------------------
+  const PALETTE = {
+    k: '#0b0b0e', h: '#5c5d68', i: '#3c3d46', s: '#22232a',
+    y: '#ffe691', g: '#f2c94c', G: '#8f6c14', d: '#1b1c21', w: '#ffffff',
+    b: '#7a5430', B: '#4a3018',
+  };
+  const ANVIL = [
+    '..kkkkkkkkkkkkkkkkk.',
+    'kkhhhhhhhhhhhhhhhhhk',
+    '.kkiiiiiiiiiiiiiiisk',
+    '...kkkiiiiiiiiiissk.',
+    '......kiiiiiiissk...',
+    '......kiiiiiiissk...',
+    '....kkiiiiiiiiisskk.',
+    '...khhhhhhhhhhhhhssk',
+    '...kkkkkkkkkkkkkkkkk',
+  ];
+  const CELL = [
+    'kkkkkkkkkk',
+    'kyyyyyyyyk',
+    'kyddddddGk',
+    'kyddggddGk',
+    'kydgwwgdGk',
+    'kydgwwgdGk',
+    'kyddggddGk',
+    'kyddddddGk',
+    'kGGGGGGGGk',
+    'kkkkkkkkkk',
+  ];
+  // Marteau de forge, vu de face : il tombe droit sur la case (reste sur la grille).
+  const HAMMER = [
+    '....kk....',
+    '...kbbk...',
+    '...kbBk...',
+    '...kbBk...',
+    '...kbBk...',
+    '...kbBk...',
+    '...kbBk...',
+    'kkkkkkkkkk',
+    'khhhhhhhhk',
+    'kiiiiiiisk',
+    'kssssssssk',
+    'kkkkkkkkkk',
+  ];
+  // Objets qui remplissent la barre d’action (8 × 8).
+  const ITEMS = [
+    { p: { o: '#0e4f4d', w: '#d8fffd', c: '#5de6e0', d: '#1e9e9a' },
+      m: ['..oooo..', '.owccdo.', 'owccccdo', 'occccddo', '.occcdo.', '..ocdo..', '...oo...', '........'] },
+    { p: { o: '#0b3d20', l: '#b6ffc9', g: '#41d47a', d: '#1a8a45' },
+      m: ['...oo...', '..olgo..', '.olggdo.', '.oggggo.', '.oggddo.', '.oggddo.', '..oddo..', '...oo...'] },
+    { p: { o: '#5c4210', y: '#f2c94c', f: '#f7f0d8', k: '#3b2a17' },
+      m: ['..oooo..', '.oyyyyo.', 'oyffffyo', 'oyfkffyo', 'oyfkkfyo', 'oyffffyo', '.oyyyyo.', '..oooo..'] },
+    { p: { o: '#3a1410', t: '#c44a3a', r: '#8e2b2b', p: '#e8dcc0', y: '#e2b84a' },
+      m: ['.oooooo.', 'otttttpo', 'otrrrrpo', 'otryyrpo', 'otrrrrpo', 'otttttpo', 'orrrrrpo', '.oooooo.'] },
+    { p: { o: '#1b2328', s: '#e3edf2', d: '#8aa1ad', h: '#7a5430' },
+      m: ['.....oso', '....osdo', '...osdo.', 'o.osdo..', '.oodo...', '..ho....', '.h.oo...', 'h.......'] },
+    { p: { a: '#3b2410', b: '#4f3219', s: '#c69c7c', d: '#a0775a', w: '#f4f4f4', e: '#3f3aa0', m: '#6f3f2a' },
+      m: ['aaaaaaaa', 'abaaaaba', 'assssssa', 'ssssssss', 'swessews', 'sssddsss', 'ssmmmmss', 'ssssssss'] },
+    { p: { o: '#11300e', l: '#b9f5a8', g: '#5fd35a', d: '#2f8a2c' },
+      m: ['...o....', '...oo...', 'oooolo..', 'ollllgo.', 'oggggddo', 'oooogdo.', '...odo..', '...oo...'] },
+    { p: { o: '#2a0f45', v: '#b98aff', l: '#e3d1ff', d: '#6a3cf2' },
+      m: ['...oo...', '..olvo..', '.olvvdo.', 'olvvvvdo', 'ovvvvddo', '.ovvddo.', '..oddo..', '...oo...'] },
+    { p: { o: '#4a1c00', r: '#ff9d3c', y: '#ffe27a', d: '#c2560f' },
+      m: ['...o....', '..oyo...', '..oyyo..', '.oyrryo.', '.orrrro.', 'orrddrro', 'ordddro.', '.oooooo.'] },
+  ];
+  const MESSAGES = [
+    'Chauffe de la forge…',
+    'Alignement des pixels au pixel près…',
+    'Recalage de l’ascent…',
+    'Négociation avec les glyphes…',
+    'Polissage des biseaux…',
+    'Comptage des cases d’inventaire…',
+    'Réveil des creepers… non, pardon.',
+    'Indexation des bibliothèques…',
+    'Le marteau tape, la case prend forme…',
+  ];
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const scene = document.getElementById('scene');
+  const ctx = scene.getContext('2d');
+  const frame = document.getElementById('frame');
+  const hotbar = document.getElementById('hotbar');
+  const status = document.getElementById('status');
+
+  function drawSprite(target, sprite, left, top, palette) {
+    const colors = palette || PALETTE;
+    sprite.forEach((line, row) => {
+      for (let col = 0; col < line.length; col++) {
+        const color = colors[line[col]];
+        if (color) {
+          target.fillStyle = color;
+          target.fillRect(left + col, top + row, 1, 1);
+        }
+      }
+    });
+  }
+
+  // --- Barre d’action ---------------------------------------------------------
+  const slots = Array.from({ length: 9 }, () => {
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    hotbar.appendChild(slot);
+    return slot;
+  });
+  let filled = 0;
+
+  function fillNextSlot() {
+    if (filled === slots.length) {
+      slots.forEach((slot) => slot.replaceChildren());
+      filled = 0;
+      return;
+    }
+    const icon = document.createElement('canvas');
+    icon.width = 8;
+    icon.height = 8;
+    const item = ITEMS[filled % ITEMS.length];
+    drawSprite(icon.getContext('2d'), item.m, 0, 0, item.p);
+    const slot = slots[filled];
+    slot.replaceChildren(icon);
+    slot.classList.remove('pop');
+    void slot.offsetWidth; // relance l’animation
+    slot.classList.add('pop');
+    filled += 1;
+  }
+
+  // --- Scène : enclume, case, marteau, étincelles -----------------------------
+  const ANVIL_X = 14, ANVIL_Y = 40;
+  const CELL_X = 19, CELL_Y = 30;
+  const HAMMER_X = 19;
+  const STRIKE_Y = CELL_Y - HAMMER.length;  // tête du marteau posée sur la case
+  const RAISED_Y = STRIKE_Y - 12;
+  const PERIOD = reduced ? 2200 : 1100;      // durée d’un coup de marteau (ms)
+  const FALL_START = 0.58, IMPACT = 0.7;
+
+  let sparks = [];
+  let flashUntil = 0;
+  let lastCycle = -1;
+
+  function spawnSparks(now) {
+    const colors = ['#ffffff', '#ffe691', '#f2c94c', '#ff9d3c'];
+    const count = reduced ? 5 : 14;
+    for (let n = 0; n < count; n++) {
+      const angle = Math.PI * (1.05 + Math.random() * 0.9);  // vers le haut, en éventail
+      const speed = 0.018 + Math.random() * 0.03;
+      sparks.push({
+        x: CELL_X + 5, y: CELL_Y,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        born: now, life: 380 + Math.random() * 380,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+  }
+
+  function hammerY(phase) {
+    if (phase < FALL_START) {
+      // levé, avec un léger balancement
+      return RAISED_Y + Math.round(Math.sin(phase * Math.PI * 2) * 1);
+    }
+    if (phase < IMPACT) {
+      const t = (phase - FALL_START) / (IMPACT - FALL_START);
+      return Math.round(RAISED_Y + (STRIKE_Y - RAISED_Y) * t * t);  // chute accélérée
+    }
+    const t = (phase - IMPACT) / (1 - IMPACT);
+    return Math.round(STRIKE_Y + (RAISED_Y - STRIKE_Y) * (1 - (1 - t) * (1 - t)));  // remontée
+  }
+
+  function render(now) {
+    const cycle = Math.floor(now / PERIOD);
+    const phase = (now % PERIOD) / PERIOD;
+
+    if (phase >= IMPACT && cycle !== lastCycle) {
+      lastCycle = cycle;
+      spawnSparks(now);
+      flashUntil = now + 130;
+      fillNextSlot();
+      if (!reduced) {
+        frame.classList.remove('shake');
+        void frame.offsetWidth;
+        frame.classList.add('shake');
+      }
+    }
+
+    ctx.clearRect(0, 0, scene.width, scene.height);
+    // Lueur de la forge sous l’enclume
+    ctx.fillStyle = 'rgba(255, 157, 60, 0.10)';
+    ctx.fillRect(ANVIL_X + 2, ANVIL_Y + 8, 16, 2);
+
+    drawSprite(ctx, ANVIL, ANVIL_X, ANVIL_Y);
+    const flashing = now < flashUntil;
+    drawSprite(ctx, CELL, CELL_X, CELL_Y, flashing
+      ? Object.assign({}, PALETTE, { d: '#f2c94c', g: '#ffffff', y: '#ffffff' })
+      : PALETTE);
+    drawSprite(ctx, HAMMER, HAMMER_X, hammerY(phase));
+
+    sparks = sparks.filter((spark) => now - spark.born < spark.life);
+    for (const spark of sparks) {
+      const age = now - spark.born;
+      const x = spark.x + spark.vx * age;
+      const y = spark.y + spark.vy * age + 0.00004 * age * age;  // gravité
+      ctx.globalAlpha = 1 - age / spark.life;
+      ctx.fillStyle = spark.color;
+      ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+
+  // --- Messages d’état --------------------------------------------------------
+  let message = 0;
+  setInterval(() => {
+    message = (message + 1) % MESSAGES.length;
+    status.textContent = MESSAGES[message];
+  }, reduced ? 2600 : 1500);
+})();
+</script>
+</body>
+</html>
