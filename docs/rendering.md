@@ -1,0 +1,143 @@
+# Modèle de rendu
+
+Comment une image dessinée dans le studio finit à l’écran du joueur. Tout ce qui
+suit a été **mesuré** sur un pack de référence (voir « Sources ») ; les points
+encore à confirmer en jeu sont marqués **[à calibrer]**.
+
+## 1. Le principe
+
+Un menu est un **coffre vanilla** (`generic_9xN`). Deux hacks de resource pack :
+
+1. `gui/container/generic_54.png` est remplacé par une image « cases seules » :
+   le cadre du coffre disparaît, seules les cellules des slots restent.
+2. Tout le visuel est dessiné dans le **titre** du coffre, avec des caractères
+   d’une police custom dont chaque caractère est une image (provider `bitmap`).
+
+Les slots restent de vrais slots : cliquables, capables d’afficher un item.
+Un bouton, c’est donc une image dans le titre **plus** un slot (souvent avec un
+item invisible) posé au même endroit.
+
+## 2. Système de coordonnées
+
+Le studio et le format travaillent en **coordonnées fenêtre**, en pixels GUI :
+
+- origine `(0, 0)` = coin haut-gauche de la fenêtre du coffre vanilla ;
+- largeur de la fenêtre : **176 px** ;
+- hauteur : `114 + 18 × lignes` (222 px pour 6 lignes).
+
+Grille des slots (coffre, `col` de 0 à 8, `row` de 0 à lignes − 1) :
+
+| Élément | x | y |
+|---|---|---|
+| Item du slot (16×16) | `8 + 18 × col` | `18 + 18 × row` |
+| Cellule (18×18) | `7 + 18 × col` | `17 + 18 × row` |
+| Inventaire joueur, ligne `r` (0 à 2) | `8 + 18 × col` | `31 + 18 × lignes + 18 × r` (139 pour 6 lignes) |
+| Barre d’action | `8 + 18 × col` | `89 + 18 × lignes` (197 pour 6 lignes) |
+
+(Valeurs de `ChestMenu` : `103 + 18 × (lignes − 4)` et `161 + 18 × (lignes − 4)`.)
+
+Le titre est dessiné en `(8, 6)`.
+
+## 3. D’une image à un glyphe
+
+### Vertical : `ascent`
+
+Pour un glyphe bitmap dont l’image fait `height` px de haut (échelle 1), le haut
+de l’image est dessiné à :
+
+```
+yHaut = titleY + 7 − ascent        (titleY = 6)
+```
+
+donc, pour poser le haut d’une image à la coordonnée fenêtre `y` :
+
+```
+ascent = 13 − y
+```
+
+Vérification sur le pack de référence : leurs toiles 256×256 ont `ascent: 19`, donc
+`yHaut = −6`. Leur barre de navigation occupe les lignes 21 à 40 de la toile,
+soit y = 15 à 34 dans la fenêtre : exactement la ligne 0 des slots (17 à 35).
+Leur panneau commence ligne 39 de la toile, soit y = 33 : juste sous la ligne 0.
+
+Contrainte de Minecraft : `ascent ≤ height`. **[à calibrer]** le cas des très
+grandes valeurs négatives.
+
+### Horizontal : l’avance
+
+Après un caractère bitmap, le curseur avance de :
+
+```
+avance = (dernière colonne non transparente) + 1 + 1
+```
+
+**Ce n’est pas la largeur du PNG.** Minecraft scanne l’image et s’arrête à la
+dernière colonne contenant un pixel d’alpha non nul. Une toile de 256 px dont le
+dessin s’arrête en colonne 175 avance de 177.
+
+Conséquence, le piège n° 1 : si deux couches n’ont pas la même dernière colonne,
+un recul fixe ne ramène pas le curseur au même point et tout ce qui suit est
+décalé.
+
+- **Pack de référence** : chaque couche est une toile 256×256 avec un **pixel témoin**
+  en colonne 175 (souvent en (175, 143), caché sous le cadre). Toutes les couches
+  avancent donc de 177, et un caractère d’espace d’avance −177 les sépare.
+- **menu-forge** : chaque couche est **recadrée** sur son contenu, et la lib
+  calcule l’avance réelle depuis les pixels au moment de générer la police.
+  Plus léger dans le pack, et aucun pixel témoin à cacher.
+
+### Composer un titre
+
+Pour chaque couche visible, dans l’ordre (la dernière est au-dessus) :
+
+```
+[espace : x − curseur] [glyphe de la couche] (curseur += avance)
+```
+
+puis on revient à l’origine. Les espaces sont des caractères d’un provider
+`space` générés à la demande (puissances de 2, positives et négatives), dans la
+même police que les couches.
+
+Le titre commence par un recul de −8 pour ramener le curseur de `x = 8` (position
+du titre) à `x = 0` (bord de la fenêtre).
+
+## 4. Une police par menu
+
+Chaque menu a sa police : `assets/<namespace>/font/menus/<id>.json`. Avantages :
+
+- les codepoints (`U+E000`, `U+E001`…) sont réutilisés d’un menu à l’autre
+  sans collision ;
+- les couches partagées (barre de navigation, textes) sont incluses par un
+  provider `{"type": "reference", "id": "…"}`.
+
+Le titre est un composant JSON avec `"font": "<namespace>:menus/<id>"`. Il ne
+peut **pas** passer par une chaîne legacy (`§`), qui ne porte pas de police.
+
+## 5. Texte dynamique
+
+Pour écrire « 3/46 » à une hauteur donnée, on génère une copie de la police
+ASCII vanilla avec l’`ascent` voulu (`minecraft:font/ascii.png`, `height: 8`),
+une police par hauteur utilisée. C’est ce que fait le pack de référence (`ascent: -11`,
+`-64`…).
+
+Pour centrer ou aligner à droite, la lib a besoin de la largeur de chaque
+caractère : table des avances de la police vanilla (la plupart des caractères
+font 5 px + 1).
+
+## 6. Pièges connus
+
+- **Avance** : voir plus haut. Toujours la calculer depuis les pixels.
+- **`generic_54.png` est global** : tous les coffres du serveur perdent leur
+  cadre. À assumer, ou à contourner. **[à étudier]**
+- **Ordre de rendu** : le titre est dessiné par-dessus le fond ; savoir s’il
+  passe au-dessus ou en dessous des items dépend de la version. **[à calibrer]**
+  en 1.21.x.
+- **Pack périmé** : toujours vérifier que le client a reçu la dernière version
+  du pack avant d’analyser un décalage.
+
+## Sources
+
+- Pack de référence étudié localement : (dossier local, hors du dépôt)
+  (polices `font/menus/**`, textures `textures/custom_ui/menus/**`).
+- Mesures des avances : dernière colonne opaque = 175 sur 14 couches examinées
+  (navigation, pages, filtres, fonds, modale).

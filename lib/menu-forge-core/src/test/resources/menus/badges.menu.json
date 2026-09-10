@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "badges",
+  "name": "Succès",
+  "extends": ["navigation"],
+  "container": { "type": "chest", "rows": 6 },
+
+  "state": {
+    "tab": { "type": "enum", "values": ["progress", "discovery", "challenge"], "default": "progress" },
+    "page": { "type": "page", "list": "badges" }
+  },
+
+  "layers": [
+    { "id": "background", "texture": "badges/background.png", "x": 0, "y": 33 },
+    {
+      "id": "tab_progress_on", "texture": "badges/tab_on.png", "x": 7, "y": 38,
+      "visibleWhen": { "state": "tab", "is": "progress" }
+    },
+    {
+      "id": "next_page_on", "texture": "common/next_page_on.png", "x": 98, "y": 111,
+      "visibleWhen": { "flag": "page.hasNext" }
+    }
+  ],
+
+  "texts": [
+    {
+      "id": "page_label", "x": 88, "y": 116, "align": "center",
+      "color": "#404040", "value": "{page.number}/{page.count}"
+    }
+  ],
+
+  "slots": [
+    {
+      "id": "tab_progress", "kind": "button", "area": { "col": 0, "row": 1 },
+      "item": { "invisible": true, "name": "<green>Progression" },
+      "onClick": [{ "type": "setState", "state": "tab", "value": "progress" }]
+    },
+    {
+      "id": "grid", "kind": "list", "list": "badges",
+      "area": { "col": 2, "row": 2, "width": 6, "height": 3 }
+    },
+    {
+      "id": "next", "kind": "button", "area": { "col": 6, "row": 5 },
+      "item": { "invisible": true, "name": "<gray>Page suivante" },
+      "enabledWhen": { "flag": "page.hasNext" },
+      "onClick": [{ "type": "nextPage", "list": "badges" }]
+    }
+  ]
+}

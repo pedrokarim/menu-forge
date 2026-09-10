@@ -1,0 +1,47 @@
+import type { MenuDefinition } from '../model/menu';
+
+/** Contenu de l’espace de travail renvoyé par le serveur local. */
+export interface WorkspaceSnapshot {
+  root: string;
+  menus: MenuDefinition[];
+  templates: MenuDefinition[];
+  textures: string[];
+}
+
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Erreur ${response.status}`);
+  }
+  const isJson = response.headers.get('content-type')?.includes('application/json');
+  return (isJson ? await response.json() : undefined) as T;
+}
+
+function encodeTexturePath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
+export function fetchWorkspace(): Promise<WorkspaceSnapshot> {
+  return request<WorkspaceSnapshot>('/api/workspace');
+}
+
+export function saveMenu(menu: MenuDefinition): Promise<void> {
+  return request<void>(`/api/menus/${encodeURIComponent(menu.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(menu, null, 2),
+  });
+}
+
+export function uploadTexture(path: string, blob: Blob): Promise<void> {
+  return request<void>(`/api/textures/${encodeTexturePath(path)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'image/png' },
+    body: blob,
+  });
+}
+
+export function textureUrl(path: string, version: number): string {
+  return `/api/textures/${encodeTexturePath(path)}?v=${version}`;
+}

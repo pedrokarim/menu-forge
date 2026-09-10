@@ -1,0 +1,91 @@
+{
+  "formatVersion": 1,
+  "id": "paginated_list",
+  "name": "Liste paginée",
+  "container": { "type": "chest", "rows": 6 },
+  "state": {
+    "page": { "type": "page", "list": "items" }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "texture": "generated/paginated_list/background.png",
+      "x": 0,
+      "y": 0,
+      "generator": {
+        "style": "panel",
+        "width": 176,
+        "height": 127,
+        "color": "#c6c6c6",
+        "cells": [{ "col": 1, "row": 1, "width": 7, "height": 4 }]
+      }
+    },
+    {
+      "id": "prev_off",
+      "texture": "generated/paginated_list/prev_off.png",
+      "x": 26,
+      "y": 108,
+      "visibleWhen": { "not": { "flag": "page.hasPrev" } },
+      "generator": { "style": "button", "width": 16, "height": 16, "color": "#8a8a8a" }
+    },
+    {
+      "id": "prev_on",
+      "texture": "generated/paginated_list/prev_on.png",
+      "x": 26,
+      "y": 108,
+      "visibleWhen": { "flag": "page.hasPrev" },
+      "generator": { "style": "button", "width": 16, "height": 16, "color": "#52a535" }
+    },
+    {
+      "id": "next_off",
+      "texture": "generated/paginated_list/next_off.png",
+      "x": 134,
+      "y": 108,
+      "visibleWhen": { "not": { "flag": "page.hasNext" } },
+      "generator": { "style": "button", "width": 16, "height": 16, "color": "#8a8a8a" }
+    },
+    {
+      "id": "next_on",
+      "texture": "generated/paginated_list/next_on.png",
+      "x": 134,
+      "y": 108,
+      "visibleWhen": { "flag": "page.hasNext" },
+      "generator": { "style": "button", "width": 16, "height": 16, "color": "#52a535" }
+    }
+  ],
+  "texts": [
+    { "id": "title", "x": 8, "y": 6, "value": "Liste", "color": "#404040" },
+    {
+      "id": "page_label",
+      "x": 88,
+      "y": 112,
+      "align": "center",
+      "value": "{page.number}/{page.count}",
+      "color": "#404040"
+    }
+  ],
+  "slots": [
+    {
+      "id": "entries",
+      "kind": "list",
+      "list": "items",
+      "area": { "col": 1, "row": 1, "width": 7, "height": 4 }
+    },
+    {
+      "id": "prev",
+      "kind": "button",
+      "area": { "col": 1, "row": 5 },
+      "item": { "invisible": true, "name": "<gray>Page précédente" },
+      "enabledWhen": { "flag": "page.hasPrev" },
+      "onClick": [{ "type": "prevPage", "list": "items" }]
+    },
+    {
+      "id": "next",
+      "kind": "button",
+      "area": { "col": 7, "row": 5 },
+      "item": { "invisible": true, "name": "<gray>Page suivante" },
+      "enabledWhen": { "flag": "page.hasNext" },
+      "onClick": [{ "type": "nextPage", "list": "items" }]
+    }
+  ]
+}

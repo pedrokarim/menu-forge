@@ -1,0 +1,95 @@
+{
+  "formatVersion": 1,
+  "id": "navigation",
+  "name": "Barre d’onglets",
+  "template": true,
+  "container": { "type": "chest", "rows": 6 },
+  "state": {
+    "tab": { "type": "enum", "values": ["home", "profile", "badges", "shop"], "default": "home" }
+  },
+  "layers": [
+    {
+      "id": "tab_home",
+      "texture": "generated/navigation/tab_home.png",
+      "x": 7,
+      "y": 15,
+      "generator": { "style": "button", "width": 18, "height": 20, "color": "#9a9a9a" }
+    },
+    {
+      "id": "tab_profile",
+      "texture": "generated/navigation/tab_profile.png",
+      "x": 25,
+      "y": 15,
+      "generator": { "style": "button", "width": 18, "height": 20, "color": "#9a9a9a" }
+    },
+    {
+      "id": "tab_badges",
+      "texture": "generated/navigation/tab_badges.png",
+      "x": 43,
+      "y": 15,
+      "generator": { "style": "button", "width": 18, "height": 20, "color": "#9a9a9a" }
+    },
+    {
+      "id": "tab_shop",
+      "texture": "generated/navigation/tab_shop.png",
+      "x": 133,
+      "y": 15,
+      "generator": { "style": "button", "width": 36, "height": 20, "color": "#e0892b" }
+    },
+    {
+      "id": "tab_home_active",
+      "texture": "generated/navigation/tab_home_active.png",
+      "x": 7,
+      "y": 15,
+      "visibleWhen": { "state": "tab", "is": "home" },
+      "generator": { "style": "button", "width": 18, "height": 20, "color": "#52a535" }
+    },
+    {
+      "id": "tab_profile_active",
+      "texture": "generated/navigation/tab_profile_active.png",
+      "x": 25,
+      "y": 15,
+      "visibleWhen": { "state": "tab", "is": "profile" },
+      "generator": { "style": "button", "width": 18, "height": 20, "color": "#52a535" }
+    },
+    {
+      "id": "tab_badges_active",
+      "texture": "generated/navigation/tab_badges_active.png",
+      "x": 43,
+      "y": 15,
+      "visibleWhen": { "state": "tab", "is": "badges" },
+      "generator": { "style": "button", "width": 18, "height": 20, "color": "#52a535" }
+    }
+  ],
+  "texts": [],
+  "slots": [
+    {
+      "id": "tab_home",
+      "kind": "button",
+      "area": { "col": 0, "row": 0 },
+      "item": { "invisible": true, "name": "<white>Accueil" },
+      "onClick": [{ "type": "setState", "state": "tab", "value": "home" }]
+    },
+    {
+      "id": "tab_profile",
+      "kind": "button",
+      "area": { "col": 1, "row": 0 },
+      "item": { "invisible": true, "name": "<aqua>Profil" },
+      "onClick": [{ "type": "setState", "state": "tab", "value": "profile" }]
+    },
+    {
+      "id": "tab_badges",
+      "kind": "button",
+      "area": { "col": 2, "row": 0 },
+      "item": { "invisible": true, "name": "<yellow>Succès" },
+      "onClick": [{ "type": "setState", "state": "tab", "value": "badges" }]
+    },
+    {
+      "id": "tab_shop",
+      "kind": "button",
+      "area": { "col": 7, "row": 0, "width": 2 },
+      "item": { "invisible": true, "name": "<gold>Boutique" },
+      "onClick": [{ "type": "setState", "state": "tab", "value": "shop" }]
+    }
+  ]
+}

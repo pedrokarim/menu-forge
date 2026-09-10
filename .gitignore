@@ -1,0 +1,23 @@
+# Dépendances et builds
+node_modules/
+dist/
+build/
+.gradle/
+out/
+*.class
+
+# Environnement
+.env
+.env.*
+!.env.example
+
+# Éditeurs / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Journaux
+*.log
+npm-debug.log*

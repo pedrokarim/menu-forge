@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "id": "modal",
+  "name": "Modale",
+  "container": { "type": "chest", "rows": 6 },
+  "state": {},
+  "layers": [
+    {
+      "id": "veil",
+      "texture": "generated/modal/veil.png",
+      "x": 0,
+      "y": 0,
+      "generator": { "style": "veil", "width": 176, "height": 222, "color": "#00000088" }
+    },
+    {
+      "id": "panel",
+      "texture": "generated/modal/panel.png",
+      "x": 36,
+      "y": 14,
+      "generator": {
+        "style": "panel",
+        "width": 104,
+        "height": 84,
+        "color": "#c6c6c6",
+        "cells": [{ "col": 2, "row": 1, "width": 5, "height": 3 }]
+      }
+    },
+    {
+      "id": "close_button",
+      "texture": "generated/modal/close_button.png",
+      "x": 118,
+      "y": 19,
+      "generator": { "style": "button", "width": 14, "height": 14, "color": "#d04545" }
+    }
+  ],
+  "texts": [{ "id": "title", "x": 43, "y": 22, "value": "Titre", "color": "#404040" }],
+  "slots": [
+    {
+      "id": "close",
+      "kind": "button",
+      "area": { "col": 6, "row": 0 },
+      "item": { "invisible": true, "name": "<red>Fermer" },
+      "onClick": [{ "type": "back" }]
+    },
+    {
+      "id": "entries",
+      "kind": "list",
+      "list": "items",
+      "area": { "col": 2, "row": 1, "width": 5, "height": 3 }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "chest_panel",
+  "name": "Coffre classique",
+  "container": { "type": "chest", "rows": 6 },
+  "state": {},
+  "layers": [
+    {
+      "id": "background",
+      "texture": "generated/chest_panel/background.png",
+      "x": 0,
+      "y": 0,
+      "generator": {
+        "style": "panel",
+        "width": 176,
+        "height": 127,
+        "color": "#c6c6c6",
+        "cells": [{ "col": 0, "row": 0, "width": 9, "height": 6 }]
+      }
+    }
+  ],
+  "texts": [{ "id": "title", "x": 8, "y": 6, "value": "Mon menu", "color": "#404040" }],
+  "slots": []
+}
