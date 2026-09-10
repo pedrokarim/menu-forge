@@ -1,6 +1,6 @@
 /**
  * Client des bibliothèques d’assets (packs branchés en lecture seule).
- * Types en miroir de `server/libraries.ts`.
+ * Types en miroir des réponses du backend (`backend/src/libraries.rs`).
  */
 
 export type LibraryOwnership = 'own' | 'third-party';

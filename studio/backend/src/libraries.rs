@@ -1,5 +1,5 @@
 //! Bibliothèques d’assets : des resource packs extraits, branchés en lecture
-//! seule (voir `studio/server/libraries.ts`). Le studio y pioche des textures
+//! seule (portage de l’ancien `libraries.ts`). Le studio y pioche des textures
 //! (copiées dans l’espace de travail) et peut reconstruire un menu à partir
 //! d’une police du pack.
 
@@ -20,8 +20,8 @@ use crate::workspace::read_png;
 use crate::{Request, Response};
 
 /// À incrémenter quand la forme de l’index change (invalide les caches disque).
-/// Doit rester égal à `INDEX_VERSION` de `libraries.ts` : les deux backends
-/// partagent le même cache.
+/// Valeur reprise de l’ancien serveur TypeScript, dont les caches disque
+/// restent donc lisibles.
 pub const INDEX_VERSION: u32 = 1;
 
 /// Pack branché en lecture seule.

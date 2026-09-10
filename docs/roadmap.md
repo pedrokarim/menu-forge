@@ -67,7 +67,7 @@ devient une **application de bureau Tauri**.
 
 - **Gardé tel quel** : toute l’interface React (toile, inspecteur, gabarits,
   bibliothèque, moteur de texte Minecraft, mode libre).
-- **Réécrit en Rust** : le serveur local `studio/server/` (espace de travail,
+- **Réécrit en Rust** : le serveur local en TypeScript (espace de travail,
   menus, assets, textures, bibliothèques et leur index). Il sera exposé par un
   **protocole d’URL maison** qui reproduit les routes `/api/...` actuelles,
   pour que l’interface ne change presque pas.
@@ -102,12 +102,13 @@ Détails et commandes : [`../studio/README.md`](../studio/README.md).
   dossier, « montrer dans l’explorateur »), navigation bloquée hors de
   l’origine de l’interface, écran de démarrage puis fenêtre principale,
   installateur NSIS.
-- **Mode navigateur** conservé : `npm run dev` (serveur TS, par défaut) ou
-  `npm run dev:rust` (backend Rust derrière le proxy de Vite).
+- **Mode navigateur** conservé : `npm run dev` lance le backend Rust
+  (`studio-api`) derrière le proxy de Vite.
+- **Bascule faite** (2026-09-11) : l’ancien serveur TypeScript (plugin Vite)
+  est retiré, le backend Rust est le seul backend.
 
 Reste à faire : brancher les écrans (choix d’espace, sélecteur de dossier,
-réglages, récents) sur ces routes, puis retirer `studio/server/` après la
-bascule de `npm run dev` sur le backend Rust.
+réglages, récents) sur ces routes.
 
 ## Prochaines étapes
 

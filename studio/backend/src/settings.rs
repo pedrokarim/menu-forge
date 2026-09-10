@@ -14,10 +14,13 @@
 //!   "activeWorkspace": "C:\\…\\menu-forge",
 //!   "workspaces": [{ "path": "C:\\…\\menu-forge", "name": "menu-forge", "lastOpened": "2026-09-10T08:00:00.000Z" }],
 //!   "libraries": [{ "id": "vanilla", "name": "…", "root": "C:\\…", "ownership": "third-party" }],
-//!   "ui": { "defaultZoom": 3, "showGrid": true, "confirmations": { "delete": true, "discardChanges": true } },
+//!   "ui": { "defaultZoom": 0, "showGrid": true, "confirmations": { "delete": true, "discardChanges": true } },
 //!   "export": { "enderiumResources": null, "namespace": "menuforge", "packFormat": 46 }
 //! }
 //! ```
+//!
+//! `ui.defaultZoom` : entier de 0 à 12 ; 0 signifie « Ajuster » (le plus
+//! grand palier de zoom qui tient dans la toile), 1 à 12 un palier fixe.
 
 use std::fs;
 use std::io::{self, Write};
@@ -33,8 +36,9 @@ use crate::paths;
 
 /// Version du format de réglages.
 pub const SETTINGS_VERSION: u64 = 1;
-/// Zoom par défaut de la toile (niveaux proposés par le studio : 1 à 12).
-pub const DEFAULT_ZOOM: u64 = 3;
+/// Zoom par défaut de la toile : 0 = « Ajuster » (le plus grand palier qui
+/// tient), sinon un palier fixe de 1 à [`MAX_ZOOM`].
+pub const DEFAULT_ZOOM: u64 = 0;
 pub const MAX_ZOOM: u64 = 12;
 /// Espace de noms par défaut des polices générées (celui de la lib).
 pub const DEFAULT_NAMESPACE: &str = "menuforge";
@@ -413,7 +417,7 @@ pub fn apply_patch(base: &Settings, patch: &Value, check_paths: bool) -> Result<
         let ui = object(value, "ui")?;
         unknown_keys(ui, &["defaultZoom", "showGrid", "confirmations"], "ui.")?;
         if let Some(zoom) = ui.get("defaultZoom") {
-            next.ui.default_zoom = integer(zoom, "ui.defaultZoom", 1, MAX_ZOOM)?;
+            next.ui.default_zoom = integer(zoom, "ui.defaultZoom", 0, MAX_ZOOM)?;
         }
         if let Some(grid) = ui.get("showGrid") {
             next.ui.show_grid = boolean(grid, "ui.showGrid")?;
@@ -552,13 +556,22 @@ mod tests {
     }
 
     #[test]
+    fn default_zoom_accepts_fit() {
+        assert_eq!(DEFAULT_ZOOM, 0);
+        let fixed = apply_patch(&base(), &json!({"ui": {"defaultZoom": 12}}), false).unwrap();
+        assert_eq!(fixed.ui.default_zoom, 12);
+        let fit = apply_patch(&fixed, &json!({"ui": {"defaultZoom": 0}}), false).unwrap();
+        assert_eq!(fit.ui.default_zoom, 0);
+    }
+
+    #[test]
     fn strict_validation_in_french() {
         let cases = [
             (json!([]), "Les réglages doivent être un objet JSON"),
             (json!({"theme": 1}), "Réglage inconnu : « theme »"),
             (json!({"ui": {"zoom": 2}}), "Réglage inconnu : « ui.zoom »"),
-            (json!({"ui": {"defaultZoom": 0}}), "« ui.defaultZoom » doit être un entier entre 1 et 12"),
-            (json!({"ui": {"defaultZoom": 2.5}}), "« ui.defaultZoom » doit être un entier entre 1 et 12"),
+            (json!({"ui": {"defaultZoom": 13}}), "« ui.defaultZoom » doit être un entier entre 0 et 12"),
+            (json!({"ui": {"defaultZoom": 2.5}}), "« ui.defaultZoom » doit être un entier entre 0 et 12"),
             (json!({"ui": {"showGrid": "oui"}}), "« ui.showGrid » doit valoir true ou false"),
             (json!({"export": {"namespace": "Menu"}}), "« export.namespace » invalide"),
             (json!({"export": {"packFormat": -1}}), "« export.packFormat » doit être un entier entre 1 et 1000"),

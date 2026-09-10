@@ -2,9 +2,8 @@
 
 Éditeur local des menus : interface React (`src/`), backend Rust
 (`backend/`, crate `studio-backend`) et coquille de bureau Tauri 2
-(`src-tauri/`, crate `menu-forge`). L’ancien serveur TypeScript
-(`server/`, plugin Vite) reste le mode par défaut de `npm run dev` jusqu’à la
-bascule.
+(`src-tauri/`, crate `menu-forge`). Le backend Rust a remplacé l’ancien
+serveur TypeScript (plugin Vite), retiré après validation de la parité.
 
 Prérequis : Node 24, Rust stable (1.95 ou plus) et, sous Windows, WebView2
 (présent sur Windows 11).
@@ -17,12 +16,11 @@ npm install
 
 | Commande | Ce qui tourne |
 |---|---|
-| `npm run dev` | Vite sur `http://localhost:5173` avec le serveur TypeScript intégré (inchangé) |
-| `npm run dev:rust` | `studio-api` (backend Rust) sur `127.0.0.1:5174` **et** Vite sur 5173, qui « proxifie » `/api` vers lui |
+| `npm run dev` | `studio-api` (backend Rust) sur `127.0.0.1:5174` **et** Vite sur `http://localhost:5173`, qui « proxifie » `/api` vers lui |
+| `npm run dev:vite` | Vite seul (le proxy `/api` attend un backend sur 5174 : `npm run api`, ou l’appli Tauri) |
 | `npm run api` | `studio-api` seul (options : `npm run api -- --help`) |
 
-`npm run dev:rust` pose `MENU_FORGE_BACKEND=rust` : `vite.config.ts` remplace
-alors le plugin TypeScript par un proxy `/api` → `http://127.0.0.1:5174`.
+`vite.config.ts` « proxifie » toujours `/api` vers `http://127.0.0.1:5174`.
 
 En mode navigateur, les réglages sont dans `studio/.cache/settings.json`. Au
 premier lancement, l’espace de travail actif est `../examples` et les
@@ -38,7 +36,7 @@ pour les tests automatiques. `--settings <fichier>` choisit un autre fichier.
 npm run tauri:dev
 ```
 
-Tauri lance Vite (`npm run dev:tauri-vite`, backend Rust), compile la
+Tauri lance Vite seul (`npm run dev:vite`), compile la
 coquille et ouvre la fenêtre sur `http://localhost:5173`. Le backend tourne
 **dans le processus de l’appli**, sur le port 5174 : arrêtez d’abord tout
 `studio-api` ou `npm run dev` qui occuperait 5173 ou 5174.
@@ -73,7 +71,7 @@ réglages, puis celui du dépôt.
 
 ## API locale
 
-Routes historiques (identiques au serveur TypeScript) : `GET /api/workspace`,
+Routes historiques (identiques à l’ancien serveur TypeScript) : `GET /api/workspace`,
 `PUT /api/menus/:id`, `PUT /api/assets/:id`, `GET|PUT /api/textures/…`,
 `GET /api/libraries`, `GET /api/libraries/:id/index`,
 `GET /api/libraries/:id/raw/…`, `POST /api/libraries/:id/import`.
@@ -82,7 +80,7 @@ Routes de l’application :
 
 | Route | Rôle |
 |---|---|
-| `GET /api/app` | `{ name, version, mode: "browser" \| "tauri", settingsPath, platform, overrides }` |
+| `GET /api/app` | `{ name, version, mode: "browser" \| "tauri", settingsPath, platform, overrides, firstLaunch }` ; `firstLaunch` : le fichier de réglages n’existait pas au démarrage du backend |
 | `GET /api/settings` | réglages (voir ci-dessous) |
 | `PUT /api/settings` | document partiel, validé strictement, appliqué aussitôt ; renvoie les réglages |
 | `GET /api/workspaces` | `{ active, workspaces: [{ path, name, lastOpened, active, exists, menus, assets, textures }] }` |
@@ -101,10 +99,13 @@ Forme des réglages :
   "activeWorkspace": "C:\\Users\\…\\Documents\\menu-forge",
   "workspaces": [{ "path": "C:\\…\\menu-forge", "name": "menu-forge", "lastOpened": "2026-09-10T08:00:00.000Z" }],
   "libraries": [{ "id": "vanilla", "name": "Minecraft 1.21.5", "root": "C:\\…\\vanilla-1.21.5", "ownership": "third-party" }],
-  "ui": { "defaultZoom": 3, "showGrid": true, "confirmations": { "delete": true, "discardChanges": true } },
+  "ui": { "defaultZoom": 0, "showGrid": true, "confirmations": { "delete": true, "discardChanges": true } },
   "export": { "enderiumResources": null, "namespace": "menuforge", "packFormat": 46 }
 }
 ```
+
+`ui.defaultZoom` va de 0 à 12 : 0 (par défaut) signifie « Ajuster », le plus
+grand palier qui tient dans la toile.
 
 `PUT /api/settings` fusionne `ui`, `ui.confirmations` et `export` clé par clé ;
 `workspaces` et `libraries` sont remplacés en entier. Toute clé inconnue est

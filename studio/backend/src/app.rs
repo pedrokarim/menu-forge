@@ -3,7 +3,7 @@
 //!
 //! | Route | Rôle |
 //! |---|---|
-//! | `GET /app` | `{ name, version, mode, settingsPath, platform, overrides }` |
+//! | `GET /app` | `{ name, version, mode, settingsPath, platform, overrides, firstLaunch }` ; `firstLaunch` vaut `true` si le fichier de réglages n’existait pas au démarrage du backend |
 //! | `GET /settings`, `PUT /settings` | réglages (document partiel accepté, validé, appliqué aussitôt) |
 //! | `GET /workspaces` | espaces connus, avec résumé (menus, assets, textures, existence) |
 //! | `POST /workspaces/open` | `{ path, name? }` : ouvre (et ajoute) un espace, qui devient actif |
@@ -110,6 +110,7 @@ impl Backend {
         map.insert("settingsPath".into(), Value::String(self.settings_path.clone()));
         map.insert("platform".into(), Value::String(std::env::consts::OS.into()));
         map.insert("overrides".into(), Value::Array(overrides));
+        map.insert("firstLaunch".into(), Value::Bool(self.first_launch));
         json(&Value::Object(map))
     }
 

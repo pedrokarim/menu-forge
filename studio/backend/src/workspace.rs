@@ -1,5 +1,5 @@
 //! Routes de l’espace de travail : `/workspace`, `/menus/:id`, `/assets/:id`,
-//! `/textures/<chemin>` (voir `studio/server/workspace.ts`).
+//! `/textures/<chemin>` (portage de l’ancien `workspace.ts`).
 
 use std::fs;
 use std::path::Path;

@@ -1,8 +1,9 @@
 //! Backend local du studio menu-forge.
 //!
-//! Portage en Rust de `studio/server/*.ts` (plugin Vite), avec un
-//! comportement identique pour les routes historiques : mêmes codes HTTP,
-//! mêmes messages d’erreur, même JSON octet pour octet, même cache disque
+//! Portage en Rust de l’ancien serveur TypeScript (plugin Vite, retiré
+//! depuis), avec un comportement identique pour les routes historiques :
+//! mêmes codes HTTP, mêmes messages d’erreur, même JSON octet pour octet,
+//! même cache disque
 //! d’index. S’y ajoutent les routes de l’application (réglages, espaces de
 //! travail, documents récents, gestion des bibliothèques), voir [`app`].
 //!
@@ -206,6 +207,10 @@ pub struct Backend {
     settings_path: String,
     templates_root: String,
     library_cache_dir: String,
+    /// Le fichier de réglages n’existait pas au démarrage du backend (premier
+    /// lancement), exposé par `GET /app`. Un fichier invalide, mis de côté,
+    /// ne compte pas comme un premier lancement.
+    first_launch: bool,
     state: RwLock<Runtime>,
 }
 
@@ -214,7 +219,7 @@ impl Backend {
         let settings_path = paths::resolve(&[&config.settings_path]);
         let templates_root = paths::resolve(&[&config.templates_root]);
         let library_cache_dir = paths::join(&paths::resolve(&[&config.cache_dir]), "libraries");
-        let settings = Self::load_settings(&settings_path, &config);
+        let (settings, first_launch) = Self::load_settings(&settings_path, &config);
         let workspace_override = config.workspace_override.map(|path| paths::resolve(&[&path]));
         let active = workspace_override.clone().unwrap_or_else(|| settings.active_workspace.clone());
         let libraries = config.libraries_override.clone().unwrap_or_else(|| settings.libraries.clone());
@@ -231,13 +236,15 @@ impl Backend {
             settings_path,
             templates_root,
             library_cache_dir,
+            first_launch,
             state: RwLock::new(runtime),
         }
     }
 
     /// Relit les réglages ; au premier lancement (ou si le fichier est
-    /// invalide), part des valeurs par défaut et les enregistre.
-    fn load_settings(settings_path: &str, config: &BackendConfig) -> Settings {
+    /// invalide), part des valeurs par défaut et les enregistre. Le booléen
+    /// vaut `true` si le fichier n’existait pas (premier lancement).
+    fn load_settings(settings_path: &str, config: &BackendConfig) -> (Settings, bool) {
         let imported = || {
             config
                 .legacy_libraries_file
@@ -246,21 +253,21 @@ impl Backend {
                 .unwrap_or_default()
         };
         let defaults = Settings::first_launch(&config.default_workspace, Vec::new());
-        let settings = match settings::load(settings_path, &defaults) {
-            settings::Loaded::Existing(settings) => return settings,
-            settings::Loaded::Missing => Settings::first_launch(&config.default_workspace, imported()),
+        let (settings, first_launch) = match settings::load(settings_path, &defaults) {
+            settings::Loaded::Existing(settings) => return (settings, false),
+            settings::Loaded::Missing => (Settings::first_launch(&config.default_workspace, imported()), true),
             settings::Loaded::Invalid { reason, backup } => {
                 eprintln!(
                     "[menu-forge] réglages invalides ({reason}) ; valeurs par défaut utilisées{}",
                     backup.map(|file| format!(", ancien fichier mis de côté : {file}")).unwrap_or_default()
                 );
-                Settings::first_launch(&config.default_workspace, imported())
+                (Settings::first_launch(&config.default_workspace, imported()), false)
             }
         };
         if let Err(error) = settings::write_atomic(settings_path, settings.to_json().as_bytes()) {
             eprintln!("[menu-forge] réglages non enregistrés dans {settings_path} : {error}");
         }
-        settings
+        (settings, first_launch)
     }
 
     fn read_state(&self) -> RwLockReadGuard<'_, Runtime> {
@@ -292,6 +299,11 @@ impl Backend {
 
     pub fn mode(&self) -> AppMode {
         self.mode
+    }
+
+    /// Le fichier de réglages n’existait pas au démarrage (premier lancement).
+    pub fn first_launch(&self) -> bool {
+        self.first_launch
     }
 
     /// Traite une requête `/api/…` (voir [`Request::path`]). Ne panique pas sur

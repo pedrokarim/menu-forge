@@ -104,6 +104,8 @@ fn first_launch_imports_libraries_and_persists_atomically() {
     )
     .unwrap();
     let backend = Backend::new(config(&dir));
+    assert!(backend.first_launch());
+    assert_eq!(call(&backend, "GET", "/app", Value::Null).1["firstLaunch"], true);
 
     let (status, settings, _) = call(&backend, "GET", "/settings", Value::Null);
     assert_eq!(status, 200);
@@ -111,7 +113,7 @@ fn first_launch_imports_libraries_and_persists_atomically() {
     assert!(same(settings["activeWorkspace"].as_str().unwrap(), &dir.path("default")));
     assert_eq!(settings["libraries"].as_array().unwrap().len(), 1);
     assert!(same(settings["libraries"][0]["root"].as_str().unwrap(), &dir.path("packs").join("vanilla")));
-    assert_eq!(settings["ui"], json!({"defaultZoom": 3, "showGrid": true, "confirmations": {"delete": true, "discardChanges": true}}));
+    assert_eq!(settings["ui"], json!({"defaultZoom": 0, "showGrid": true, "confirmations": {"delete": true, "discardChanges": true}}));
     assert_eq!(settings["export"], json!({"enderiumResources": null, "namespace": "menuforge", "packFormat": 46}));
     assert_eq!(saved_settings(&dir), settings);
     // Écriture atomique : aucun fichier temporaire ne reste.
@@ -129,6 +131,8 @@ fn first_launch_imports_libraries_and_persists_atomically() {
     assert_eq!(app["platform"], std::env::consts::OS);
     assert!(same(app["settingsPath"].as_str().unwrap(), &dir.path("config").join("settings.json")));
     assert_eq!(app["overrides"], json!([]));
+    assert_eq!(app["firstLaunch"], false);
+    assert!(!backend.first_launch());
 }
 
 #[test]
@@ -137,7 +141,9 @@ fn invalid_settings_file_is_set_aside() {
     fs::create_dir_all(dir.path("config")).unwrap();
     fs::write(dir.path("config/settings.json"), r#"{"ui":{"defaultZoom":99}}"#).unwrap();
     let backend = Backend::new(config(&dir));
-    assert_eq!(call(&backend, "GET", "/settings", Value::Null).1["ui"]["defaultZoom"], 3);
+    assert_eq!(call(&backend, "GET", "/settings", Value::Null).1["ui"]["defaultZoom"], 0);
+    // Un fichier invalide existait : ce n’est pas un premier lancement.
+    assert_eq!(call(&backend, "GET", "/app", Value::Null).1["firstLaunch"], false);
     let names: Vec<String> = fs::read_dir(dir.path("config"))
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
@@ -158,7 +164,8 @@ fn put_settings_validates_and_applies() {
     assert_eq!(saved_settings(&dir)["ui"]["defaultZoom"], 5);
 
     let refused = [
-        (json!({"ui": {"defaultZoom": "grand"}}), "« ui.defaultZoom » doit être un entier entre 1 et 12"),
+        (json!({"ui": {"defaultZoom": "grand"}}), "« ui.defaultZoom » doit être un entier entre 0 et 12"),
+        (json!({"ui": {"defaultZoom": 13}}), "« ui.defaultZoom » doit être un entier entre 0 et 12"),
         (json!({"couleur": "bleu"}), "Réglage inconnu : « couleur »"),
         (json!(["x"]), "Le corps de la requête doit être un objet JSON"),
         (json!({"export": {"enderiumResources": dir.text("absent")}}), "« export.enderiumResources » : dossier introuvable"),

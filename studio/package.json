@@ -4,9 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:rust": "node scripts/dev-rust.mjs",
-    "dev:tauri-vite": "node scripts/dev-rust.mjs --vite-only",
+    "dev": "node scripts/dev-rust.mjs",
+    "dev:vite": "vite",
     "api": "cargo run --release --manifest-path backend/Cargo.toml --bin studio-api --",
     "build": "tsc -b && vite build",
     "lint": "oxlint",

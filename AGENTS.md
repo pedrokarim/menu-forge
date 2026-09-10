@@ -14,7 +14,7 @@ un **format pivot** lu par une **lib Paper** capable d’ouvrir ces menus en jeu
 | Dossier | Rôle |
 |---|---|
 | `docs/` | Spécification du format et modèle de rendu (source de vérité) |
-| `studio/` | Site local : Vite + React + TypeScript, avec un petit serveur Node |
+| `studio/` | Studio local : interface Vite + React + TypeScript, backend Rust, coquille Tauri |
 | `lib/` | Lib Java : noyau autonome (format, police, titre) + runtime Paper |
 | `templates/` | Gabarits fournis (coffre, modale, onglets, liste paginée…) |
 
