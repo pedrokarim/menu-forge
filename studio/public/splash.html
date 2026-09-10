@@ -19,42 +19,60 @@
 }
 :root {
   --slate: #1b1c21;
-  --panel: #26272e;
+  --panel: #2b2c34;
   --outline: #0b0b0e;
-  --light: #44454f;
+  --light: #4a4b56;
   --dark: #1f2026;
-  --ink: #e6e3ec;
-  --muted: #9a97a6;
+  --ink: #eeebf3;
+  --muted: #aaa7b6;
   --gold: #f2c94c;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
+/* Dans l’appli, la fenêtre fait exactement 320 × 440 et le cadre la remplit ;
+   dans un navigateur plus grand, le splash devient une carte centrée. */
 body {
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: var(--outline);
+  background: radial-gradient(circle at 50% 42%, #221f2b 0, #121117 45%, var(--outline) 80%);
   font-family: 'Pixelify Sans', 'Courier New', monospace;
   color: var(--ink);
   user-select: none;
   cursor: default;
 }
-/* La fenêtre elle-même est le cadre biseauté. */
 .frame {
   position: relative;
   width: 100%;
+  max-width: 320px;
   height: 100%;
-  display: grid;
-  grid-template-rows: 1fr auto auto auto auto;
-  justify-items: center;
+  max-height: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 26px 22px 18px;
+  padding: 20px 22px 16px;
   background-color: var(--panel);
-  background-image: conic-gradient(#28292f 0 25%, #25262c 0 50%, #28292f 0 75%, #25262c 0);
+  background-image: conic-gradient(#2e2f37 0 25%, #2a2b33 0 50%, #2e2f37 0 75%, #2a2b33 0);
   background-size: 12px 12px;
   border: 3px solid var(--outline);
-  box-shadow: inset 3px 3px 0 var(--light), inset -3px -3px 0 var(--dark);
+  box-shadow: inset 3px 3px 0 var(--light), inset -3px -3px 0 var(--dark), 0 0 60px rgba(242, 201, 76, 0.08);
+}
+/* Lueur de la forge derrière l’enclume, ravivée à chaque coup de marteau. */
+.forge {
+  --glow: 0.16;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.forge::before {
+  content: '';
+  position: absolute;
+  inset: -12% -30% -6%;
+  background: radial-gradient(ellipse 50% 42% at 50% 72%, rgba(255, 157, 60, var(--glow)) 0, rgba(242, 201, 76, calc(var(--glow) * 0.35)) 45%, transparent 75%);
+  pointer-events: none;
 }
 .frame.shake { animation: shake 90ms steps(2) 1; }
 @keyframes shake {
@@ -62,10 +80,11 @@ body {
   50% { transform: translate(-1px, 1px); }
   100% { transform: translate(0, 0); }
 }
+/* Échelle entière (×4) : pixels parfaitement nets. */
 #scene {
-  align-self: end;
-  width: 240px;
-  height: 250px;
+  position: relative;
+  width: 192px;
+  height: 200px;
   image-rendering: pixelated;
 }
 .wordmark {
@@ -120,7 +139,7 @@ body {
 </head>
 <body>
 <main class="frame" id="frame">
-  <canvas id="scene" width="48" height="50" aria-hidden="true"></canvas>
+  <div class="forge" id="forge"><canvas id="scene" width="48" height="50" aria-hidden="true"></canvas></div>
   <h1 class="wordmark">menu<span>-forge</span></h1>
   <p class="tagline">l’atelier des interfaces Minecraft</p>
   <div class="hotbar" id="hotbar" aria-hidden="true"></div>
@@ -160,21 +179,19 @@ body {
     'kGGGGGGGGk',
     'kkkkkkkkkk',
   ];
-  // Marteau de forge, vu de face : il tombe droit sur la case (reste sur la grille).
+  // Marteau vu de profil, manche à l’horizontale vers la gauche : la tête frappe
+  // avec sa face du bas. Il pivote autour de la main, au bout du manche.
   const HAMMER = [
-    '....kk....',
-    '...kbbk...',
-    '...kbBk...',
-    '...kbBk...',
-    '...kbBk...',
-    '...kbBk...',
-    '...kbBk...',
-    'kkkkkkkkkk',
-    'khhhhhhhhk',
-    'kiiiiiiisk',
-    'kssssssssk',
-    'kkkkkkkkkk',
+    'kkkkkk............',
+    'khhhhk............',
+    'khiiiskkkkkkkkkkkk',
+    'khiiisbbbbbbbbbbbk',
+    'khiiisBBBBBBBBBBBk',
+    'khiiiskkkkkkkkkkkk',
+    'kssssk............',
+    'kkkkkk............',
   ];
+  const GRIP = { x: 16, y: 4 };   // la main, dans le sprite du marteau
   // Objets qui remplissent la barre d’action (8 × 8).
   const ITEMS = [
     { p: { o: '#0e4f4d', w: '#d8fffd', c: '#5de6e0', d: '#1e9e9a' },
@@ -211,6 +228,7 @@ body {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const scene = document.getElementById('scene');
   const ctx = scene.getContext('2d');
+  ctx.imageSmoothingEnabled = false;  // rotation au plus proche voisin : on reste sur la grille
   const frame = document.getElementById('frame');
   const hotbar = document.getElementById('hotbar');
   const status = document.getElementById('status');
@@ -259,11 +277,23 @@ body {
   // --- Scène : enclume, case, marteau, étincelles -----------------------------
   const ANVIL_X = 14, ANVIL_Y = 40;
   const CELL_X = 19, CELL_Y = 30;
-  const HAMMER_X = 19;
-  const STRIKE_Y = CELL_Y - HAMMER.length;  // tête du marteau posée sur la case
-  const RAISED_Y = STRIKE_Y - 12;
+  // La main tient le marteau à droite de la case : à l’angle 0 (manche à
+  // l’horizontale), le bas de la tête touche pile le haut de la case.
+  const PIVOT = { x: 38, y: CELL_Y - (HAMMER.length - GRIP.y) };
   const PERIOD = reduced ? 2200 : 1100;      // durée d’un coup de marteau (ms)
-  const FALL_START = 0.58, IMPACT = 0.7;
+  const WINDUP_END = 0.45, FALL_START = 0.58, IMPACT = 0.7, CONTACT_END = 0.78;
+  const DEG = Math.PI / 180;
+  const REST = 18 * DEG, TOP = 96 * DEG, WINDUP = 104 * DEG;
+  const ANGLE_STEP = 7.5 * DEG;              // crans : mouvement « image par image »
+
+  const hammerSprite = document.createElement('canvas');
+  hammerSprite.width = HAMMER[0].length;
+  hammerSprite.height = HAMMER.length;
+  drawSprite(hammerSprite.getContext('2d'), HAMMER, 0, 0);
+
+  const forge = document.getElementById('forge');
+  const GLOW_REST = 0.16, GLOW_HIT = reduced ? 0.26 : 0.42;
+  let glow = GLOW_REST;
 
   let sparks = [];
   let flashUntil = 0;
@@ -284,17 +314,37 @@ body {
     }
   }
 
-  function hammerY(phase) {
-    if (phase < FALL_START) {
-      // levé, avec un léger balancement
-      return RAISED_Y + Math.round(Math.sin(phase * Math.PI * 2) * 1);
-    }
-    if (phase < IMPACT) {
+  const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+  /**
+   * Angle du marteau (radians, sens horaire ; 0 = manche horizontal, tête sur
+   * la case) : montée lente, élan au sommet, abattée accélérée, contact, rebond.
+   */
+  function hammerAngle(phase) {
+    let angle;
+    if (phase < WINDUP_END) {
+      angle = REST + (TOP - REST) * easeInOut(phase / WINDUP_END);
+    } else if (phase < FALL_START) {
+      angle = TOP + (WINDUP - TOP) * ((phase - WINDUP_END) / (FALL_START - WINDUP_END));
+    } else if (phase < IMPACT) {
       const t = (phase - FALL_START) / (IMPACT - FALL_START);
-      return Math.round(RAISED_Y + (STRIKE_Y - RAISED_Y) * t * t);  // chute accélérée
+      angle = WINDUP * (1 - t * t);
+    } else if (phase < CONTACT_END) {
+      angle = 0;
+    } else {
+      const t = (phase - CONTACT_END) / (1 - CONTACT_END);
+      angle = REST * (1 - (1 - t) * (1 - t));
     }
-    const t = (phase - IMPACT) / (1 - IMPACT);
-    return Math.round(STRIKE_Y + (RAISED_Y - STRIKE_Y) * (1 - (1 - t) * (1 - t)));  // remontée
+    return Math.round(angle / ANGLE_STEP) * ANGLE_STEP;
+  }
+
+  function drawHammer(angle, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(PIVOT.x, PIVOT.y);
+    ctx.rotate(angle);
+    ctx.drawImage(hammerSprite, -GRIP.x, -GRIP.y);
+    ctx.restore();
   }
 
   function render(now) {
@@ -305,6 +355,7 @@ body {
       lastCycle = cycle;
       spawnSparks(now);
       flashUntil = now + 130;
+      glow = GLOW_HIT;
       fillNextSlot();
       if (!reduced) {
         frame.classList.remove('shake');
@@ -312,6 +363,9 @@ body {
         frame.classList.add('shake');
       }
     }
+
+    glow = Math.max(GLOW_REST, glow * 0.95);
+    forge.style.setProperty('--glow', glow.toFixed(3));
 
     ctx.clearRect(0, 0, scene.width, scene.height);
     // Lueur de la forge sous l’enclume
@@ -323,7 +377,13 @@ body {
     drawSprite(ctx, CELL, CELL_X, CELL_Y, flashing
       ? Object.assign({}, PALETTE, { d: '#f2c94c', g: '#ffffff', y: '#ffffff' })
       : PALETTE);
-    drawSprite(ctx, HAMMER, HAMMER_X, hammerY(phase));
+    const angle = hammerAngle(phase);
+    if (!reduced && phase >= FALL_START && phase < IMPACT) {
+      // Traînée pendant l’abattée : deux positions précédentes, estompées.
+      drawHammer(angle + 2 * ANGLE_STEP, 0.14);
+      drawHammer(angle + ANGLE_STEP, 0.3);
+    }
+    drawHammer(angle, 1);
 
     sparks = sparks.filter((spark) => now - spark.born < spark.life);
     for (const spark of sparks) {
