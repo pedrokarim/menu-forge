@@ -146,9 +146,12 @@ occupe 82 à 93. Les autres caractères de la table restent à confirmer.
 - **Avance** : voir plus haut. Toujours la calculer depuis les pixels.
 - **`generic_54.png` est global** : tous les coffres du serveur perdent leur
   cadre. À assumer, ou à contourner. **[à étudier]**
-- **Ordre de rendu** : le titre est dessiné par-dessus le fond ; savoir s’il
-  passe au-dessus ou en dessous des items dépend de la version. **[à calibrer]**
-  en 1.21.x.
+- **Ordre de rendu** : le titre est dessiné par-dessus le fond du coffre, mais
+  **sous les items**. Validé en jeu (2026-09-10, Paper 1.20.6) : une pierre
+  posée sur un aplat du titre reste entière, l’aplat ne se voit que dans les
+  coins transparents de l’icône. Une couche peut donc peindre l’arrière-plan
+  d’un bouton sans masquer l’item du slot. À revérifier si l’on vise un jour
+  une version où le rendu des interfaces a changé (1.21.6 et suivantes).
 - **Pack périmé** : toujours vérifier que le client a reçu la dernière version
   du pack avant d’analyser un décalage.
 

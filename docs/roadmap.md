@@ -40,6 +40,8 @@
   vertical exact au pixel (formule de l’`ascent`, avances, recadrage),
   largeurs des caractères testés et alignements gauche / centre / droite
   (détails dans [`rendering.md`](rendering.md)).
+- **Ordre de rendu** : les items passent au-dessus des couches du titre
+  (test du slot (4, 0) du menu de calibration).
 - Chaîne complète sur le serveur de test : MenuForge génère ses polices, elles
   sont ajoutées au pack d’Enderium, envoyées au client et affichées.
 - API locale : lecture, écriture de menu et de texture, refus d’un non-PNG et
@@ -51,8 +53,6 @@
 
 - Les interactions à la souris dans un vrai navigateur : glisser une couche,
   dessiner une zone, générateur, création depuis un gabarit.
-- **Ordre de rendu titre / items** : le menu de calibration contient
-  maintenant un test dédié (slot (4, 0)), à relancer en jeu.
 - Largeurs des caractères non encore affichés en jeu (table ASCII complète).
 - Le plugin `MenuForge` n’a jamais tourné sur un serveur et n’a pas de tests
   automatisés.
