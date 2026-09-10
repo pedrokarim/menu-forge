@@ -38,6 +38,12 @@ Grille des slots (coffre, `col` de 0 à 8, `row` de 0 à lignes − 1) :
 
 Le titre est dessiné en `(8, 6)`.
 
+La fenêtre est centrée à l’écran : `leftPos = (largeurGUI − 176) / 2` et
+`topPos = (hauteurGUI − hauteurFenêtre) / 2` (divisions entières). Attention :
+Minecraft arrondit la taille de l’écran en pixels GUI **au supérieur**
+(1351 px / échelle 4 = 337,75 → **338**). À retenir pour mesurer une capture :
+une origine calculée avec l’arrondi inférieur donne un faux décalage d’1 px.
+
 ## 3. D’une image à un glyphe
 
 ### Vertical : `ascent`
@@ -59,6 +65,13 @@ Vérification sur le pack de référence : leurs toiles 256×256 ont `ascent: 19
 `yHaut = −6`. Leur barre de navigation occupe les lignes 21 à 40 de la toile,
 soit y = 15 à 34 dans la fenêtre : exactement la ligne 0 des slots (17 à 35).
 Leur panneau commence ligne 39 de la toile, soit y = 33 : juste sous la ligne 0.
+
+**Validé en jeu** (2026-09-10, Paper 1.20.6, client 2560×1351, interface ×4,
+menu `/menuforge calibrate`) : le cadre de calibration tombe en (0, 0)–(176,
+222), les cellules du coffre en (7, 17)–(169, 125), celles de l’inventaire à
+leur place, au pixel près. Référence indépendante : le gris des cases dessiné
+par le client (`generic_54.png`) commence exactement 1 px sous le trait de
+cellule tracé par le titre.
 
 Contrainte de Minecraft : `ascent ≤ height`. **[à calibrer]** le cas des très
 grandes valeurs négatives.
@@ -123,6 +136,10 @@ une police par hauteur utilisée. C’est ce que fait le pack de référence (`a
 Pour centrer ou aligner à droite, la lib a besoin de la largeur de chaque
 caractère : table des avances de la police vanilla (la plupart des caractères
 font 5 px + 1).
+
+**Validé en jeu** pour `C a l i b r t o n x 1 6 8` : « Calibration » démarre à
+x = 8, « x168 » aligné à droite sur 168 finit à 167, « 88 » centré sur 88
+occupe 82 à 93. Les autres caractères de la table restent à confirmer.
 
 ## 6. Pièges connus
 

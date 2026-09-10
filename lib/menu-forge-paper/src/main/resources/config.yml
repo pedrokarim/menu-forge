@@ -10,15 +10,17 @@
 namespace: menuforge
 
 pack:
-  # pack_format écrit dans pack/pack.mcmeta (46 = Minecraft 1.21.4).
-  format: 46
+  # pack_format écrit dans pack/pack.mcmeta : 32 = Minecraft 1.20.5/1.20.6,
+  # 34 = 1.21/1.21.1, 46 = 1.21.4.
+  format: 32
   # Écrire aussi plugins/MenuForge/pack.zip.
   zip: true
 
 # Item des boutons « invisibles » (le bouton est dessiné par une couche du titre).
 invisible-item:
   material: PAPER
-  # Modèle d'item (composant item_model, 1.21.4+), ex. "monserveur:empty". Vide = aucun.
+  # Modèle d'item (composant item_model), ex. "monserveur:empty". Vide = aucun.
+  # Ignoré avant Minecraft 1.21.4 : utiliser custom-model-data à la place.
   item-model: ""
   # CustomModelData utilisé si item-model est vide. 0 = aucun.
   custom-model-data: 0

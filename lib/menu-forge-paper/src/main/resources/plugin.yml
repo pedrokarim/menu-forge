@@ -1,7 +1,7 @@
 name: MenuForge
 version: '${version}'
 main: dev.menuforge.paper.MenuForgePlugin
-api-version: '1.21'
+api-version: '1.20'
 description: Menus Minecraft custom dessinés avec le studio menu-forge.
 commands:
   menuforge:

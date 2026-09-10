@@ -36,6 +36,12 @@
 
 - Studio : typecheck, build et lint sans avertissement.
 - Lib : `./gradlew build` réussi, 32 tests du noyau, 0 échec.
+- **Calibration en jeu** (2026-09-10, Paper 1.20.6) : placement horizontal et
+  vertical exact au pixel (formule de l’`ascent`, avances, recadrage),
+  largeurs des caractères testés et alignements gauche / centre / droite
+  (détails dans [`rendering.md`](rendering.md)).
+- Chaîne complète sur le serveur de test : MenuForge génère ses polices, elles
+  sont ajoutées au pack d’Enderium, envoyées au client et affichées.
 - API locale : lecture, écriture de menu et de texture, refus d’un non-PNG et
   d’un chemin qui sort de l’espace de travail (tests `curl`).
 - Interface : chargement d’un menu, rendu des couches, textes, zones et titre
@@ -45,8 +51,9 @@
 
 - Les interactions à la souris dans un vrai navigateur : glisser une couche,
   dessiner une zone, générateur, création depuis un gabarit.
-- **Tout le rendu en jeu** : formule de l’`ascent`, avance, ordre de rendu
-  titre / items, table des largeurs ASCII.
+- **Ordre de rendu titre / items** : le menu de calibration contient
+  maintenant un test dédié (slot (4, 0)), à relancer en jeu.
+- Largeurs des caractères non encore affichés en jeu (table ASCII complète).
 - Le plugin `MenuForge` n’a jamais tourné sur un serveur et n’a pas de tests
   automatisés.
 - La grille des caractères accentués d’`ascii.png` (lignes 0–1 et 8–15) est

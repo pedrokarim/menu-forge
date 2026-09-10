@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.lang.reflect.Method;
 import java.util.logging.Logger;
 
 /**
@@ -15,13 +16,16 @@ import java.util.logging.Logger;
  *
  * <ul>
  *   <li>item invisible : le matériau configuré (défaut {@code PAPER}), avec le
- *       modèle d’item ({@code item_model}) configuré, sinon le
- *       {@code CustomModelData} configuré, sinon tel quel ; son infobulle est
- *       masquée s’il n’a ni nom ni description ;</li>
+ *       modèle d’item ({@code item_model}) configuré s’il est pris en charge
+ *       (1.21.4+), sinon le {@code CustomModelData} configuré, sinon tel quel ;
+ *       son infobulle est masquée s’il n’a ni nom ni description ;</li>
  *   <li>{@code ref} : un matériau vanilla ({@code minecraft:stone}), sinon inconnu.</li>
  * </ul>
  */
 final class DefaultItemFactory implements ItemFactory {
+
+  /** {@code ItemMeta#setItemModel} n’existe qu’à partir de 1.21.4 : appel par réflexion. */
+  private static final Method SET_ITEM_MODEL = findSetItemModel();
 
   private final Material material;
   private final NamespacedKey itemModel;
@@ -46,6 +50,8 @@ final class DefaultItemFactory implements ItemFactory {
       model = MenuForgeService.parseKey(modelName);
       if (model == null) {
         logger.warning("invisible-item.item-model invalide (« " + modelName + " »), ignoré");
+      } else if (SET_ITEM_MODEL == null) {
+        logger.warning("invisible-item.item-model demande Minecraft 1.21.4+ ; ignoré, custom-model-data utilisé");
       }
     }
     return new DefaultItemFactory(material, model, config.getInt("invisible-item.custom-model-data", 0));
@@ -63,13 +69,32 @@ final class DefaultItemFactory implements ItemFactory {
     final ItemStack item = new ItemStack(material);
     final ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      if (itemModel != null) {
-        meta.setItemModel(itemModel);
-      } else if (customModelData != 0) {
+      if (!applyItemModel(meta) && customModelData != 0) {
         meta.setCustomModelData(customModelData);
       }
       item.setItemMeta(meta);
     }
     return item;
+  }
+
+  /** Applique le modèle d’item configuré ; {@code false} s’il n’y en a pas ou si la version ne le permet pas. */
+  private boolean applyItemModel(final ItemMeta meta) {
+    if (itemModel == null || SET_ITEM_MODEL == null) {
+      return false;
+    }
+    try {
+      SET_ITEM_MODEL.invoke(meta, itemModel);
+      return true;
+    } catch (final ReflectiveOperationException exception) {
+      return false;
+    }
+  }
+
+  private static Method findSetItemModel() {
+    try {
+      return ItemMeta.class.getMethod("setItemModel", NamespacedKey.class);
+    } catch (final NoSuchMethodException exception) {
+      return null;
+    }
   }
 }

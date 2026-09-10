@@ -48,6 +48,8 @@ public final class CalibrationMenu {
   private static final int PLAYER_CELL = 0xFF00C8FF;
   private static final int ITEM_CORNER = 0xFFFF00FF;
   private static final int CENTER = 0xFFFFFFFF;
+  /** Colonne (ligne 0) du slot qui sert au test d’ordre de rendu titre / items. */
+  private static final int RENDER_ORDER_COLUMN = 4;
 
   private CalibrationMenu() {
   }
@@ -80,6 +82,10 @@ public final class CalibrationMenu {
       }
       cell(image, ChestGeometry.itemX(col), ChestGeometry.hotbarItemY(rows), PLAYER_CELL);
     }
+
+    // Test d’ordre de rendu : aplat sur la moitié gauche de l’item du slot (4, 0).
+    // Si la pierre posée dans ce slot apparaît entière, les items passent au-dessus du titre.
+    fill(image, ChestGeometry.itemX(RENDER_ORDER_COLUMN), ChestGeometry.itemY(0), 8, 16, ITEM_CORNER);
 
     // Règles graduées (dessinées en dernier, par-dessus le cadre).
     for (int x = 0; x < width; x += 2) {
@@ -120,6 +126,10 @@ public final class CalibrationMenu {
         new ItemSpec(false, "STONE", null, "<gray>col " + corner[0] + ", ligne " + corner[1], List.of(), null),
         null, List.of(), null, null));
     }
+    slots.add(new Slot("render_order", SlotKind.DECORATION, SlotArea.single(RENDER_ORDER_COLUMN, 0),
+      new ItemSpec(false, "STONE", null, "<gray>Ordre de rendu",
+        List.of("<gray>Pierre entière : items au-dessus du titre", "<gray>Moitié magenta : titre au-dessus"), null),
+      null, List.of(), null, null));
     if (rows > 1) {
       slots.add(new Slot("close", SlotKind.BUTTON, SlotArea.single(4, lastRow),
         new ItemSpec(false, "BARRIER", null, "<red>Fermer", List.of(), null),
@@ -145,6 +155,15 @@ public final class CalibrationMenu {
     for (int j = 0; j < height; j++) {
       set(image, x, y + j, color);
       set(image, x + width - 1, y + j, color);
+    }
+  }
+
+  private static void fill(final BufferedImage image, final int x, final int y, final int width, final int height,
+                           final int color) {
+    for (int i = 0; i < width; i++) {
+      for (int j = 0; j < height; j++) {
+        set(image, x + i, y + j, color);
+      }
     }
   }
 
