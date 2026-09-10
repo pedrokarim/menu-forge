@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NumberField } from '../components/fields';
+import { Icon } from '../ui/Icon';
+import { Tooltip } from '../ui/Tooltip';
 import { drawScaled } from './canvasUtils';
 import type { AssetDefinition } from './model';
 import { glyphUsage, glyphYaml } from './presets';
@@ -45,25 +47,40 @@ export function ExportPanel(props: ExportPanelProps) {
   const usage = glyphUsage(asset);
   const ascent = asset.export.ascent;
 
+  const copyButton = (key: string, text: string) => (
+    <button type="button" className="sm" onClick={() => copy(key, text)}>
+      <Icon name={copied === key ? 'check' : 'copy'} />
+      {copied === key ? 'Copié' : 'Copier'}
+    </button>
+  );
+
   return (
     <section className="panel-section">
       <header className="section-header">
         <h3>Export</h3>
-        <span className="badge">{dirty ? 'modifié' : 'à jour'}</span>
+        <span className={`badge ${dirty ? 'badge-dirty' : 'badge-clean'}`}>{dirty ? 'modifié' : 'à jour'}</span>
       </header>
-      <button type="button" className="primary" disabled={saving} onClick={props.onSave} title="Ctrl+S">
-        {saving ? 'Export en cours…' : dirty ? 'Enregistrer et exporter •' : 'Enregistrer et exporter'}
-      </button>
+      <Tooltip label="Enregistrer le JSON et exporter le PNG" shortcut="Ctrl+S">
+        <button type="button" className="primary asset-save" disabled={saving} onClick={props.onSave}>
+          <Icon name={saving ? 'loader' : 'save'} />
+          {saving ? 'Export en cours…' : 'Enregistrer et exporter'}
+          {dirty && !saving && <span className="dirty-mark" aria-hidden="true" />}
+        </button>
+      </Tooltip>
       <p className="muted small">
         PNG à l’échelle 1 : <code>textures/assets/{asset.id}.png</code>
       </p>
       {missingTextures.length > 0 && (
         <p className="warning">
-          Texture(s) introuvable(s), absente(s) de l’export : {missingTextures.join(', ')}
+          <Icon name="warning" />
+          <span>Texture(s) introuvable(s), absente(s) de l’export : {missingTextures.join(', ')}</span>
         </p>
       )}
       {fontError && (
-        <p className="warning">Police du jeu indisponible (bibliothèque vanilla) : le texte est rendu de façon approximative.</p>
+        <p className="warning">
+          <Icon name="warning" />
+          <span>Police du jeu indisponible (bibliothèque vanilla) : le texte est rendu de façon approximative.</span>
+        </p>
       )}
 
       <NumberField label="Ascent" value={ascent} min={-512} max={512} onChange={props.onAscentChange} />
@@ -72,7 +89,10 @@ export function ExportPanel(props: ExportPanelProps) {
         sous le haut de la ligne).
       </p>
       {ascent > asset.size.height && (
-        <p className="warning">L’ascent ne peut pas dépasser la hauteur ({asset.size.height} px) : le jeu refuserait le glyphe.</p>
+        <p className="warning">
+          <Icon name="warning" />
+          <span>L’ascent ne peut pas dépasser la hauteur ({asset.size.height} px) : le jeu refuserait le glyphe.</span>
+        </p>
       )}
 
       <div className="asset-preview">
@@ -89,18 +109,14 @@ export function ExportPanel(props: ExportPanelProps) {
       <div className="asset-snippet-block">
         <div className="section-header">
           <span className="field-label">Glyphe Enderium (glyphs/*.yml)</span>
-          <button type="button" className="asset-copy" onClick={() => copy('yaml', yaml)}>
-            {copied === 'yaml' ? 'Copié' : 'Copier'}
-          </button>
+          {copyButton('yaml', yaml)}
         </div>
         <pre className="asset-snippet">{yaml}</pre>
       </div>
       <div className="asset-snippet-block">
         <div className="section-header">
           <span className="field-label">Usage dans un texte</span>
-          <button type="button" className="asset-copy" onClick={() => copy('usage', usage)}>
-            {copied === 'usage' ? 'Copié' : 'Copier'}
-          </button>
+          {copyButton('usage', usage)}
         </div>
         <pre className="asset-snippet">{usage}</pre>
         <p className="field-hint">À placer avec des &lt;shift:…&gt; si besoin.</p>

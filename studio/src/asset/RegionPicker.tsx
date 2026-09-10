@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { NumberField } from '../components/fields';
 import type { LoadedTexture } from '../lib/textures';
+import { Icon } from '../ui/Icon';
+import { Tooltip } from '../ui/Tooltip';
 import { fillChecker } from './canvasUtils';
 import { clamp, clampInsets, clampRegion, rectFromPixels } from './geometry';
 import type { Point } from './geometry';
@@ -88,7 +90,7 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
     }
     ctx.lineWidth = 1;
     if (w > 0 && h > 0) {
-      ctx.strokeStyle = '#ff3d7f';
+      ctx.strokeStyle = '#f2c94c';
       ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, w - 1), Math.max(0, h - 1));
     }
 
@@ -221,19 +223,23 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
             </option>
           ))}
         </select>
-        <button type="button" onClick={() => onRegionChange(undefined, false)} disabled={!region}>
+        <button type="button" className="sm" onClick={() => onRegionChange(undefined, false)} disabled={!region}>
+          <Icon name="expand" />
           Toute l’image
         </button>
-        <button
-          type="button"
-          disabled={!opaque}
-          title="Recadrer sur les pixels non transparents"
-          onClick={() =>
-            opaque && onRegionChange({ x: opaque.cropX, y: opaque.cropY, width: opaque.width, height: opaque.height }, false)
-          }
-        >
-          Contenu opaque
-        </button>
+        <Tooltip label="Contenu opaque" hint="Recadrer sur les pixels non transparents">
+          <button
+            type="button"
+            className="sm"
+            disabled={!opaque}
+            onClick={() =>
+              opaque && onRegionChange({ x: opaque.cropX, y: opaque.cropY, width: opaque.width, height: opaque.height }, false)
+            }
+          >
+            <Icon name="crop" />
+            Contenu opaque
+          </button>
+        </Tooltip>
       </div>
       <div className="asset-region-scroll">
         <canvas

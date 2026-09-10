@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Icon } from '../ui/Icon';
+import { IconButton } from '../ui/IconButton';
 
 /** Champs de formulaire partagés par l’inspecteur et les dialogues. */
 
@@ -10,6 +12,16 @@ export function Field({ label, children, hint }: { label: string; children: Reac
       {children}
       {hint && <span className="field-hint">{hint}</span>}
     </label>
+  );
+}
+
+/** Message d’erreur de champ, précédé du picto d’alerte. */
+export function FieldError({ children }: { children: ReactNode }) {
+  return (
+    <span className="field-error">
+      <Icon name="alert" />
+      {children}
+    </span>
   );
 }
 
@@ -82,7 +94,7 @@ export function CommitField({
           if (event.key === 'Escape') setText(value);
         }}
       />
-      {error && <span className="field-error">{error}</span>}
+      {error && <FieldError>{error}</FieldError>}
     </Field>
   );
 }
@@ -137,7 +149,7 @@ export function JsonField<T>({
         onChange={(event) => setText(event.target.value)}
         onBlur={commit}
       />
-      {error && <span className="field-error">{error}</span>}
+      {error && <FieldError>{error}</FieldError>}
     </Field>
   );
 }
@@ -153,14 +165,31 @@ export function Modal({
   footer: ReactNode;
   onClose: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Le focus entre dans le dialogue à l’ouverture (Échap et Tab y agissent aussitôt),
+  // puis revient à l’élément qui l’avait ouvert.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+    return () => opener?.focus();
+  }, []);
+
   return (
-    <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-label={title}>
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape') return;
+        // Échap ferme le dialogue sans atteindre les raccourcis de l’éditeur (désélection).
+        event.stopPropagation();
+        onClose();
+      }}
+    >
+      <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <header className="modal-header">
           <h2>{title}</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Fermer">
-            ✕
-          </button>
+          <IconButton icon="close" label="Fermer" shortcut="Échap" variant="ghost" size={24} onClick={onClose} />
         </header>
         <div className="modal-body">{children}</div>
         <footer className="modal-footer">{footer}</footer>

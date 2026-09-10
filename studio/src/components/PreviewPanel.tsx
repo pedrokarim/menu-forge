@@ -2,6 +2,7 @@ import type { Composition, TitleToken } from '../model/compose';
 import type { MenuDefinition, StateDefinition } from '../model/menu';
 import type { PreviewValues } from '../model/preview';
 import { DEFAULT_PAGE_COUNT } from '../model/preview';
+import { Icon } from '../ui/Icon';
 import { Field } from './fields';
 
 interface PreviewPanelProps {
@@ -61,7 +62,7 @@ function StateControl({
             checked={Boolean(values.state[name] ?? definition.default)}
             onChange={(event) => setState(event.target.checked)}
           />
-          {name}
+          <span className="mono">{name}</span>
         </label>
       );
     case 'int':
@@ -102,21 +103,26 @@ function StateControl({
 
 export function PreviewPanel({ menu, values, onChange, composition, errors }: PreviewPanelProps) {
   const states = Object.entries(menu.state ?? {});
+  const tokenCount = composition?.tokens.length ?? 0;
   return (
     <>
       <section className="panel-section">
-        <h3>Aperçu de l’état</h3>
+        <header className="section-header">
+          <h3>Aperçu de l’état</h3>
+        </header>
         {errors.map((error) => (
           <p key={error} className="warning">
-            {error}
+            <Icon name="warning" />
+            <span>{error}</span>
           </p>
         ))}
-        {states.length === 0 && <p className="muted">Aucune variable d’état.</p>}
+        {states.length === 0 && <p className="muted small">Aucune variable d’état : le menu n’a qu’un seul aspect.</p>}
         {states.map(([name, definition]) => (
           <StateControl key={name} name={name} definition={definition} values={values} onChange={onChange} />
         ))}
         <Field label="Drapeaux actifs (un par ligne)" hint="Ex. viewer.isStaff">
           <textarea
+            className="code"
             rows={2}
             value={values.flags.join('\n')}
             onChange={(event) => onChange({ ...values, flags: event.target.value.split('\n') })}
@@ -128,11 +134,17 @@ export function PreviewPanel({ menu, values, onChange, composition, errors }: Pr
       </section>
       {composition && (
         <section className="panel-section">
-          <h3>Titre composé</h3>
+          <header className="section-header">
+            <h3>Titre composé</h3>
+            <span className="count">
+              {tokenCount} jeton{tokenCount > 1 ? 's' : ''}
+            </span>
+          </header>
           <p className="muted small">Ce que la lib écrira dans le titre, dans cet état.</p>
           {composition.warnings.map((warning) => (
             <p key={warning} className="warning">
-              {warning}
+              <Icon name="warning" />
+              <span>{warning}</span>
             </p>
           ))}
           <ol className="token-list">

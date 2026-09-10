@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Icon } from '../ui/Icon';
+import type { IconName } from '../ui/Icon';
+import { IconButton } from '../ui/IconButton';
+import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
 import type { JSX, ReactNode } from 'react';
 import type { LoadedTexture } from '../lib/textures';
 import { canvasToBlob } from '../model/generator';
@@ -50,6 +54,7 @@ export interface AssetEditorProps {
 }
 
 const TOOLS: readonly AssetTool[] = ['select', 'box', 'text', 'image'];
+const TOOL_ICONS: Record<AssetTool, IconName> = { select: 'cursor', box: 'box', text: 'text', image: 'image' };
 const TOOL_KEYS: Record<string, AssetTool> = { v: 'select', b: 'box', t: 'text', i: 'image' };
 
 /** Recette qui modifie un élément par son identifiant. */
@@ -316,6 +321,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             className={leftTab === 'elements' ? 'active' : ''}
             onClick={() => setLeftTab('elements')}
           >
+            <Icon name="list" />
             Éléments
           </button>
           <button
@@ -325,6 +331,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             className={leftTab === 'library' ? 'active' : ''}
             onClick={() => setLeftTab('library')}
           >
+            <Icon name="library" />
             Bibliothèque
           </button>
         </div>
@@ -342,15 +349,49 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
               onAddBox={addBoxPreset}
               onAddText={() => createText({ x: 4, y: 4 })}
             />
-            <section className="panel-section shortcuts">
-              <p>
-                <kbd>V</kbd> sélection · <kbd>B</kbd> box · <kbd>T</kbd> texte · <kbd>I</kbd> image
-                <br />
-                <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> 1 px · <kbd>Maj</kbd> 10 px · <kbd>Suppr</kbd> supprimer
-                <br />
-                <kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler · <kbd>Ctrl</kbd>+<kbd>Y</kbd> rétablir · <kbd>Ctrl</kbd>+<kbd>S</kbd>{' '}
-                enregistrer
-              </p>
+            <section className="panel-section">
+              <div className="shortcuts">
+                <h4>
+                  <Icon name="keyboard" />
+                  Raccourcis
+                </h4>
+                <dl className="shortcut-list">
+                  {TOOLS.map((value) => (
+                    <Fragment key={value}>
+                      <dt>
+                        <kbd>{TOOL_LABELS[value].key}</kbd>
+                      </dt>
+                      <dd>Outil {TOOL_LABELS[value].label}</dd>
+                    </Fragment>
+                  ))}
+                  <dt>
+                    <ArrowKeys />
+                  </dt>
+                  <dd>
+                    Déplacer de 1 px (<kbd>Maj</kbd> : 10 px)
+                  </dd>
+                  <dt>
+                    <kbd>Suppr</kbd>
+                  </dt>
+                  <dd>Supprimer l’élément</dd>
+                  <dt>
+                    <kbd>Échap</kbd>
+                  </dt>
+                  <dd>Désélectionner</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Ctrl+Z" />
+                  </dt>
+                  <dd>Annuler</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Ctrl+Y" />
+                  </dt>
+                  <dd>Rétablir</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Ctrl+S" />
+                  </dt>
+                  <dd>Enregistrer et exporter</dd>
+                </dl>
+              </div>
             </section>
           </>
         )}
@@ -359,11 +400,15 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       <section className="asset-stage">
         <div className="asset-toolbar">
           <Segmented
+            label="Outil"
             value={tool}
             options={TOOLS.map((value) => ({
               value,
               label: TOOL_LABELS[value].label,
-              title: `${TOOL_LABELS[value].hint} (${TOOL_LABELS[value].key})`,
+              title: TOOL_LABELS[value].label,
+              hint: TOOL_LABELS[value].hint,
+              icon: TOOL_ICONS[value],
+              shortcut: TOOL_LABELS[value].key,
             }))}
             onChange={setTool}
           />
@@ -382,12 +427,22 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             </div>
           )}
           <div className="asset-toolbar-group">
-            <button type="button" onClick={() => dispatch({ type: 'undo' })} disabled={history.past.length === 0} title="Annuler (Ctrl+Z)">
-              ↶
-            </button>
-            <button type="button" onClick={() => dispatch({ type: 'redo' })} disabled={history.future.length === 0} title="Rétablir (Ctrl+Y)">
-              ↷
-            </button>
+            <IconButton
+              icon="undo"
+              label="Annuler"
+              shortcut="Ctrl+Z"
+              size={24}
+              disabled={history.past.length === 0}
+              onClick={() => dispatch({ type: 'undo' })}
+            />
+            <IconButton
+              icon="redo"
+              label="Rétablir"
+              shortcut="Ctrl+Y"
+              size={24}
+              disabled={history.future.length === 0}
+              onClick={() => dispatch({ type: 'redo' })}
+            />
           </div>
           <div className="asset-toolbar-group">
             <select value={effectiveZoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Zoom">
@@ -444,7 +499,10 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
           />
         </div>
         <div className="asset-footer">
-          <span>{TOOL_LABELS[tool].hint}</span>
+          <span className="asset-footer-hint">
+            <Icon name={TOOL_ICONS[tool]} />
+            {TOOL_LABELS[tool].hint}
+          </span>
           <span className="asset-status" role="status">
             {status}
           </span>
@@ -452,17 +510,20 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       </section>
 
       <aside className="sidebar">
-        <AssetInspector
-          asset={asset}
-          selected={selected}
-          selectedBounds={selected ? (bounds.get(selected.id) ?? null) : null}
-          textures={textures}
-          resources={resources}
-          onChange={change}
-          onLive={live}
-          onCheckpoint={checkpoint}
-          onRename={rename}
-        />
+        {/* L’inspecteur prend le cadre d’une infobulle d’objet, comme en mode Menus. */}
+        <div className="inspector inspector-stack">
+          <AssetInspector
+            asset={asset}
+            selected={selected}
+            selectedBounds={selected ? (bounds.get(selected.id) ?? null) : null}
+            textures={textures}
+            resources={resources}
+            onChange={change}
+            onLive={live}
+            onCheckpoint={checkpoint}
+            onRename={rename}
+          />
+        </div>
         <ExportPanel
           asset={asset}
           exportCanvas={exportCanvas}

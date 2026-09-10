@@ -19,6 +19,9 @@ import type { AssetTool } from './presets';
 /** Marge autour de l’asset, en pixels écran (poignées et sélection restent visibles au bord). */
 const PAD = 24;
 const HANDLE_SIZE = 7;
+/** Or de sélection et cerne sombre (jetons Deepslate). */
+const SELECTION_COLOR = '#f2c94c';
+const SELECTION_EDGE = '#0b0b0e';
 const HANDLE_HIT = 6;
 
 interface AssetCanvasProps {
@@ -95,32 +98,38 @@ export function AssetCanvas(props: AssetCanvasProps) {
       ctx.strokeRect(PAD + hover.x * zoom + 0.5, PAD + hover.y * zoom + 0.5, zoom - 1, zoom - 1);
     }
 
+    // Tracé en cours et sélection : l’or Deepslate, cerné de noir pour rester lisible sur tout fond.
     if (draft) {
       const rect = toScreen(rectFromPixels(draft.start, draft.end));
-      ctx.fillStyle = 'rgba(106, 166, 255, 0.25)';
+      ctx.fillStyle = 'rgba(242, 201, 76, 0.22)';
       ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-      ctx.strokeStyle = '#6aa6ff';
-      ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
+      ctx.strokeStyle = SELECTION_COLOR;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+      ctx.lineWidth = 1;
     }
 
     if (selectedRect) {
       const rect = toScreen(selectedRect);
       ctx.save();
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.strokeRect(rect.x - 1.5, rect.y - 1.5, rect.width + 3, rect.height + 3);
-      ctx.strokeStyle = '#ff3d7f';
-      ctx.setLineDash([4, 3]);
-      ctx.strokeRect(rect.x - 0.5, rect.y - 0.5, rect.width + 1, rect.height + 1);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = SELECTION_EDGE;
+      ctx.strokeRect(rect.x - 2, rect.y - 2, rect.width + 4, rect.height + 4);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = SELECTION_COLOR;
+      ctx.strokeRect(rect.x - 2, rect.y - 2, rect.width + 4, rect.height + 4);
       ctx.restore();
       if (resizable) {
+        // Poignée : carré d’or à bord noir de 2 px, comme les boutons.
+        const outer = HANDLE_SIZE + 3;
         for (const handle of RESIZE_HANDLES) {
           const position = handlePosition(selectedRect, handle);
-          const x = Math.round(PAD + position.x * zoom - HANDLE_SIZE / 2);
-          const y = Math.round(PAD + position.y * zoom - HANDLE_SIZE / 2);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(x, y, HANDLE_SIZE, HANDLE_SIZE);
-          ctx.strokeStyle = '#ff3d7f';
-          ctx.strokeRect(x + 0.5, y + 0.5, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+          const x = Math.round(PAD + position.x * zoom) - outer / 2;
+          const y = Math.round(PAD + position.y * zoom) - outer / 2;
+          ctx.fillStyle = SELECTION_EDGE;
+          ctx.fillRect(x, y, outer, outer);
+          ctx.fillStyle = SELECTION_COLOR;
+          ctx.fillRect(x + 2, y + 2, outer - 4, outer - 4);
         }
       }
     }

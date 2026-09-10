@@ -22,7 +22,11 @@ import { buildMenuFromFont } from './lib/libraryImport';
 import { useTextures } from './lib/textures';
 import { composeTitle } from './model/compose';
 import { GENERATOR_PRESETS, canvasToBlob, renderGenerator } from './model/generator';
-import { GRID_COLUMNS, SLOT_SIZE } from './model/geometry';
+import { GRID_COLUMNS, SLOT_SIZE, WINDOW_WIDTH, windowHeight } from './model/geometry';
+import { Icon } from './ui/Icon';
+import { IconButton } from './ui/IconButton';
+import { ShortcutKeys } from './ui/Keys';
+import { Tooltip } from './ui/Tooltip';
 import type { Point } from './model/geometry';
 import { createEmptyMenu, sanitizeId, uniqueId } from './model/menu';
 import type { GeneratorSpec, MenuDefinition, SlotArea } from './model/menu';
@@ -411,6 +415,13 @@ export default function App() {
     setMode('menus');
   };
 
+  /** Zone de slots déplacée ou redimensionnée sur la toile : une seule entrée d’historique. */
+  const handleSlotAreaChange = (id: string, area: SlotArea) =>
+    change((draft) => {
+      const slot = draft.slots?.find((candidate) => candidate.id === id);
+      if (slot) slot.area = area;
+    });
+
   const generatorInitial = ((): GeneratorResult | null => {
     if (dialog?.kind !== 'generator' || !menu) return null;
     if (dialog.mode === 'edit') {
@@ -429,80 +440,132 @@ export default function App() {
   const knownAssets = workspace?.assets ?? [];
   const currentAsset = knownAssets.find((candidate) => candidate.id === assetId) ?? null;
   const menuIsOnDisk = menu !== null && knownMenus.some((candidate) => candidate.id === menu.id);
+  // Affichage seulement : les messages d’échec passent en rouge dans la barre d’outils.
+  const statusIsError = /^(Échec|Impossible)/.test(status);
 
   return (
     <div className="app">
       <header className="toolbar">
         <div className="brand">
-          <span className="brand-mark">▦</span> menu-forge <span className="brand-sub">studio</span>
+          <span className="brand-mark" aria-hidden="true" />
+          <span className="brand-name">menu-forge</span>
+          <span className="brand-sub">studio</span>
         </div>
-        <div className="toolbar-group segmented" role="tablist" aria-label="Type de document">
+        <span className="tb-sep" aria-hidden="true" />
+        <div className="segmented" role="tablist" aria-label="Type de document">
           <button type="button" role="tab" aria-selected={mode === 'menus'} className={mode === 'menus' ? 'active' : ''} onClick={() => switchMode('menus')}>
+            <Icon name="chest" />
             Menus
           </button>
           <button type="button" role="tab" aria-selected={mode === 'assets'} className={mode === 'assets' ? 'active' : ''} onClick={() => switchMode('assets')}>
+            <Icon name="image" />
             Assets
           </button>
         </div>
+        <span className="tb-sep" aria-hidden="true" />
         {mode === 'menus' ? (
           <>
-        <div className="toolbar-group">
-          <select
-            className="menu-picker"
-            value={menu?.id ?? ''}
-            onChange={(event) => openMenu(event.target.value)}
-            disabled={knownMenus.length === 0}
-            aria-label="Menu ouvert"
-          >
-            {!menu && <option value="">Aucun menu</option>}
-            {menu && !menuIsOnDisk && <option value={menu.id}>{menu.name} (non enregistré)</option>}
-            {knownMenus.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.name} ({candidate.id}){candidate.template ? ' · gabarit' : ''}
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={() => setDialog({ kind: 'new-menu' })}>
-            Nouveau
-          </button>
-          <button type="button" className="primary" onClick={() => void save()} disabled={!menu || !dirty}>
-            {dirty ? 'Enregistrer •' : 'Enregistré'}
-          </button>
-        </div>
-        <div className="toolbar-group">
-          <button type="button" onClick={() => dispatch({ type: 'undo' })} disabled={editor.past.length === 0} title="Annuler (Ctrl+Z)">
-            ↶
-          </button>
-          <button type="button" onClick={() => dispatch({ type: 'redo' })} disabled={editor.future.length === 0} title="Rétablir (Ctrl+Y)">
-            ↷
-          </button>
-        </div>
-        <div className="toolbar-group segmented">
-          <button type="button" className={tool === 'select' ? 'active' : ''} onClick={() => setTool('select')} title="Sélection (V)">
-            Sélection
-          </button>
-          <button type="button" className={tool === 'slot' ? 'active' : ''} onClick={() => setTool('slot')} title="Dessiner une zone de slots (S)">
-            Slots
-          </button>
-        </div>
-        <div className="toolbar-group">
-          <select value={background} onChange={(event) => setBackground(event.target.value as BackgroundMode)} aria-label="Fond">
-            <option value="slots-only">Fond : cases seules</option>
-            <option value="vanilla">Fond : coffre vanilla</option>
-            <option value="none">Fond : aucun</option>
-          </select>
-          <label className="checkbox">
-            <input type="checkbox" checked={showSlots} onChange={(event) => setShowSlots(event.target.checked)} />
-            Zones
-          </label>
-          <select value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Zoom">
-            {ZOOM_LEVELS.map((level) => (
-              <option key={level} value={level}>
-                ×{level}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="toolbar-group">
+              <select
+                className="menu-picker"
+                value={menu?.id ?? ''}
+                onChange={(event) => openMenu(event.target.value)}
+                disabled={knownMenus.length === 0}
+                aria-label="Menu ouvert"
+              >
+                {!menu && <option value="">Aucun menu</option>}
+                {menu && !menuIsOnDisk && <option value={menu.id}>{menu.name} (non enregistré)</option>}
+                {knownMenus.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.name} ({candidate.id}){candidate.template ? ' · gabarit' : ''}
+                  </option>
+                ))}
+              </select>
+              <Tooltip label="Nouveau menu" hint="Vierge ou à partir d’un gabarit">
+                <button type="button" onClick={() => setDialog({ kind: 'new-menu' })}>
+                  <Icon name="plus" />
+                  Nouveau
+                </button>
+              </Tooltip>
+              <Tooltip label={dirty ? 'Enregistrer le menu' : 'Tout est enregistré'} shortcut="Ctrl+S">
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => void save()}
+                  disabled={!menu || !dirty}
+                  aria-keyshortcuts="Control+S"
+                >
+                  <Icon name={dirty ? 'save' : 'check'} />
+                  {dirty ? 'Enregistrer' : 'Enregistré'}
+                  {dirty && <span className="dirty-mark" aria-hidden="true" />}
+                </button>
+              </Tooltip>
+            </div>
+            <div className="toolbar-group">
+              <IconButton
+                icon="undo"
+                label="Annuler"
+                shortcut="Ctrl+Z"
+                size={24}
+                disabled={editor.past.length === 0}
+                onClick={() => dispatch({ type: 'undo' })}
+              />
+              <IconButton
+                icon="redo"
+                label="Rétablir"
+                shortcut="Ctrl+Y"
+                size={24}
+                disabled={editor.future.length === 0}
+                onClick={() => dispatch({ type: 'redo' })}
+              />
+            </div>
+            <span className="tb-sep" aria-hidden="true" />
+            <div className="segmented" role="group" aria-label="Outil">
+              <Tooltip label="Sélection" hint="Choisir et déplacer couches et textes" shortcut="V">
+                <button
+                  type="button"
+                  className={tool === 'select' ? 'active' : ''}
+                  aria-pressed={tool === 'select'}
+                  aria-keyshortcuts="V"
+                  onClick={() => setTool('select')}
+                >
+                  <Icon name="cursor" />
+                  Sélection
+                  <kbd aria-hidden="true">V</kbd>
+                </button>
+              </Tooltip>
+              <Tooltip label="Slots" hint="Glisser sur la grille pour créer une zone de slots" shortcut="S">
+                <button
+                  type="button"
+                  className={tool === 'slot' ? 'active' : ''}
+                  aria-pressed={tool === 'slot'}
+                  aria-keyshortcuts="S"
+                  onClick={() => setTool('slot')}
+                >
+                  <Icon name="grid" />
+                  Slots
+                  <kbd aria-hidden="true">S</kbd>
+                </button>
+              </Tooltip>
+            </div>
+            <div className="toolbar-group">
+              <select value={background} onChange={(event) => setBackground(event.target.value as BackgroundMode)} aria-label="Fond">
+                <option value="slots-only">Fond : cases seules</option>
+                <option value="vanilla">Fond : coffre vanilla</option>
+                <option value="none">Fond : aucun</option>
+              </select>
+              <label className="checkbox">
+                <input type="checkbox" checked={showSlots} onChange={(event) => setShowSlots(event.target.checked)} />
+                Zones
+              </label>
+              <select className="zoom-picker" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Zoom">
+                {ZOOM_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    ×{level}
+                  </option>
+                ))}
+              </select>
+            </div>
           </>
         ) : (
           <div className="toolbar-group">
@@ -520,20 +583,37 @@ export default function App() {
                 </option>
               ))}
             </select>
-            <button type="button" onClick={() => setDialog({ kind: 'new-asset' })}>
-              Nouvel asset
-            </button>
-            {assetDirty && <span className="muted small">non enregistré (Ctrl+S)</span>}
+            <Tooltip label="Nouvel asset" hint="Composition libre exportée en PNG et en glyphe">
+              <button type="button" onClick={() => setDialog({ kind: 'new-asset' })}>
+                <Icon name="plus" />
+                Nouvel asset
+              </button>
+            </Tooltip>
+            {assetDirty && (
+              <span className="dirty-chip">
+                <span className="dirty-mark" aria-hidden="true" />
+                non enregistré
+                <ShortcutKeys shortcut="Ctrl+S" />
+              </span>
+            )}
           </div>
         )}
-        <span className="status" role="status">
-          {status}
+        <span className={statusIsError ? 'status is-error' : 'status'} role="status">
+          {status && (
+            <>
+              <Icon name={statusIsError ? 'alert' : 'check'} />
+              <span className="status-text">{status}</span>
+            </>
+          )}
         </span>
       </header>
 
       {loadError && (
-        <div className="banner error">
-          Impossible de lire l’espace de travail : {loadError}. Le studio doit être lancé avec <code>npm run dev</code>.
+        <div className="banner error" role="alert">
+          <Icon name="alert" size={24} />
+          <span>
+            Impossible de lire l’espace de travail : {loadError}. Le studio doit être lancé avec <code>npm run dev</code>.
+          </span>
         </div>
       )}
 
@@ -548,6 +628,7 @@ export default function App() {
               className={leftTab === 'outline' ? 'active' : ''}
               onClick={() => setLeftTab('outline')}
             >
+              <Icon name="list" />
               Éléments
             </button>
             <button
@@ -557,6 +638,7 @@ export default function App() {
               className={leftTab === 'library' ? 'active' : ''}
               onClick={() => setLeftTab('library')}
             >
+              <Icon name="library" />
               Bibliothèque
             </button>
           </div>
@@ -607,12 +689,20 @@ export default function App() {
                 }, false)
               }
               onCreateSlot={handleCreateSlot}
+              onSlotAreaChange={handleSlotAreaChange}
+              zoomLevels={ZOOM_LEVELS}
+              onZoomChange={setZoom}
             />
           ) : (
             <div className="empty-state">
+              <Icon name="chest" size={48} />
               <h2>Aucun menu ouvert</h2>
-              <p className="muted">Crée un menu vierge ou pars d’un gabarit (coffre, modale, liste paginée…).</p>
+              <p className="muted">
+                Crée un menu vierge, pars d’un gabarit (coffre, modale, liste paginée…) ou importe-le depuis une police de
+                la bibliothèque.
+              </p>
               <button type="button" className="primary" onClick={() => setDialog({ kind: 'new-menu' })}>
+                <Icon name="plus" />
                 Nouveau menu
               </button>
             </div>
@@ -664,11 +754,13 @@ export default function App() {
           ) : (
             <section className="stage">
               <div className="empty-state">
+                <Icon name="image" size={48} />
                 <h2>Aucun asset ouvert</h2>
                 <p className="muted">
                   Compose une image libre (boîtes, images recadrées, texte en police Minecraft), exportée en PNG et en glyphe.
                 </p>
                 <button type="button" className="primary" onClick={() => setDialog({ kind: 'new-asset' })}>
+                  <Icon name="plus" />
                   Nouvel asset
                 </button>
               </div>
@@ -678,7 +770,29 @@ export default function App() {
       )}
 
       <footer className="statusbar">
-        Espace de travail : <code>{workspace?.root ?? '…'}</code>
+        <span className="statusbar-path">
+          Espace de travail : <code>{workspace?.root ?? '…'}</code>
+        </span>
+        {mode === 'menus' && resolved && (
+          <span className="statusbar-meta">
+            <span>
+              {resolved.menu.layers.length} couche{resolved.menu.layers.length > 1 ? 's' : ''}
+            </span>
+            <span>
+              {(resolved.menu.slots ?? []).length} slot{(resolved.menu.slots ?? []).length > 1 ? 's' : ''}
+            </span>
+            <span>
+              {WINDOW_WIDTH} × {windowHeight(resolved.menu.container.rows)} px
+            </span>
+            <span>×{zoom}</span>
+          </span>
+        )}
+        {mode === 'assets' && currentAsset && (
+          <span className="statusbar-meta">
+            <span>asset {currentAsset.id}</span>
+            <span>textures/assets/{currentAsset.id}.png</span>
+          </span>
+        )}
       </footer>
 
       {dialog?.kind === 'new-menu' && (

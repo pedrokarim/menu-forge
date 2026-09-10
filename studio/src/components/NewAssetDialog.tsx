@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { MAX_ASSET_SIZE } from '../asset/model';
 import { ID_PATTERN, sanitizeId } from '../model/menu';
-import { Field, Modal, NumberField } from './fields';
+import { Icon } from '../ui/Icon';
+import { Field, FieldError, Modal, NumberField } from './fields';
 
 export interface NewAssetInput {
   id: string;
@@ -56,11 +57,12 @@ export function NewAssetDialog({ existingIds, onCancel, onCreate }: NewAssetDial
       onClose={onCancel}
       footer={
         <>
-          {error && <span className="field-error">{error}</span>}
+          {error && <FieldError>{error}</FieldError>}
           <button type="button" onClick={onCancel}>
             Annuler
           </button>
           <button type="button" className="primary" disabled={busy || Boolean(idError)} onClick={() => void create()}>
+            <Icon name={busy ? 'loader' : 'check'} />
             {busy ? 'Création…' : 'Créer'}
           </button>
         </>
@@ -77,13 +79,14 @@ export function NewAssetDialog({ existingIds, onCancel, onCreate }: NewAssetDial
       </Field>
       <Field label="Identifiant" hint="Nom du fichier, du PNG exporté et du glyphe proposé">
         <input
+          className="mono"
           value={id}
           onChange={(event) => {
             setIdTouched(true);
             setId(event.target.value);
           }}
         />
-        {idError && <span className="field-error">{idError}</span>}
+        {idError && <FieldError>{idError}</FieldError>}
       </Field>
       <Field label="Taille type">
         <select

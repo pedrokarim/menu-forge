@@ -1,6 +1,9 @@
 import { useId, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Field } from '../components/fields';
+import { Field, FieldError } from '../components/fields';
+import { Icon } from '../ui/Icon';
+import type { IconName } from '../ui/Icon';
+import { Tooltip } from '../ui/Tooltip';
 
 /** Champs propres à l’éditeur d’assets (couleur, texture, choix segmenté). */
 
@@ -52,7 +55,7 @@ export function ColorField({
           onBlur={() => setText(value)}
         />
       </div>
-      {!HEX_COLOR.test(text) && <span className="field-error">Format attendu : #rrggbb ou #rrggbbaa</span>}
+      {!HEX_COLOR.test(text) && <FieldError>Format attendu : #rrggbb ou #rrggbbaa</FieldError>}
     </Field>
   );
 }
@@ -83,6 +86,7 @@ export function TextureField({
   return (
     <Field label={label} hint={hint}>
       <input
+        className="search-input mono"
         list={listId}
         value={text}
         placeholder="Chercher une texture…"
@@ -107,29 +111,56 @@ export function TextureField({
   );
 }
 
+interface SegmentedOption<T extends string> {
+  value: T;
+  label: string;
+  /** Titre de l’infobulle (sans lui, pas d’infobulle). */
+  title?: string;
+  /** Seconde ligne de l’infobulle. */
+  hint?: string;
+  icon?: IconName;
+  /** Raccourci clavier, affiché sur le bouton et dans l’infobulle. */
+  shortcut?: string;
+}
+
 export function Segmented<T extends string>({
   value,
   options,
   onChange,
+  label,
 }: {
   value: T;
-  options: ReadonlyArray<{ value: T; label: string; title?: string }>;
+  options: ReadonlyArray<SegmentedOption<T>>;
   onChange: (value: T) => void;
+  /** Nom accessible du groupe. */
+  label?: string;
 }) {
   return (
-    <div className="asset-segmented" role="group">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          className={option.value === value ? 'active' : ''}
-          title={option.title}
-          aria-pressed={option.value === value}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
+    <div className="asset-segmented" role="group" aria-label={label}>
+      {options.map((option) => {
+        const active = option.value === value;
+        const button = (
+          <button
+            key={option.value}
+            type="button"
+            className={active ? 'active' : ''}
+            aria-pressed={active}
+            aria-keyshortcuts={option.shortcut}
+            onClick={() => onChange(option.value)}
+          >
+            {option.icon && <Icon name={option.icon} />}
+            {option.label}
+            {option.shortcut && <kbd aria-hidden="true">{option.shortcut}</kbd>}
+          </button>
+        );
+        return option.title ? (
+          <Tooltip key={option.value} label={option.title} hint={option.hint} shortcut={option.shortcut}>
+            {button}
+          </Tooltip>
+        ) : (
+          button
+        );
+      })}
     </div>
   );
 }

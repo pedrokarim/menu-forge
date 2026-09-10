@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { MAX_ROWS } from '../model/geometry';
 import type {
   Action,
@@ -14,7 +15,10 @@ import type {
 import { ID_PATTERN } from '../model/menu';
 import type { ElementKind } from '../model/resolve';
 import type { Selection } from '../state/editor';
+import { Icon } from '../ui/Icon';
+import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
 import { CommitField, Field, JsonField, NumberField } from './fields';
+import { SLOT_COLORS } from './slotColors';
 
 type Recipe = (draft: MenuDefinition) => void;
 
@@ -35,6 +39,14 @@ const SLOT_KIND_LABELS: Record<SlotKind, string> = {
   list: 'Liste (source de données)',
   input: 'Dépôt d’item',
   decoration: 'Décoration',
+};
+
+/** Nom court de chaque type de slot, pour la pastille de l’en-tête. */
+const SLOT_KIND_NAMES: Record<SlotKind, string> = {
+  button: 'bouton',
+  list: 'liste',
+  input: 'dépôt',
+  decoration: 'décoration',
 };
 
 const ACTION_PRESETS: Array<{ label: string; action: Action }> = [
@@ -72,6 +84,16 @@ function conditionOptions(states: Record<string, StateDefinition>): Array<{ labe
     }
   }
   return options;
+}
+
+/** En-tête de l’inspecteur : titre et pastille du type d’élément. */
+function InspectorHeader({ children }: { children: ReactNode }) {
+  return (
+    <header className="section-header">
+      <h3>Inspecteur</h3>
+      <span className="pill">{children}</span>
+    </header>
+  );
 }
 
 function ConditionField({
@@ -146,10 +168,13 @@ export function Inspector(props: InspectorProps) {
     const textureChoices = props.textures.includes(layer.texture) ? props.textures : [layer.texture, ...props.textures];
     return (
       <section className="panel-section inspector">
-        <h3>Couche</h3>
+        <InspectorHeader>
+          <span className="kind-dot layer" />
+          couche{layer.generator ? ' · générée' : ''}
+        </InspectorHeader>
         <CommitField label="Identifiant" value={layer.id} validate={validateId('layer', layer.id)} onCommit={rename('layer', layer.id)} />
         <Field label="Texture">
-          <select value={layer.texture} onChange={(event) => update((target) => (target.texture = event.target.value))}>
+          <select className="mono" value={layer.texture} onChange={(event) => update((target) => (target.texture = event.target.value))}>
             {textureChoices.map((texture) => (
               <option key={texture} value={texture}>
                 {texture}
@@ -163,6 +188,7 @@ export function Inspector(props: InspectorProps) {
         </div>
         {layer.generator && (
           <button type="button" className="wide" onClick={() => props.onEditGenerator(layer.id)}>
+            <Icon name="sparkles" />
             Modifier la texture générée
           </button>
         )}
@@ -186,7 +212,10 @@ export function Inspector(props: InspectorProps) {
       });
     return (
       <section className="panel-section inspector">
-        <h3>Texte</h3>
+        <InspectorHeader>
+          <span className="kind-dot text" />
+          texte
+        </InspectorHeader>
         <CommitField label="Identifiant" value={text.id} validate={validateId('text', text.id)} onCommit={rename('text', text.id)} />
         <Field label="Contenu" hint="Variables : {viewer.name}, {page.number}, {page.count}, {state.nom}…">
           <input value={text.value} onChange={(event) => update((target) => (target.value = event.target.value))} />
@@ -238,7 +267,10 @@ export function Inspector(props: InspectorProps) {
     });
   return (
     <section className="panel-section inspector">
-      <h3>Slot</h3>
+      <InspectorHeader>
+        <span className="kind-dot" style={{ background: SLOT_COLORS[slot.kind] }} />
+        slot · {SLOT_KIND_NAMES[slot.kind]}
+      </InspectorHeader>
       <CommitField label="Identifiant" value={slot.id} validate={validateId('slot', slot.id)} onCommit={rename('slot', slot.id)} />
       <Field label="Type">
         <select value={slot.kind} onChange={(event) => update((target) => (target.kind = event.target.value as SlotKind))}>
@@ -259,7 +291,7 @@ export function Inspector(props: InspectorProps) {
       </div>
       {slot.kind === 'list' ? (
         <Field label="Source de données" hint="Nom de la liste fournie par le serveur">
-          <input value={slot.list ?? ''} onChange={(event) => update((target) => (target.list = event.target.value))} />
+          <input className="mono" value={slot.list ?? ''} onChange={(event) => update((target) => (target.list = event.target.value))} />
         </Field>
       ) : (
         <>
@@ -286,6 +318,7 @@ export function Inspector(props: InspectorProps) {
           {!slot.item?.invisible && (
             <Field label="Matériau">
               <input
+                className="mono"
                 value={slot.item?.material ?? ''}
                 placeholder="PLAYER_HEAD, DIAMOND…"
                 onChange={(event) => updateItem((item) => (item.material = event.target.value || undefined))}
@@ -335,7 +368,10 @@ export function Inspector(props: InspectorProps) {
 function MenuProperties({ menu, onChange }: InspectorProps) {
   return (
     <section className="panel-section inspector">
-      <h3>Menu « {menu.id} »</h3>
+      <InspectorHeader>
+        <Icon name="chest" />
+        menu · {menu.id}
+      </InspectorHeader>
       <Field label="Nom">
         <input value={menu.name} onChange={(event) => onChange((draft) => (draft.name = event.target.value))} />
       </Field>
@@ -371,12 +407,48 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
         placeholder={'{ "tab": { "type": "enum", "values": ["a", "b"], "default": "a" } }'}
         onCommit={(state) => onChange((draft) => (draft.state = state))}
       />
+      <p className="field-hint">Sélectionne un élément sur la toile ou dans la liste pour le modifier.</p>
       <div className="shortcuts">
-        <h4>Raccourcis</h4>
-        <p>
-          <kbd>V</kbd> sélection · <kbd>S</kbd> slots · <kbd>Suppr</kbd> supprimer · flèches : 1 px
-          (<kbd>Maj</kbd> : 18 px) · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> · <kbd>Ctrl</kbd>+<kbd>S</kbd>
-        </p>
+        <h4>
+          <Icon name="keyboard" />
+          Raccourcis
+        </h4>
+        <dl className="shortcut-list">
+          <dt>
+            <kbd>V</kbd>
+          </dt>
+          <dd>Outil Sélection</dd>
+          <dt>
+            <kbd>S</kbd>
+          </dt>
+          <dd>Outil Slots</dd>
+          <dt>
+            <kbd>Suppr</kbd>
+          </dt>
+          <dd>Supprimer l’élément</dd>
+          <dt>
+            <ArrowKeys />
+          </dt>
+          <dd>
+            Déplacer de 1 px (<kbd>Maj</kbd> : 18 px)
+          </dd>
+          <dt>
+            <kbd>Échap</kbd>
+          </dt>
+          <dd>Désélectionner</dd>
+          <dt>
+            <ShortcutKeys shortcut="Ctrl+Z" />
+          </dt>
+          <dd>Annuler</dd>
+          <dt>
+            <ShortcutKeys shortcut="Ctrl+Y" />
+          </dt>
+          <dd>Rétablir</dd>
+          <dt>
+            <ShortcutKeys shortcut="Ctrl+S" />
+          </dt>
+          <dd>Enregistrer</dd>
+        </dl>
       </div>
     </section>
   );

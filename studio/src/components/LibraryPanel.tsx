@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchLibraries, fetchLibraryIndex, libraryRawUrl, looksLikeInterface, suggestedTop } from '../lib/libraryApi';
 import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from '../lib/libraryApi';
 import { ID_PATTERN, sanitizeId } from '../model/menu';
+import { Icon } from '../ui/Icon';
+import { Tooltip } from '../ui/Tooltip';
 
 interface LibraryPanelProps {
   /** Ajoute une texture de la bibliothèque comme couche du menu ouvert. */
@@ -15,6 +17,10 @@ const PAGE_SIZE = 240;
 
 function folderOf(path: string): string {
   return path.replace(/^assets\/[^/]+\/textures\//, '').split('/').slice(0, -1).join('/') || '(racine)';
+}
+
+function fileNameOf(path: string): string {
+  return (path.split('/').pop() ?? path).replace(/\.png$/i, '');
 }
 
 /** Navigation dans les packs branchés : vignettes, recherche, import de couches et de menus entiers. */
@@ -104,9 +110,12 @@ export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryP
     return (
       <section className="panel-section">
         <h3>Bibliothèque</h3>
-        <p className="muted small">
-          Aucune bibliothèque. Déclare des packs extraits dans <code>libraries.local.json</code> (modèle :{' '}
-          <code>libraries.example.json</code>), puis relance le studio.
+        <p className="empty-hint">
+          <Icon name="info" />
+          <span>
+            Aucune bibliothèque. Déclare des packs extraits dans <code>libraries.local.json</code> (modèle :{' '}
+            <code>libraries.example.json</code>), puis relance le studio.
+          </span>
         </p>
       </section>
     );
@@ -133,8 +142,24 @@ export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryP
             </option>
           ))}
         </select>
-        <input placeholder="Rechercher (nom, dossier)…" value={query} onChange={(event) => { setQuery(event.target.value); setLimit(PAGE_SIZE); }} />
-        <select value={folder} onChange={(event) => { setFolder(event.target.value); setLimit(PAGE_SIZE); }} aria-label="Dossier">
+        <input
+          className="search-input"
+          placeholder="Rechercher (nom, dossier)…"
+          value={query}
+          spellCheck={false}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setLimit(PAGE_SIZE);
+          }}
+        />
+        <select
+          value={folder}
+          onChange={(event) => {
+            setFolder(event.target.value);
+            setLimit(PAGE_SIZE);
+          }}
+          aria-label="Dossier"
+        >
           <option value="">Tous les dossiers ({folders.length})</option>
           {folders.map((name) => (
             <option key={name} value={name}>
@@ -146,8 +171,18 @@ export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryP
           <input type="checkbox" checked={interfaceOnly} onChange={(event) => setInterfaceOnly(event.target.checked)} />
           Assets d’interface seulement
         </label>
-        {error && <p className="field-error">{error}</p>}
-        {loading && <p className="muted small">Indexation du pack… (la toute première fois, jusqu’à une minute)</p>}
+        {error && (
+          <p className="field-error">
+            <Icon name="alert" />
+            {error}
+          </p>
+        )}
+        {loading && (
+          <p className="muted small loading-line">
+            <Icon name="loader" />
+            Indexation du pack… (la toute première fois, jusqu’à une minute)
+          </p>
+        )}
         {index && (
           <p className="muted small">
             {visible.length} texture{visible.length > 1 ? 's' : ''} sur {index.textures.length}
@@ -157,21 +192,41 @@ export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryP
 
       {index && (
         <section className="panel-section">
+          {visible.length === 0 && (
+            <p className="empty-hint">
+              <Icon name="search" />
+              <span>Aucune texture ne correspond. Élargis la recherche ou décoche « interface seulement ».</span>
+            </p>
+          )}
           <div className="thumb-grid">
-            {visible.slice(0, limit).map((texture) => (
-              <button
-                type="button"
-                key={texture.path}
-                className={`thumb ${selected?.path === texture.path ? 'selected' : ''}`}
-                title={`${texture.path} (${texture.width}×${texture.height})`}
-                onClick={() => setSelected(texture)}
-              >
-                <img src={libraryRawUrl(sourceId, texture.path)} alt="" loading="lazy" />
-              </button>
-            ))}
+            {visible.slice(0, limit).map((texture) => {
+              const name = fileNameOf(texture.path);
+              const isSelected = selected?.path === texture.path;
+              return (
+                <Tooltip
+                  key={texture.path}
+                  label={name}
+                  hint={`${folderOf(texture.path)} · ${texture.width} × ${texture.height} px`}
+                >
+                  <button
+                    type="button"
+                    className={`thumb ${isSelected ? 'selected' : ''}`}
+                    aria-label={texture.path}
+                    aria-pressed={isSelected}
+                    onClick={() => setSelected(texture)}
+                  >
+                    <span className="thumb-image">
+                      <img src={libraryRawUrl(sourceId, texture.path)} alt="" loading="lazy" />
+                    </span>
+                    <span className="thumb-name">{name}</span>
+                  </button>
+                </Tooltip>
+              );
+            })}
           </div>
           {visible.length > limit && (
             <button type="button" className="wide" onClick={() => setLimit(limit + PAGE_SIZE)}>
+              <Icon name="chevron-down" />
               Afficher {Math.min(PAGE_SIZE, visible.length - limit)} de plus
             </button>
           )}
@@ -180,20 +235,29 @@ export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryP
 
       {selected && source && (
         <section className="panel-section">
-          <h3>Texture</h3>
+          <header className="section-header">
+            <h3>Texture</h3>
+            <span className="count">
+              {selected.width} × {selected.height} px
+            </span>
+          </header>
           <div className="thumb-preview">
             <img src={libraryRawUrl(sourceId, selected.path)} alt="" />
           </div>
           <p className="small mono-break">{selected.path}</p>
-          <p className="muted small">
-            {selected.width} × {selected.height} px
-            {top !== null ? ` · placée à y = ${top} (ascent ${13 - top})` : ''}
-          </p>
+          {top !== null && <p className="muted small">Placée à y = {top} (ascent {13 - top})</p>}
           {selected.usages.length > 0 && (
             <ul className="usage-list small">
               {selected.usages.slice(0, 6).map((usage) => (
                 <li key={`${usage.font}@${usage.ascent}`}>
-                  <button type="button" className="link" onClick={() => { setFontId(usage.font); setMenuId(sanitizeId(usage.font.split(/[:/]/).slice(-2).join('_'))); }}>
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => {
+                      setFontId(usage.font);
+                      setMenuId(sanitizeId(usage.font.split(/[:/]/).slice(-2).join('_')));
+                    }}
+                  >
                     {usage.font}
                   </button>{' '}
                   <span className="muted">ascent {usage.ascent} · hauteur {usage.height}</span>
@@ -205,11 +269,12 @@ export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryP
             type="button"
             className="primary"
             disabled={busy || !canAddLayer}
-            title={canAddLayer ? undefined : 'Ouvre d’abord un menu'}
             onClick={() => void run(() => onAddLayer(source, selected, top))}
           >
+            <Icon name={busy ? 'loader' : 'plus'} />
             Ajouter comme couche
           </button>
+          {!canAddLayer && <p className="field-hint">Ouvre d’abord un menu.</p>}
         </section>
       )}
 
@@ -237,14 +302,25 @@ export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryP
           </select>
           {fontId && (
             <>
-              <input value={menuId} onChange={(event) => setMenuId(event.target.value)} placeholder="Identifiant du nouveau menu" />
-              {menuIdError && <span className="field-error">{menuIdError}</span>}
+              <input
+                className="mono"
+                value={menuId}
+                onChange={(event) => setMenuId(event.target.value)}
+                placeholder="Identifiant du nouveau menu"
+              />
+              {menuIdError && (
+                <span className="field-error">
+                  <Icon name="alert" />
+                  {menuIdError}
+                </span>
+              )}
               <button
                 type="button"
                 className="primary"
                 disabled={busy || !menuId || Boolean(menuIdError)}
                 onClick={() => void run(() => onImportFont(source, index, fontId, menuId))}
               >
+                <Icon name={busy ? 'loader' : 'chest'} />
                 {busy ? 'Import…' : 'Créer le menu'}
               </button>
             </>

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { GENERATOR_PRESETS, PANEL_STYLE_LABELS, renderGenerator } from '../model/generator';
 import { ID_PATTERN } from '../model/menu';
 import type { GeneratorSpec, PanelStyle, SlotArea } from '../model/menu';
-import { Field, Modal, NumberField } from './fields';
+import { Icon } from '../ui/Icon';
+import { Field, FieldError, Modal, NumberField } from './fields';
 
 export interface GeneratorResult {
   layerId: string;
@@ -71,11 +72,12 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
       onClose={onCancel}
       footer={
         <>
-          {error && <span className="field-error">{error}</span>}
+          {error && <FieldError>{error}</FieldError>}
           <button type="button" onClick={onCancel}>
             Annuler
           </button>
           <button type="button" className="primary" disabled={busy || Boolean(idError)} onClick={() => void confirm()}>
+            <Icon name={busy ? 'loader' : 'sparkles'} />
             {busy ? 'Génération…' : mode === 'create' ? 'Créer la couche' : 'Mettre à jour'}
           </button>
         </>
@@ -101,8 +103,8 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
           </Field>
           {mode === 'create' ? (
             <Field label="Identifiant de la couche">
-              <input value={layerId} onChange={(event) => setLayerId(event.target.value)} />
-              {idError && <span className="field-error">{idError}</span>}
+              <input className="mono" value={layerId} onChange={(event) => setLayerId(event.target.value)} />
+              {idError && <FieldError>{idError}</FieldError>}
             </Field>
           ) : (
             <p className="muted">Couche « {layerId} »</p>

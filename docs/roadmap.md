@@ -79,6 +79,36 @@ devient une **application de bureau Tauri**.
   du natif (sélecteur de dossiers, lecture directe des zips de packs,
   glisser-déposer depuis l’explorateur, export direct vers le plugin).
 
+## Appli Tauri : état (2026-09-10)
+
+Le **protocole d’URL maison** prévu ci-dessus est abandonné au profit d’un
+serveur HTTP local : l’appli lance le backend Rust dans son propre processus
+(`127.0.0.1`, port libre) et ce même serveur sert aussi l’interface, donc la
+page et `/api` partagent la même origine et l’interface ne change pas.
+Détails et commandes : [`../studio/README.md`](../studio/README.md).
+
+- **Backend** (`studio/backend/`, crate `studio-backend`) : boucle HTTP dans
+  la lib (`server::serve`, port réel renvoyé, arrêt propre), `studio-api`
+  n’est plus qu’une enveloppe ; contrôle `Host` / `Origin` gardé.
+- **Réglages persistants** (JSON, écriture atomique) : espaces de travail
+  connus, espace actif, bibliothèques (importées de `libraries.local.json` au
+  premier lancement), préférences d’interface et d’export. Espace actif et
+  bibliothèques modifiables à chaud, index en mémoire conservés.
+- **Nouvelles routes** : `/app`, `/settings`, `/workspaces`,
+  `/workspaces/open`, `/documents/recent`, ajout, retrait et réindexation des
+  bibliothèques. Routes historiques inchangées (test de parité avec le TS).
+- **Coquille** (`studio/src-tauri/`, crate `menu-forge`) : Tauri 2, plugins
+  `dialog` et `opener`, capacité limitée à `http://127.0.0.1:*` (sélecteur de
+  dossier, « montrer dans l’explorateur »), navigation bloquée hors de
+  l’origine de l’interface, écran de démarrage puis fenêtre principale,
+  installateur NSIS.
+- **Mode navigateur** conservé : `npm run dev` (serveur TS, par défaut) ou
+  `npm run dev:rust` (backend Rust derrière le proxy de Vite).
+
+Reste à faire : brancher les écrans (choix d’espace, sélecteur de dossier,
+réglages, récents) sur ces routes, puis retirer `studio/server/` après la
+bascule de `npm run dev` sur le backend Rust.
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et

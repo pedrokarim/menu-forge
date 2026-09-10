@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { MAX_ROWS } from '../model/geometry';
 import { ID_PATTERN, sanitizeId } from '../model/menu';
 import type { MenuDefinition } from '../model/menu';
-import { Field, Modal, NumberField } from './fields';
+import { Icon } from '../ui/Icon';
+import { Field, FieldError, Modal, NumberField } from './fields';
 
 export interface NewMenuInput {
   id: string;
@@ -45,50 +46,56 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
     }
   };
 
+  const card = (key: string, title: string, description: string) => {
+    const selected = templateId === key;
+    return (
+      <button
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        key={key || 'blank'}
+        className={`template-card ${selected ? 'selected' : ''}`}
+        onClick={() => setTemplateId(key)}
+      >
+        <strong>
+          {title}
+          {selected && <Icon name="check" className="template-check" />}
+        </strong>
+        <span className="muted small">{description}</span>
+      </button>
+    );
+  };
+
   return (
     <Modal
       title="Nouveau menu"
       onClose={onCancel}
       footer={
         <>
-          {error && <span className="field-error">{error}</span>}
+          {error && <FieldError>{error}</FieldError>}
           <button type="button" onClick={onCancel}>
             Annuler
           </button>
           <button type="button" className="primary" disabled={busy || Boolean(idError)} onClick={() => void create()}>
+            <Icon name={busy ? 'loader' : 'check'} />
             {busy ? 'Création…' : 'Créer'}
           </button>
         </>
       }
     >
       <div className="template-gallery" role="radiogroup" aria-label="Point de départ">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={templateId === ''}
-          className={`template-card ${templateId === '' ? 'selected' : ''}`}
-          onClick={() => setTemplateId('')}
-        >
-          <strong>Vierge</strong>
-          <span className="muted small">Un coffre vide, sans couche.</span>
-        </button>
-        {templates.map((candidate) => (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={templateId === candidate.id}
-            key={candidate.id}
-            className={`template-card ${templateId === candidate.id ? 'selected' : ''}`}
-            onClick={() => setTemplateId(candidate.id)}
-          >
-            <strong>{candidate.name}</strong>
-            <span className="muted small">
-              {candidate.template ? 'Gabarit partiel, à hériter' : 'Écran complet'} · {candidate.layers.length} couche
-              {candidate.layers.length > 1 ? 's' : ''} · {(candidate.slots ?? []).length} slot
-              {(candidate.slots ?? []).length > 1 ? 's' : ''}
-            </span>
-          </button>
-        ))}
+        {card('', 'Vierge', 'Un coffre vide, sans couche.')}
+        {templates.map((candidate) => {
+          const layerCount = candidate.layers.length;
+          const slotCount = (candidate.slots ?? []).length;
+          return card(
+            candidate.id,
+            candidate.name,
+            `${candidate.template ? 'Gabarit partiel, à hériter' : 'Écran complet'} · ${layerCount} couche${
+              layerCount > 1 ? 's' : ''
+            } · ${slotCount} slot${slotCount > 1 ? 's' : ''}`,
+          );
+        })}
       </div>
       <Field label="Nom">
         <input
@@ -101,13 +108,14 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
       </Field>
       <Field label="Identifiant" hint="Nom du fichier et de la police générée">
         <input
+          className="mono"
           value={id}
           onChange={(event) => {
             setIdTouched(true);
             setId(event.target.value);
           }}
         />
-        {idError && <span className="field-error">{idError}</span>}
+        {idError && <FieldError>{idError}</FieldError>}
       </Field>
       {!template && (
         <NumberField label="Lignes du coffre" value={rows} min={1} max={MAX_ROWS} onChange={(value) => setRows(Math.min(MAX_ROWS, Math.max(1, value)))} />

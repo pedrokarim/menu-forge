@@ -1,0 +1,5 @@
+# Compilation Rust (plusieurs centaines de Mo)
+/target/
+
+# Schémas régénérés par Tauri à chaque compilation
+/gen/schemas/

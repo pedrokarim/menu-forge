@@ -1,0 +1,150 @@
+import type { JSX, SVGProps } from 'react';
+import { ArrowDown } from 'pixelarticons/react/ArrowDown';
+import { ArrowLeft } from 'pixelarticons/react/ArrowLeft';
+import { ArrowRight } from 'pixelarticons/react/ArrowRight';
+import { ArrowUp } from 'pixelarticons/react/ArrowUp';
+import { Bulletlist } from 'pixelarticons/react/Bulletlist';
+import { Check } from 'pixelarticons/react/Check';
+import { ChevronDown } from 'pixelarticons/react/ChevronDown';
+import { ChevronUp } from 'pixelarticons/react/ChevronUp';
+import { Close } from 'pixelarticons/react/Close';
+import { Copy } from 'pixelarticons/react/Copy';
+import { Crop } from 'pixelarticons/react/Crop';
+import { Download } from 'pixelarticons/react/Download';
+import { Expand } from 'pixelarticons/react/Expand';
+import { Eye } from 'pixelarticons/react/Eye';
+import { EyeOff } from 'pixelarticons/react/EyeOff';
+import { Grid3x3 } from 'pixelarticons/react/Grid3x3';
+import { Image } from 'pixelarticons/react/Image';
+import { InfoBox } from 'pixelarticons/react/InfoBox';
+import { Keyboard } from 'pixelarticons/react/Keyboard';
+import { LetterT } from 'pixelarticons/react/LetterT';
+import { Library } from 'pixelarticons/react/Library';
+import { Loader } from 'pixelarticons/react/Loader';
+import { Plus } from 'pixelarticons/react/Plus';
+import { Redo } from 'pixelarticons/react/Redo';
+import { Save } from 'pixelarticons/react/Save';
+import { Search } from 'pixelarticons/react/Search';
+import { Sparkles } from 'pixelarticons/react/Sparkles';
+import { Square } from 'pixelarticons/react/Square';
+import { SquareAlert } from 'pixelarticons/react/SquareAlert';
+import { TextAlignCenter } from 'pixelarticons/react/TextAlignCenter';
+import { TextAlignLeft } from 'pixelarticons/react/TextAlignLeft';
+import { TextAlignRight } from 'pixelarticons/react/TextAlignRight';
+import { Trash } from 'pixelarticons/react/Trash';
+import { Undo } from 'pixelarticons/react/Undo';
+import { Upload } from 'pixelarticons/react/Upload';
+import { WarningDiamond } from 'pixelarticons/react/WarningDiamond';
+
+type IconComponent = (props: SVGProps<SVGSVGElement>) => JSX.Element;
+
+/** Rectangle `[x, y, largeur, hauteur]` sur la grille 24 × 24 des pixelarticons. */
+type PixelRect = readonly [number, number, number, number];
+
+/**
+ * Icône dessinée à la main, sur la même grille que pixelarticons (24 × 24,
+ * pixels de 2 unités) : un tracé fait uniquement de rectangles reste net.
+ */
+function pixelIcon(rects: readonly PixelRect[]): IconComponent {
+  const d = rects.map(([x, y, width, height]) => `M${x} ${y}h${width}v${height}h${-width}z`).join('');
+  return (props) => (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d={d} />
+    </svg>
+  );
+}
+
+/** Pointeur plein, à la manière du curseur du jeu (absent de pixelarticons). */
+const Cursor = pixelIcon([
+  [5, 2, 2, 2],
+  [5, 4, 4, 2],
+  [5, 6, 6, 2],
+  [5, 8, 8, 2],
+  [5, 10, 10, 2],
+  [5, 12, 12, 2],
+  [5, 14, 8, 2],
+  [5, 16, 2, 2],
+  [9, 16, 4, 2],
+  [11, 18, 4, 2],
+  [11, 20, 4, 2],
+]);
+
+/** Coffre : couvercle, corps et loquet (pour le mode Menus). */
+const Chest = pixelIcon([
+  [4, 4, 16, 2],
+  [2, 6, 2, 12],
+  [20, 6, 2, 12],
+  [2, 18, 20, 2],
+  [4, 10, 6, 2],
+  [14, 10, 6, 2],
+  [10, 8, 4, 6],
+]);
+
+const ICONS = {
+  alert: SquareAlert,
+  'align-center': TextAlignCenter,
+  'align-left': TextAlignLeft,
+  'align-right': TextAlignRight,
+  'arrow-down': ArrowDown,
+  'arrow-left': ArrowLeft,
+  'arrow-right': ArrowRight,
+  'arrow-up': ArrowUp,
+  box: Square,
+  check: Check,
+  chest: Chest,
+  'chevron-down': ChevronDown,
+  'chevron-up': ChevronUp,
+  close: Close,
+  copy: Copy,
+  crop: Crop,
+  cursor: Cursor,
+  download: Download,
+  expand: Expand,
+  eye: Eye,
+  'eye-off': EyeOff,
+  grid: Grid3x3,
+  image: Image,
+  info: InfoBox,
+  keyboard: Keyboard,
+  library: Library,
+  list: Bulletlist,
+  loader: Loader,
+  plus: Plus,
+  redo: Redo,
+  save: Save,
+  search: Search,
+  sparkles: Sparkles,
+  text: LetterT,
+  trash: Trash,
+  undo: Undo,
+  upload: Upload,
+  warning: WarningDiamond,
+} satisfies Record<string, IconComponent>;
+
+export type IconName = keyof typeof ICONS;
+
+interface IconProps {
+  name: IconName;
+  /** Multiple de 12 px : chaque pixel de l’icône tombe sur un pixel entier de l’écran. */
+  size?: 12 | 24 | 36 | 48;
+  /** Texte alternatif ; sans lui, l’icône est décorative (masquée aux lecteurs d’écran). */
+  label?: string;
+  className?: string;
+}
+
+/** Icône pixel (pixelarticons, MIT, ou dessin maison sur la même grille). */
+export function Icon({ name, size = 12, label, className }: IconProps) {
+  const Component = ICONS[name];
+  return (
+    <Component
+      width={size}
+      height={size}
+      className={className ? `icon ${className}` : 'icon'}
+      shapeRendering="crispEdges"
+      focusable="false"
+      role={label ? 'img' : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    />
+  );
+}

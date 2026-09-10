@@ -1,4 +1,5 @@
-/* Éditeur d’assets (« mode libre ») : remplace les trois colonnes des menus. */
+/* Éditeur d’assets (« mode libre ») : remplace les trois colonnes des menus.
+   Mêmes jetons Deepslate que le reste du studio (voir index.css). */
 
 .asset-editor {
   display: grid;
@@ -24,10 +25,11 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  gap: 8px 10px;
+  padding: 7px 12px 8px;
+  background: var(--ds-panel-raised);
+  border-bottom: 2px solid var(--ds-edge-soft);
+  box-shadow: inset 0 2px 0 #3d3e47, inset 0 -2px 0 #1f2026;
 }
 
 .asset-toolbar-group {
@@ -37,53 +39,28 @@
 }
 
 .asset-toolbar-texture {
-  width: 320px;
+  width: 340px;
   max-width: 100%;
 }
 
 .asset-toolbar-texture .field {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  column-gap: 6px;
+  column-gap: 8px;
 }
 
 .asset-toolbar-texture .field-hint {
   grid-column: 1 / -1;
 }
 
-.asset-segmented {
-  display: inline-flex;
-}
-
-.asset-segmented button {
-  border-radius: 0;
-  margin-left: -1px;
-}
-
-.asset-segmented button:first-child {
-  border-radius: var(--radius) 0 0 var(--radius);
-  margin-left: 0;
-}
-
-.asset-segmented button:last-child {
-  border-radius: 0 var(--radius) var(--radius) 0;
-}
-
-.asset-segmented button.active {
-  position: relative;
-  background: var(--accent-strong);
-  border-color: var(--accent-strong);
-  color: #fff;
-}
-
 /* Toile */
 
 .asset-canvas-frame {
-  margin: auto;
-  flex: none;
   display: grid;
-  gap: 6px;
+  gap: 8px;
   justify-items: start;
+  flex: none;
+  margin: auto;
 }
 
 .asset-canvas {
@@ -93,37 +70,69 @@
 }
 
 .asset-coords {
-  padding-left: 24px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
+  padding: 3px 8px;
+  margin-left: 24px;
+  font: 11px var(--font-mono);
+  color: var(--ds-muted);
   white-space: pre;
+  background: rgba(11, 11, 14, 0.7);
+  box-shadow: inset 0 0 0 1px #24252c;
 }
 
 .asset-footer {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
+  min-height: 28px;
   padding: 4px 12px;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-  color: var(--muted);
   font-size: 12px;
+  color: var(--ds-muted);
+  background: var(--ds-panel-sunken);
+  border-top: 2px solid var(--ds-edge-soft);
+  box-shadow: inset 0 2px 0 #2c2d34;
+}
+
+.asset-footer-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .asset-status {
-  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ds-ink);
   text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Liste des éléments */
 
-/* Le <select> prendrait la largeur de son option la plus longue : on la fixe,
-   et l’en-tête passe à la ligne s’il manque de place. */
+/* Le <select> prendrait la largeur de son option la plus longue : on la fixe.
+   Le « + » est un picto, pas un caractère. */
 .asset-add-select {
-  width: 92px;
-  padding: 2px 6px;
+  width: 96px;
+  min-height: var(--control-h-sm);
+  padding: 1px 24px 1px 26px;
   font-size: 12px;
+  color: var(--ds-btn-ink);
+  background-color: var(--ds-btn);
+  background-image: var(--img-plus), var(--img-chevron);
+  background-position: 7px center, right 6px center;
+  background-size: 12px 12px, 12px 12px;
+  box-shadow: var(--bevel-raised);
+}
+
+.asset-add-select:hover:not(:disabled) {
+  background-color: var(--ds-btn-hover);
+  background-image: var(--img-plus), var(--img-chevron-hover);
+  box-shadow: var(--bevel-raised-hover);
 }
 
 .asset-editor .section-header {
@@ -131,22 +140,29 @@
 }
 
 .kind-dot.asset-kind-box {
-  background: #2e8b86;
+  --kind: var(--kind-box);
 }
 
 .kind-dot.asset-kind-image {
-  background: #9ecbff;
+  --kind: var(--kind-image);
 }
 
 .kind-dot.asset-kind-text {
-  background: #ffd166;
+  --kind: var(--kind-text);
 }
 
 /* Sélecteur de zone source */
 
+/* Colonnes « minmax(0, 1fr) » : l’aperçu agrandi et les extraits défilent dans
+   leur cadre au lieu d’élargir la colonne. */
+.asset-region-picker,
+.asset-snippet-block {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .asset-region-picker {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .asset-region-toolbar {
@@ -155,18 +171,25 @@
   gap: 4px;
 }
 
-.asset-region-toolbar button,
 .asset-region-toolbar select {
-  padding: 2px 8px;
+  width: 72px;
+  min-height: var(--control-h-sm);
+  padding-top: 1px;
+  padding-bottom: 1px;
   font-size: 12px;
 }
 
 .asset-region-scroll {
   max-height: 320px;
   overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: #0d0e11;
+  background: var(--ds-stage);
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-sunken);
+}
+
+.inspector .asset-region-scroll {
+  border-color: var(--ds-tip-edge);
+  box-shadow: inset 0 0 0 1px var(--ds-tip-line);
 }
 
 .asset-region-scroll canvas {
@@ -188,20 +211,21 @@
 }
 
 .asset-code-palette button {
-  display: inline-flex;
-  align-items: center;
   gap: 4px;
+  min-height: 22px;
   padding: 0 5px;
-  font-family: var(--mono);
-  font-size: 11px;
+  font: 11px var(--font-mono);
+}
+
+.asset-code-palette button:where(:active:not(:disabled)) {
+  padding: 1px 4px 0 6px;
 }
 
 .asset-swatch {
   display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 1px var(--ds-edge);
 }
 
 /* Export */
@@ -210,48 +234,53 @@
   display: grid;
   gap: 10px;
   justify-items: start;
+  padding: 10px;
   overflow-x: auto;
-  padding: 8px;
-  border-radius: var(--radius);
-  background: #0d0e11;
+  background-color: var(--ds-stage);
+  background-image:
+    linear-gradient(var(--ds-stage-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ds-stage-line) 1px, transparent 1px);
+  background-size: 12px 12px;
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-sunken);
 }
 
 .asset-preview figure {
-  margin: 0;
   display: grid;
   gap: 4px;
+  margin: 0;
 }
 
 .asset-preview canvas {
   display: block;
   image-rendering: pixelated;
+  box-shadow: 0 0 0 1px var(--ds-edge);
 }
 
 .asset-preview figcaption {
-  font-size: 11px;
-  color: var(--muted);
+  font: 11px var(--font-mono);
+  color: var(--ds-muted);
 }
 
 .asset-snippet-block {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .asset-snippet {
   margin: 0;
-  padding: 8px;
+  padding: 8px 10px;
   overflow-x: auto;
+  font: 11px/1.55 var(--font-mono);
+  color: #d8d4e2;
   white-space: pre;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-family: var(--mono);
-  font-size: 11px;
+  background: var(--ds-field);
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-sunken);
 }
 
-.asset-copy {
-  padding: 1px 8px;
-  font-size: 12px;
+.asset-save {
+  width: 100%;
 }
 
 .asset-snippet-block .field-hint,

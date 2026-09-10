@@ -532,9 +532,9 @@ function TextInspector({ element, update }: EditingProps<AssetTextElement>) {
         <Segmented
           value={element.align ?? 'left'}
           options={[
-            { value: 'left', label: 'Gauche' },
-            { value: 'center', label: 'Centre' },
-            { value: 'right', label: 'Droite' },
+            { value: 'left', label: 'Gauche', icon: 'align-left' },
+            { value: 'center', label: 'Centre', icon: 'align-center' },
+            { value: 'right', label: 'Droite', icon: 'align-right' },
           ]}
           onChange={(align) => update((draft) => void (draft.align = align), 'align')}
         />

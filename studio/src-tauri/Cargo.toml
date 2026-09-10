@@ -1,0 +1,21 @@
+[package]
+name = "menu-forge"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Coquille Tauri du studio menu-forge : lance le backend local et affiche l’interface."
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+tauri = { version = "2.11", features = [] }
+# Sélecteur de dossier natif (futurs écrans : ouvrir un espace de travail, une bibliothèque).
+tauri-plugin-dialog = "2.7"
+# Montrer un dossier dans l’explorateur de fichiers.
+tauri-plugin-opener = "2.5"
+studio-backend = { path = "../backend" }
+
+[profile.release]
+lto = "thin"
+strip = true

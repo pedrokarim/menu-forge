@@ -1,4 +1,7 @@
-import type { MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
+import { Icon } from '../ui/Icon';
+import { IconButton } from '../ui/IconButton';
+import { Tooltip } from '../ui/Tooltip';
 import type { AssetElement } from './model';
 import { BOX_PRESETS } from './presets';
 
@@ -45,30 +48,38 @@ export function ElementList(props: ElementListProps) {
       <header className="section-header">
         <h3>Éléments</h3>
         <div className="section-actions">
-          <select
-            className="asset-add-select"
-            value=""
-            aria-label="Ajouter une box"
-            onChange={(event) => {
-              if (event.target.value) props.onAddBox(event.target.value);
-            }}
-          >
-            <option value="">＋ Box…</option>
-            {BOX_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={props.onAddText}>
-            ＋ Texte
-          </button>
+          <Tooltip label="Ajouter une box" hint="Au centre de l’asset, avec le préréglage choisi ; outil Box : B">
+            <select
+              className="asset-add-select"
+              value=""
+              aria-label="Ajouter une box"
+              onChange={(event) => {
+                if (event.target.value) props.onAddBox(event.target.value);
+              }}
+            >
+              <option value="">Box…</option>
+              {BOX_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </Tooltip>
+          <Tooltip label="Ajouter un texte" hint="Posé en haut à gauche ; outil Texte : T">
+            <button type="button" className="sm" onClick={props.onAddText}>
+              <Icon name="plus" />
+              Texte
+            </button>
+          </Tooltip>
         </div>
       </header>
       {elements.length === 0 && (
-        <p className="muted small">
-          Aucun élément. Dessine une box (outil Box), pose un texte ou une image, ou insère une texture depuis la
-          bibliothèque.
+        <p className="empty-hint">
+          <Icon name="info" />
+          <span>
+            Aucun élément. Dessine une box (outil Box, <kbd>B</kbd>), pose un texte (<kbd>T</kbd>) ou une image (<kbd>I</kbd>),
+            ou insère une texture depuis la bibliothèque.
+          </span>
         </p>
       )}
       <ul className="outline-list">
@@ -76,43 +87,60 @@ export function ElementList(props: ElementListProps) {
           .map((element, index) => ({ element, index }))
           .reverse()
           .map(({ element, index }) => {
+            const isSelected = element.id === selectedId;
             const classes = ['outline-item'];
-            if (element.id === selectedId) classes.push('selected');
+            if (isSelected) classes.push('selected');
             if (element.hidden) classes.push('hidden-by-state');
             return (
-              <li key={element.id} className={classes.join(' ')} onClick={() => props.onSelect(element.id)}>
+              <li
+                key={element.id}
+                className={classes.join(' ')}
+                tabIndex={0}
+                aria-current={isSelected || undefined}
+                onClick={() => props.onSelect(element.id)}
+                onKeyDown={(event: KeyboardEvent) => {
+                  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                  event.preventDefault();
+                  props.onSelect(element.id);
+                }}
+              >
                 <span className="outline-label">
-                  <span className={`kind-dot asset-kind-${element.type}`} /> {element.id}{' '}
+                  <span className={`kind-dot asset-kind-${element.type}`} />
+                  <span className="outline-name">{element.id}</span>
                   <span className="muted">{describe(element)}</span>
                 </span>
                 <span className="outline-actions">
-                  <button
-                    type="button"
-                    title="Monter (dessiner au-dessus)"
+                  <IconButton
+                    icon="chevron-up"
+                    label="Monter"
+                    hint="Dessiner au-dessus"
+                    variant="ghost"
                     disabled={index === lastIndex}
                     onClick={stop(() => props.onReorder(element.id, 1))}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    title="Descendre (dessiner en dessous)"
+                  />
+                  <IconButton
+                    icon="chevron-down"
+                    label="Descendre"
+                    hint="Dessiner en dessous"
+                    variant="ghost"
                     disabled={index === 0}
                     onClick={stop(() => props.onReorder(element.id, -1))}
-                  >
-                    ▼
-                  </button>
-                  <button
-                    type="button"
-                    title={element.hidden ? 'Afficher' : 'Masquer (ni affiché ni exporté)'}
-                    aria-pressed={Boolean(element.hidden)}
+                  />
+                  <IconButton
+                    icon={element.hidden ? 'eye-off' : 'eye'}
+                    label={element.hidden ? 'Afficher' : 'Masquer'}
+                    hint={element.hidden ? 'Masqué : ni affiché ni exporté' : 'Ni affiché ni exporté une fois masqué'}
+                    variant="ghost"
+                    pressed={Boolean(element.hidden)}
                     onClick={stop(() => props.onToggleHidden(element.id))}
-                  >
-                    {element.hidden ? '○' : '◉'}
-                  </button>
-                  <button type="button" title="Supprimer" onClick={stop(() => props.onDelete(element.id))}>
-                    ✕
-                  </button>
+                  />
+                  <IconButton
+                    icon="trash"
+                    label="Supprimer"
+                    shortcut="Suppr"
+                    variant="danger"
+                    onClick={stop(() => props.onDelete(element.id))}
+                  />
                 </span>
               </li>
             );

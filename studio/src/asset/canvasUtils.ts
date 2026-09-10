@@ -1,7 +1,8 @@
 /** Petits utilitaires de dessin partagés par la toile, le sélecteur de zone et l’aperçu d’export. */
 
-const CHECKER_DARK = '#2a2d34';
-const CHECKER_LIGHT = '#33363e';
+/** Damier de transparence, dans les tons d’ardoise du studio. */
+const CHECKER_DARK = '#23242a';
+const CHECKER_LIGHT = '#2d2e35';
 
 /** Damier de transparence (cases de `cell` pixels écran), dessiné via un motif pour rester rapide. */
 export function fillChecker(

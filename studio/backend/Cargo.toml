@@ -1,0 +1,26 @@
+[package]
+name = "studio-backend"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Backend local du studio menu-forge (espace de travail, textures, bibliothèques)."
+
+[lib]
+name = "studio_backend"
+path = "src/lib.rs"
+
+[[bin]]
+name = "studio-api"
+path = "src/main.rs"
+
+[dependencies]
+# `preserve_order` : garder l’ordre des clés des documents ; `float_roundtrip` :
+# lecture des nombres à virgule exacte, comme `JSON.parse`.
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+tiny_http = "0.12"
+rayon = "1"
+# Tri identique à `String.prototype.localeCompare` (collation Unicode d’ICU).
+icu_collator = "2"
+
+[profile.release]
+lto = "thin"
