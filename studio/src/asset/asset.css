@@ -8,11 +8,19 @@
   height: 100%;
 }
 
+/* Mêmes colonnes réduites que l’éditeur de menus sous 1280 px. */
+@media (max-width: 1279px) {
+  .asset-editor {
+    grid-template-columns: 248px minmax(0, 1fr) 300px;
+  }
+}
+
 .asset-stage {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
+  container: asset-stage / inline-size;
 }
 
 .asset-stage-scroll {
@@ -32,10 +40,26 @@
   box-shadow: inset 0 2px 0 #3d3e47, inset 0 -2px 0 #1f2026;
 }
 
+.asset-toolbar > * {
+  flex: none;
+}
+
 .asset-toolbar-group {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Réglages de la vue calés à droite, comme dans la barre de la toile des menus. */
+.asset-toolbar-end {
+  margin-left: auto;
+}
+
+/* Colonne centrale étroite : les outils ne gardent que picto et touche. */
+@container asset-stage (max-width: 700px) {
+  .asset-toolbar .tool-label {
+    display: none;
+  }
 }
 
 .asset-toolbar-texture {

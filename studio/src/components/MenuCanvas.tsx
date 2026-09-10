@@ -15,7 +15,7 @@ import type { ScreenRect } from '../canvas/overlay';
 import { alignmentGuides, gridSnapLines, snapRect, snapThreshold, withRects } from '../canvas/snapping';
 import type { SnapGuide, SnapLines } from '../canvas/snapping';
 import { labelFont } from '../canvas/theme';
-import { isEditableTarget, scrollParentOf, stepZoom } from '../canvas/viewport';
+import { CANVAS_MARGINS, isEditableTarget, scrollParentOf, stepZoom } from '../canvas/viewport';
 import { alphaAt } from '../lib/textures';
 import type { TextureMap } from '../lib/textures';
 import { evaluateCondition } from '../model/conditions';
@@ -50,9 +50,9 @@ export type CanvasTool = 'select' | 'slot';
 export type BackgroundMode = 'slots-only' | 'vanilla' | 'none';
 
 /** Marges autour de la fenêtre, pour voir ce qui déborde (barre d’onglets flottante…). */
-const MARGIN_X = 40;
-const MARGIN_TOP = 48;
-const MARGIN_BOTTOM = 16;
+const MARGIN_X = CANVAS_MARGINS.x;
+const MARGIN_TOP = CANVAS_MARGINS.top;
+const MARGIN_BOTTOM = CANVAS_MARGINS.bottom;
 
 /** Distance (px écran) à parcourir avant qu’un clic devienne un glisser. */
 const DRAG_THRESHOLD = 3;

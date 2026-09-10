@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MAX_ROWS } from '../model/geometry';
-import { ID_PATTERN, sanitizeId } from '../model/menu';
+import { ID_PATTERN, sanitizeId, uniqueId } from '../model/menu';
 import type { MenuDefinition } from '../model/menu';
 import { Icon } from '../ui/Icon';
 import { Field, FieldError, Modal, NumberField } from './fields';
@@ -22,7 +22,8 @@ interface NewMenuDialogProps {
 /** Création d’un menu, vierge ou à partir d’un gabarit fourni. */
 export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: NewMenuDialogProps) {
   const [name, setName] = useState('Mon menu');
-  const [id, setId] = useState('mon_menu');
+  // Identifiant proposé toujours libre : le dialogue ne s’ouvre jamais sur une erreur.
+  const [id, setId] = useState(() => uniqueId('mon_menu', existingIds));
   const [idTouched, setIdTouched] = useState(false);
   const [rows, setRows] = useState(6);
   const [templateId, setTemplateId] = useState('');
@@ -97,26 +98,28 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
           );
         })}
       </div>
-      <Field label="Nom">
-        <input
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            if (!idTouched) setId(sanitizeId(event.target.value));
-          }}
-        />
-      </Field>
-      <Field label="Identifiant" hint="Nom du fichier et de la police générée">
-        <input
-          className="mono"
-          value={id}
-          onChange={(event) => {
-            setIdTouched(true);
-            setId(event.target.value);
-          }}
-        />
-        {idError && <FieldError>{idError}</FieldError>}
-      </Field>
+      <div className="field-row">
+        <Field label="Nom">
+          <input
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              if (!idTouched) setId(uniqueId(sanitizeId(event.target.value), existingIds));
+            }}
+          />
+        </Field>
+        <Field label="Identifiant" hint="Nom du fichier et de la police générée">
+          <input
+            className="mono"
+            value={id}
+            onChange={(event) => {
+              setIdTouched(true);
+              setId(event.target.value);
+            }}
+          />
+          {idError && <FieldError>{idError}</FieldError>}
+        </Field>
+      </div>
       {!template && (
         <NumberField label="Lignes du coffre" value={rows} min={1} max={MAX_ROWS} onChange={(value) => setRows(Math.min(MAX_ROWS, Math.max(1, value)))} />
       )}

@@ -27,6 +27,7 @@ import { Icon } from './ui/Icon';
 import { IconButton } from './ui/IconButton';
 import { ShortcutKeys } from './ui/Keys';
 import { Tooltip } from './ui/Tooltip';
+import { fitZoom, stepZoom } from './canvas/viewport';
 import type { Point } from './model/geometry';
 import { createEmptyMenu, sanitizeId, uniqueId } from './model/menu';
 import type { GeneratorSpec, MenuDefinition, SlotArea } from './model/menu';
@@ -45,7 +46,7 @@ type DialogState =
 
 type Recipe = (draft: MenuDefinition) => void;
 
-const ZOOM_LEVELS = [2, 3, 4, 5, 6];
+const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8];
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -87,6 +88,9 @@ export default function App() {
   const [textureVersions, setTextureVersions] = useState<Record<string, number>>({});
   const [preview, setPreview] = useState<PreviewValues>(DEFAULT_PREVIEW);
   const [zoom, setZoom] = useState(3);
+  // Zoom « Ajuster » par défaut : le plus grand palier où tout le coffre tient dans la zone.
+  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit');
+  const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
   const [tool, setTool] = useState<CanvasTool>('select');
   const [background, setBackground] = useState<BackgroundMode>('slots-only');
   const [showSlots, setShowSlots] = useState(true);
@@ -214,6 +218,11 @@ export default function App() {
       if (withModifier && key === 'z') {
         event.preventDefault();
         dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
+        return;
+      }
+      if (withModifier && key === '0') {
+        event.preventDefault();
+        setZoomMode('fit');
         return;
       }
       if (withModifier && key === 'y') {
@@ -436,6 +445,22 @@ export default function App() {
     };
   })();
 
+  // Taille de la zone de la toile, suivie en continu pour le zoom « Ajuster ».
+  const observeStage = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setStageSize({ width: Math.floor(entry.contentRect.width), height: Math.floor(entry.contentRect.height) });
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const fittedZoom = stageSize ? fitZoom(stageSize, resolved?.menu.container.rows ?? 6, ZOOM_LEVELS) : zoom;
+  const effectiveZoom = zoomMode === 'fit' ? fittedZoom : zoom;
+  const setManualZoom = (level: number) => {
+    setZoomMode('manual');
+    setZoom(level);
+  };
+
   const knownMenus = workspace?.menus ?? [];
   const knownAssets = workspace?.assets ?? [];
   const currentAsset = knownAssets.find((candidate) => candidate.id === assetId) ?? null;
@@ -500,71 +525,6 @@ export default function App() {
                   {dirty && <span className="dirty-mark" aria-hidden="true" />}
                 </button>
               </Tooltip>
-            </div>
-            <div className="toolbar-group">
-              <IconButton
-                icon="undo"
-                label="Annuler"
-                shortcut="Ctrl+Z"
-                size={24}
-                disabled={editor.past.length === 0}
-                onClick={() => dispatch({ type: 'undo' })}
-              />
-              <IconButton
-                icon="redo"
-                label="Rétablir"
-                shortcut="Ctrl+Y"
-                size={24}
-                disabled={editor.future.length === 0}
-                onClick={() => dispatch({ type: 'redo' })}
-              />
-            </div>
-            <span className="tb-sep" aria-hidden="true" />
-            <div className="segmented" role="group" aria-label="Outil">
-              <Tooltip label="Sélection" hint="Choisir et déplacer couches et textes" shortcut="V">
-                <button
-                  type="button"
-                  className={tool === 'select' ? 'active' : ''}
-                  aria-pressed={tool === 'select'}
-                  aria-keyshortcuts="V"
-                  onClick={() => setTool('select')}
-                >
-                  <Icon name="cursor" />
-                  Sélection
-                  <kbd aria-hidden="true">V</kbd>
-                </button>
-              </Tooltip>
-              <Tooltip label="Slots" hint="Glisser sur la grille pour créer une zone de slots" shortcut="S">
-                <button
-                  type="button"
-                  className={tool === 'slot' ? 'active' : ''}
-                  aria-pressed={tool === 'slot'}
-                  aria-keyshortcuts="S"
-                  onClick={() => setTool('slot')}
-                >
-                  <Icon name="grid" />
-                  Slots
-                  <kbd aria-hidden="true">S</kbd>
-                </button>
-              </Tooltip>
-            </div>
-            <div className="toolbar-group">
-              <select value={background} onChange={(event) => setBackground(event.target.value as BackgroundMode)} aria-label="Fond">
-                <option value="slots-only">Fond : cases seules</option>
-                <option value="vanilla">Fond : coffre vanilla</option>
-                <option value="none">Fond : aucun</option>
-              </select>
-              <label className="checkbox">
-                <input type="checkbox" checked={showSlots} onChange={(event) => setShowSlots(event.target.checked)} />
-                Zones
-              </label>
-              <select className="zoom-picker" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Zoom">
-                {ZOOM_LEVELS.map((level) => (
-                  <option key={level} value={level}>
-                    ×{level}
-                  </option>
-                ))}
-              </select>
             </div>
           </>
         ) : (
@@ -662,14 +622,112 @@ export default function App() {
           )}
         </aside>
 
-        <section className="stage">
+        <section className="stage-area">
+          <div className="stage-toolbar" role="toolbar" aria-label="Outils de la toile">
+            <div className="segmented" role="group" aria-label="Outil">
+              <Tooltip label="Sélection" hint="Choisir et déplacer couches, textes et zones" shortcut="V">
+                <button
+                  type="button"
+                  className={tool === 'select' ? 'active' : ''}
+                  aria-pressed={tool === 'select'}
+                  aria-keyshortcuts="V"
+                  onClick={() => setTool('select')}
+                >
+                  <Icon name="cursor" />
+                  <span className="tool-label">Sélection</span>
+                  <kbd aria-hidden="true">V</kbd>
+                </button>
+              </Tooltip>
+              <Tooltip label="Slots" hint="Glisser sur la grille pour créer une zone de slots" shortcut="S">
+                <button
+                  type="button"
+                  className={tool === 'slot' ? 'active' : ''}
+                  aria-pressed={tool === 'slot'}
+                  aria-keyshortcuts="S"
+                  onClick={() => setTool('slot')}
+                >
+                  <Icon name="grid" />
+                  <span className="tool-label">Slots</span>
+                  <kbd aria-hidden="true">S</kbd>
+                </button>
+              </Tooltip>
+            </div>
+            <div className="toolbar-group">
+              <IconButton
+                icon="undo"
+                label="Annuler"
+                shortcut="Ctrl+Z"
+                size={24}
+                disabled={editor.past.length === 0}
+                onClick={() => dispatch({ type: 'undo' })}
+              />
+              <IconButton
+                icon="redo"
+                label="Rétablir"
+                shortcut="Ctrl+Y"
+                size={24}
+                disabled={editor.future.length === 0}
+                onClick={() => dispatch({ type: 'redo' })}
+              />
+            </div>
+            <span className="tb-sep" aria-hidden="true" />
+            <select
+              className="background-picker"
+              value={background}
+              onChange={(event) => setBackground(event.target.value as BackgroundMode)}
+              aria-label="Fond"
+            >
+              <option value="slots-only">Fond&nbsp;: cases</option>
+              <option value="vanilla">Fond&nbsp;: vanilla</option>
+              <option value="none">Fond&nbsp;: aucun</option>
+            </select>
+            <label className="checkbox">
+              <input type="checkbox" checked={showSlots} onChange={(event) => setShowSlots(event.target.checked)} />
+              Zones
+            </label>
+            <div className="stage-toolbar-end" role="group" aria-label="Zoom">
+              <IconButton
+                icon="minus"
+                label="Zoom arrière"
+                shortcut="Ctrl+molette"
+                size={24}
+                disabled={effectiveZoom <= ZOOM_LEVELS[0]}
+                onClick={() => setManualZoom(stepZoom(ZOOM_LEVELS, effectiveZoom, -1))}
+              />
+              <select
+                className="zoom-picker"
+                value={zoomMode === 'fit' ? 'fit' : String(zoom)}
+                onChange={(event) => {
+                  if (event.target.value === 'fit') setZoomMode('fit');
+                  else setManualZoom(Number(event.target.value));
+                }}
+                aria-label="Niveau de zoom"
+              >
+                <option value="fit">Ajuster (×{fittedZoom})</option>
+                {ZOOM_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    ×{level}
+                  </option>
+                ))}
+              </select>
+              <IconButton
+                icon="plus"
+                label="Zoom avant"
+                shortcut="Ctrl+molette"
+                size={24}
+                disabled={effectiveZoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+                onClick={() => setManualZoom(stepZoom(ZOOM_LEVELS, effectiveZoom, 1))}
+              />
+            </div>
+          </div>
+          <div className="stage" ref={observeStage}>
           {resolved && context ? (
             <MenuCanvas
               menu={resolved.menu}
               inherited={resolved.inherited}
               context={context}
               textures={textures}
-              zoom={zoom}
+              zoom={effectiveZoom}
               tool={tool}
               background={background}
               showSlots={showSlots}
@@ -691,7 +749,7 @@ export default function App() {
               onCreateSlot={handleCreateSlot}
               onSlotAreaChange={handleSlotAreaChange}
               zoomLevels={ZOOM_LEVELS}
-              onZoomChange={setZoom}
+              onZoomChange={setManualZoom}
             />
           ) : (
             <div className="empty-state">
@@ -707,6 +765,7 @@ export default function App() {
               </button>
             </div>
           )}
+          </div>
         </section>
 
         <aside className="sidebar">

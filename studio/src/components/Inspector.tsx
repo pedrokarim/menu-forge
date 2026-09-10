@@ -429,9 +429,11 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
           <dt>
             <ArrowKeys />
           </dt>
-          <dd>
-            Déplacer de 1 px (<kbd>Maj</kbd> : 18 px)
-          </dd>
+          <dd>Déplacer de 1 px</dd>
+          <dt>
+            <ShortcutKeys shortcut="Maj+Flèches" />
+          </dt>
+          <dd>Déplacer de 18 px</dd>
           <dt>
             <kbd>Échap</kbd>
           </dt>
@@ -444,6 +446,10 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
             <ShortcutKeys shortcut="Ctrl+Y" />
           </dt>
           <dd>Rétablir</dd>
+          <dt>
+            <ShortcutKeys shortcut="Ctrl+0" />
+          </dt>
+          <dd>Ajuster le zoom</dd>
           <dt>
             <ShortcutKeys shortcut="Ctrl+S" />
           </dt>

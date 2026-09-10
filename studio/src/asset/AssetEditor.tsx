@@ -80,6 +80,17 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   const [boxPresetId, setBoxPresetId] = useState(DEFAULT_BOX_PRESET);
   const [imageTexture, setImageTexture] = useState('');
   const [zoom, setZoom] = useState(() => defaultZoom(initial.size.width, initial.size.height));
+  // Zoom « Ajuster » par défaut, comme pour les menus : le plus grand palier où l’asset tient dans la zone.
+  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit');
+  const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
+  const observeStage = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setStageSize({ width: Math.floor(entry.contentRect.width), height: Math.floor(entry.contentRect.height) });
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const [showGrid, setShowGrid] = useState(true);
   const [leftTab, setLeftTab] = useState<'elements' | 'library'>('elements');
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
@@ -276,6 +287,11 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       dispatch({ type: 'redo' });
       return;
     }
+    if (withModifier && key === '0') {
+      event.preventDefault();
+      setZoomMode('fit');
+      return;
+    }
     if (withModifier || event.altKey) return;
     if (TOOL_KEYS[key]) {
       setTool(TOOL_KEYS[key]);
@@ -307,8 +323,18 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   /* Affichage */
 
   const maxZoom = maxZoomFor(asset.size.width, asset.size.height);
-  const effectiveZoom = Math.min(zoom, maxZoom);
   const zoomOptions = ZOOM_LEVELS.filter((level) => level <= maxZoom);
+  // Sous la toile : la ligne des coordonnées (≈ 34 px avec l’espacement).
+  const fittedZoom = stageSize
+    ? (zoomOptions.filter(
+        (level) => asset.size.width * level <= stageSize.width && asset.size.height * level + 34 <= stageSize.height,
+      ).at(-1) ?? 1)
+    : defaultZoom(asset.size.width, asset.size.height);
+  const effectiveZoom = Math.min(zoomMode === 'fit' ? fittedZoom : zoom, maxZoom);
+  const setManualZoom = (level: number) => {
+    setZoomMode('manual');
+    setZoom(level);
+  };
 
   return (
     <div className="asset-editor">
@@ -367,9 +393,11 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                   <dt>
                     <ArrowKeys />
                   </dt>
-                  <dd>
-                    Déplacer de 1 px (<kbd>Maj</kbd> : 10 px)
-                  </dd>
+                  <dd>Déplacer de 1 px</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Maj+Flèches" />
+                  </dt>
+                  <dd>Déplacer de 10 px</dd>
                   <dt>
                     <kbd>Suppr</kbd>
                   </dt>
@@ -386,6 +414,10 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                     <ShortcutKeys shortcut="Ctrl+Y" />
                   </dt>
                   <dd>Rétablir</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Ctrl+0" />
+                  </dt>
+                  <dd>Ajuster le zoom</dd>
                   <dt>
                     <ShortcutKeys shortcut="Ctrl+S" />
                   </dt>
@@ -444,8 +476,17 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
               onClick={() => dispatch({ type: 'redo' })}
             />
           </div>
-          <div className="asset-toolbar-group">
-            <select value={effectiveZoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Zoom">
+          <div className="asset-toolbar-group asset-toolbar-end">
+            <select
+              className="zoom-picker"
+              value={zoomMode === 'fit' ? 'fit' : String(effectiveZoom)}
+              onChange={(event) => {
+                if (event.target.value === 'fit') setZoomMode('fit');
+                else setManualZoom(Number(event.target.value));
+              }}
+              aria-label="Niveau de zoom"
+            >
+              <option value="fit">Ajuster (×{fittedZoom})</option>
               {zoomOptions.map((level) => (
                 <option key={level} value={level}>
                   ×{level}
@@ -463,7 +504,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             </label>
           </div>
         </div>
-        <div className="stage asset-stage-scroll">
+        <div className="stage asset-stage-scroll" ref={observeStage}>
           <AssetCanvas
             asset={asset}
             preview={preview}

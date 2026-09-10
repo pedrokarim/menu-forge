@@ -149,7 +149,7 @@ export function Segmented<T extends string>({
             onClick={() => onChange(option.value)}
           >
             {option.icon && <Icon name={option.icon} />}
-            {option.label}
+            <span className="tool-label">{option.label}</span>
             {option.shortcut && <kbd aria-hidden="true">{option.shortcut}</kbd>}
           </button>
         );

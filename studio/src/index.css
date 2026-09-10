@@ -634,9 +634,11 @@ input[type='color']::-webkit-color-swatch {
   color: var(--ds-danger);
 }
 
+/* Alignés en haut : l’aide sous un champ ne doit pas étirer le champ voisin. */
 .field-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
   gap: 8px;
 }
 
@@ -852,8 +854,11 @@ input[type='color']::-webkit-color-swatch {
 
 /* ---------- Structure ---------- */
 
+/* « minmax(0, 1fr) » : sans colonne explicite, un statut long élargirait toute
+   la page au-delà de la fenêtre. */
 .app {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100vh;
   overflow: hidden;
@@ -878,9 +883,12 @@ input[type='color']::-webkit-color-swatch {
   grid-row: 4;
 }
 
+/* Une seule ligne, quelle que soit la largeur : les outils de la toile vivent
+   dans la barre de la zone centrale, pas ici. */
 .toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
   align-items: center;
   gap: 8px 10px;
   padding: 7px 12px 9px;
@@ -930,11 +938,16 @@ input[type='color']::-webkit-color-swatch {
 }
 
 .menu-picker {
-  width: 240px;
+  width: clamp(170px, 18vw, 260px);
 }
 
 .zoom-picker {
-  width: 68px;
+  width: 128px;
+}
+
+/* Libellés courts (« Fond : vanilla ») : ils tiennent entiers à toutes les largeurs. */
+.background-picker {
+  width: 144px;
 }
 
 .dirty-chip {
@@ -996,6 +1009,79 @@ input[type='color']::-webkit-color-swatch {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 330px;
   min-height: 0;
+}
+
+/* Petites fenêtres (l’appli descend à 1100 px) : colonnes plus étroites pour
+   laisser de la place à la toile. */
+@media (max-width: 1279px) {
+  .workspace {
+    grid-template-columns: 248px minmax(0, 1fr) 296px;
+  }
+
+  .brand-sub {
+    display: none;
+  }
+}
+
+/* Zone centrale : barre d’outils de la toile (même allure que celle du mode
+   Assets), puis la toile qui défile. */
+/* La barre de la toile s’adapte à la largeur de la colonne centrale, pas à celle
+   de la fenêtre : conteneur de requêtes. */
+.stage-area {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  container: stage / inline-size;
+}
+
+/* Retour à la ligne en dernier recours : un contrôle ne doit jamais être écrasé
+   ni coupé par le bord. */
+.stage-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+  padding: 7px 12px 8px;
+  background: var(--ds-panel-raised);
+  border-bottom: 2px solid var(--ds-edge-soft);
+  box-shadow: inset 0 2px 0 #3d3e47, inset 0 -2px 0 #1f2026;
+}
+
+.stage-toolbar > * {
+  flex: none;
+}
+
+.stage-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Colonne centrale étroite : les outils ne gardent que leur picto (touche et nom
+   restent dans l’infobulle), le zoom se règle à la liste ou à Ctrl + molette. */
+@container stage (max-width: 700px) {
+  .stage-toolbar {
+    gap: 8px;
+  }
+
+  .stage-toolbar .tb-sep,
+  .stage-toolbar .tool-label,
+  .stage-toolbar .segmented kbd,
+  .stage-toolbar-end > :not(.zoom-picker) {
+    display: none;
+  }
+
+  .stage-toolbar .zoom-picker {
+    width: 116px;
+  }
+}
+
+/* Champs numériques des dialogues : la largeur d’un nombre, pas de la fenêtre. */
+.modal .field input[type='number'] {
+  width: 120px;
 }
 
 /* Conteneur de l’éditeur d’assets (mode libre) : occupe la ligne 1fr de .app. */
@@ -1146,7 +1232,9 @@ input[type='color']::-webkit-color-swatch {
   top: 0;
   z-index: 3;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* « minmax(0, 1fr) » : un libellé long ne doit pas élargir la colonne latérale
+     (elle défilerait alors de côté). */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   padding: 6px 8px 0;
   background: var(--ds-panel-sunken);
@@ -1184,6 +1272,24 @@ input[type='color']::-webkit-color-swatch {
 
 .sidebar-tabs button:focus-visible {
   outline-offset: -4px;
+}
+
+/* Colonne réduite (sous 1280 px) : les onglets perdent leur picto et leur marge
+   intérieure pour que « Bibliothèque » tienne en entier. */
+@media (max-width: 1279px) {
+  .sidebar-tabs button {
+    gap: 0;
+    padding-inline: 4px;
+    font-size: 14px;
+  }
+
+  .sidebar-tabs button:where(:active:not(:disabled)) {
+    padding-inline: 4px;
+  }
+
+  .sidebar-tabs button .icon {
+    display: none;
+  }
 }
 
 /* Grilles à une colonne : sans « minmax(0, 1fr) », la colonne implicite prendrait
@@ -1596,9 +1702,11 @@ select {
   color: var(--ds-muted);
 }
 
+/* Colonne des touches à largeur fixe : les libellés restent alignés au même
+   endroit, même à côté de la combinaison la plus longue (les 4 flèches). */
 .shortcut-list {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 108px minmax(0, 1fr);
   gap: 6px 10px;
   align-items: center;
   margin: 0;

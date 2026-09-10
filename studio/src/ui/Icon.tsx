@@ -69,6 +69,9 @@ const Cursor = pixelIcon([
   [11, 20, 4, 2],
 ]);
 
+/** Moins : la barre horizontale de « plus » (zoom arrière ; absent de pixelarticons). */
+const Minus = pixelIcon([[4, 11, 16, 2]]);
+
 /** Coffre : couvercle, corps et loquet (pour le mode Menus). */
 const Chest = pixelIcon([
   [4, 4, 16, 2],
@@ -109,6 +112,7 @@ const ICONS = {
   library: Library,
   list: Bulletlist,
   loader: Loader,
+  minus: Minus,
   plus: Plus,
   redo: Redo,
   save: Save,

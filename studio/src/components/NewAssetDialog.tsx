@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MAX_ASSET_SIZE } from '../asset/model';
-import { ID_PATTERN, sanitizeId } from '../model/menu';
+import { ID_PATTERN, sanitizeId, uniqueId } from '../model/menu';
 import { Icon } from '../ui/Icon';
 import { Field, FieldError, Modal, NumberField } from './fields';
 
@@ -27,7 +27,8 @@ const SIZE_PRESETS: Array<{ label: string; width: number; height: number }> = [
 /** Création d’un asset du mode libre (composition figée exportée en PNG). */
 export function NewAssetDialog({ existingIds, onCancel, onCreate }: NewAssetDialogProps) {
   const [name, setName] = useState('Mon asset');
-  const [id, setId] = useState('mon_asset');
+  // Identifiant proposé toujours libre : le dialogue ne s’ouvre jamais sur une erreur.
+  const [id, setId] = useState(() => uniqueId('mon_asset', existingIds));
   const [idTouched, setIdTouched] = useState(false);
   const [width, setWidth] = useState(176);
   const [height, setHeight] = useState(44);
@@ -68,26 +69,28 @@ export function NewAssetDialog({ existingIds, onCancel, onCreate }: NewAssetDial
         </>
       }
     >
-      <Field label="Nom">
-        <input
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            if (!idTouched) setId(sanitizeId(event.target.value));
-          }}
-        />
-      </Field>
-      <Field label="Identifiant" hint="Nom du fichier, du PNG exporté et du glyphe proposé">
-        <input
-          className="mono"
-          value={id}
-          onChange={(event) => {
-            setIdTouched(true);
-            setId(event.target.value);
-          }}
-        />
-        {idError && <FieldError>{idError}</FieldError>}
-      </Field>
+      <div className="field-row">
+        <Field label="Nom">
+          <input
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              if (!idTouched) setId(uniqueId(sanitizeId(event.target.value), existingIds));
+            }}
+          />
+        </Field>
+        <Field label="Identifiant" hint="Nom du fichier, du PNG exporté et du glyphe proposé">
+          <input
+            className="mono"
+            value={id}
+            onChange={(event) => {
+              setIdTouched(true);
+              setId(event.target.value);
+            }}
+          />
+          {idError && <FieldError>{idError}</FieldError>}
+        </Field>
+      </div>
       <Field label="Taille type">
         <select
           value=""
