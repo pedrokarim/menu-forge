@@ -214,6 +214,13 @@ h3 {
   min-height: 0;
 }
 
+/* Conteneur de l’éditeur d’assets (mode libre) : occupe la ligne 1fr de .app. */
+.asset-host {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
 .sidebar {
   background: var(--panel);
   overflow-y: auto;

@@ -60,6 +60,25 @@
   reprise de mémoire ; une erreur n’affecterait que ces caractères.
 - `pack_format` 46 par défaut, à ajuster selon la version du serveur.
 
+## Décision : le studio devient une appli Tauri (2026-09-10)
+
+Le studio vit sur le disque (packs lus, PNG, polices et menus écrits) : il
+devient une **application de bureau Tauri**.
+
+- **Gardé tel quel** : toute l’interface React (toile, inspecteur, gabarits,
+  bibliothèque, moteur de texte Minecraft, mode libre).
+- **Réécrit en Rust** : le serveur local `studio/server/` (espace de travail,
+  menus, assets, textures, bibliothèques et leur index). Il sera exposé par un
+  **protocole d’URL maison** qui reproduit les routes `/api/...` actuelles,
+  pour que l’interface ne change presque pas.
+- **Mode navigateur conservé** pour le développement et les tests
+  automatiques (même backend servi en HTTP).
+- **Pas d’interface en Rust natif** (egui, iced, Slint) : on jetterait tout le
+  travail d’interface, pour un résultat moins bon sur ce type d’éditeur.
+- Ordre : finir le mode libre et le nouveau style, puis migrer, puis profiter
+  du natif (sélecteur de dossiers, lecture directe des zips de packs,
+  glisser-déposer depuis l’explorateur, export direct vers le plugin).
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et

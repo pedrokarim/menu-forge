@@ -6,10 +6,15 @@ import { MenuCanvas } from './components/MenuCanvas';
 import type { BackgroundMode, CanvasTool } from './components/MenuCanvas';
 import { NewMenuDialog } from './components/NewMenuDialog';
 import type { NewMenuInput } from './components/NewMenuDialog';
+import { AssetEditor } from './asset/AssetEditor';
+import { createEmptyAsset } from './asset/model';
+import type { AssetDefinition } from './asset/model';
 import { LibraryPanel } from './components/LibraryPanel';
+import { NewAssetDialog } from './components/NewAssetDialog';
+import type { NewAssetInput } from './components/NewAssetDialog';
 import { OutlinePanel } from './components/OutlinePanel';
 import { PreviewPanel } from './components/PreviewPanel';
-import { fetchWorkspace, saveMenu, uploadTexture } from './lib/api';
+import { fetchWorkspace, saveAsset, saveMenu, uploadTexture } from './lib/api';
 import type { WorkspaceSnapshot } from './lib/api';
 import { importFromLibrary } from './lib/libraryApi';
 import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from './lib/libraryApi';
@@ -29,6 +34,7 @@ import type { Selection } from './state/editor';
 
 type DialogState =
   | { kind: 'new-menu' }
+  | { kind: 'new-asset' }
   | { kind: 'generator'; mode: 'create' }
   | { kind: 'generator'; mode: 'edit'; layerId: string }
   | null;
@@ -83,6 +89,11 @@ export default function App() {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [status, setStatus] = useState('');
   const [leftTab, setLeftTab] = useState<'outline' | 'library'>('outline');
+  // Mode libre : édition d’assets (compositions exportées en PNG).
+  const [mode, setMode] = useState<'menus' | 'assets'>('menus');
+  const [assetId, setAssetId] = useState<string | null>(null);
+  const [assetDirty, setAssetDirty] = useState(false);
+  const [insertRequest, setInsertRequest] = useState<{ texture: string; nonce: number } | null>(null);
 
   const menu = editor.menu;
   const dirty = menu !== null && JSON.stringify(menu) !== editor.savedJson;
@@ -186,6 +197,8 @@ export default function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      // En mode assets, l’éditeur gère ses propres raccourcis.
+      if (mode === 'assets') return;
       const key = event.key.toLowerCase();
       const withModifier = event.ctrlKey || event.metaKey;
       if (withModifier && key === 's') {
@@ -219,7 +232,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [save, select, deleteElement, nudge, editor.selection]);
+  }, [save, select, deleteElement, nudge, editor.selection, mode]);
 
   const confirmDiscard = () =>
     !dirty || window.confirm('Des modifications ne sont pas enregistrées. Continuer quand même ?');
@@ -348,6 +361,56 @@ export default function App() {
     setStatus(`Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
   };
 
+  const confirmLeaveAsset = () =>
+    !assetDirty || window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
+
+  const switchMode = (next: 'menus' | 'assets') => {
+    if (next === mode || (mode === 'assets' && !confirmLeaveAsset())) return;
+    setAssetDirty(false);
+    setMode(next);
+    if (next === 'assets' && !assetId && workspace?.assets[0]) setAssetId(workspace.assets[0].id);
+  };
+
+  const openAsset = (id: string) => {
+    if (id === assetId || !confirmLeaveAsset()) return;
+    setAssetDirty(false);
+    setAssetId(id);
+  };
+
+  const handleSaveAsset = async (asset: AssetDefinition, png: Blob) => {
+    const texture = `assets/${asset.id}.png`;
+    await saveAsset(asset);
+    await uploadTexture(texture, png);
+    bumpTextures([texture]);
+    setStatus(`Asset « ${asset.id} » enregistré et exporté dans textures/${texture}`);
+    void refreshWorkspace();
+  };
+
+  const handleNewAsset = async ({ id, name, width, height }: NewAssetInput) => {
+    if (!confirmLeaveAsset()) return;
+    await saveAsset(createEmptyAsset(id, name, width, height));
+    await refreshWorkspace();
+    setAssetDirty(false);
+    setAssetId(id);
+    setDialog(null);
+    setStatus(`Asset « ${id} » créé`);
+  };
+
+  const handleLibraryToAsset = async (source: LibrarySourceInfo, texture: LibraryTexture) => {
+    const imported = await importFromLibrary(source.id, texture.path);
+    bumpTextures([imported]);
+    await refreshWorkspace();
+    setInsertRequest({ texture: imported, nonce: Date.now() });
+    setStatus(`Image « ${imported} » ajoutée à l’asset`);
+  };
+
+  const handleImportFontFromAssets = async (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => {
+    if (!confirmLeaveAsset()) return;
+    await handleImportFont(source, index, fontId, menuId);
+    setAssetDirty(false);
+    setMode('menus');
+  };
+
   const generatorInitial = ((): GeneratorResult | null => {
     if (dialog?.kind !== 'generator' || !menu) return null;
     if (dialog.mode === 'edit') {
@@ -363,6 +426,8 @@ export default function App() {
   })();
 
   const knownMenus = workspace?.menus ?? [];
+  const knownAssets = workspace?.assets ?? [];
+  const currentAsset = knownAssets.find((candidate) => candidate.id === assetId) ?? null;
   const menuIsOnDisk = menu !== null && knownMenus.some((candidate) => candidate.id === menu.id);
 
   return (
@@ -371,6 +436,16 @@ export default function App() {
         <div className="brand">
           <span className="brand-mark">▦</span> menu-forge <span className="brand-sub">studio</span>
         </div>
+        <div className="toolbar-group segmented" role="tablist" aria-label="Type de document">
+          <button type="button" role="tab" aria-selected={mode === 'menus'} className={mode === 'menus' ? 'active' : ''} onClick={() => switchMode('menus')}>
+            Menus
+          </button>
+          <button type="button" role="tab" aria-selected={mode === 'assets'} className={mode === 'assets' ? 'active' : ''} onClick={() => switchMode('assets')}>
+            Assets
+          </button>
+        </div>
+        {mode === 'menus' ? (
+          <>
         <div className="toolbar-group">
           <select
             className="menu-picker"
@@ -428,6 +503,29 @@ export default function App() {
             ))}
           </select>
         </div>
+          </>
+        ) : (
+          <div className="toolbar-group">
+            <select
+              className="menu-picker"
+              value={assetId ?? ''}
+              onChange={(event) => openAsset(event.target.value)}
+              disabled={knownAssets.length === 0}
+              aria-label="Asset ouvert"
+            >
+              {!currentAsset && <option value="">Aucun asset</option>}
+              {knownAssets.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name} ({candidate.id})
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={() => setDialog({ kind: 'new-asset' })}>
+              Nouvel asset
+            </button>
+            {assetDirty && <span className="muted small">non enregistré (Ctrl+S)</span>}
+          </div>
+        )}
         <span className="status" role="status">
           {status}
         </span>
@@ -439,6 +537,7 @@ export default function App() {
         </div>
       )}
 
+      {mode === 'menus' ? (
       <main className="workspace">
         <aside className="sidebar">
           <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche">
@@ -543,6 +642,40 @@ export default function App() {
           )}
         </aside>
       </main>
+      ) : (
+        <main className="asset-host">
+          {currentAsset ? (
+            <AssetEditor
+              key={currentAsset.id}
+              initial={currentAsset}
+              textures={workspace?.textures ?? []}
+              textureVersions={textureVersions}
+              insertRequest={insertRequest}
+              librarySlot={
+                <LibraryPanel
+                  canAddLayer
+                  onAddLayer={handleLibraryToAsset}
+                  onImportFont={handleImportFontFromAssets}
+                />
+              }
+              onSave={handleSaveAsset}
+              onDirtyChange={setAssetDirty}
+            />
+          ) : (
+            <section className="stage">
+              <div className="empty-state">
+                <h2>Aucun asset ouvert</h2>
+                <p className="muted">
+                  Compose une image libre (boîtes, images recadrées, texte en police Minecraft), exportée en PNG et en glyphe.
+                </p>
+                <button type="button" className="primary" onClick={() => setDialog({ kind: 'new-asset' })}>
+                  Nouvel asset
+                </button>
+              </div>
+            </section>
+          )}
+        </main>
+      )}
 
       <footer className="statusbar">
         Espace de travail : <code>{workspace?.root ?? '…'}</code>
@@ -554,6 +687,13 @@ export default function App() {
           existingIds={knownMenus.map((candidate) => candidate.id)}
           onCancel={() => setDialog(null)}
           onCreate={handleNewMenu}
+        />
+      )}
+      {dialog?.kind === 'new-asset' && (
+        <NewAssetDialog
+          existingIds={knownAssets.map((candidate) => candidate.id)}
+          onCancel={() => setDialog(null)}
+          onCreate={handleNewAsset}
         />
       )}
       {dialog?.kind === 'generator' && menu && generatorInitial && (

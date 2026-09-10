@@ -1,0 +1,253 @@
+/* Éditeur d’assets (« mode libre ») : remplace les trois colonnes des menus. */
+
+.asset-editor {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 340px;
+  min-height: 0;
+  height: 100%;
+}
+
+.asset-stage {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.asset-stage-scroll {
+  min-height: 0;
+}
+
+/* Barre d’outils de la toile */
+
+.asset-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.asset-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.asset-toolbar-texture {
+  width: 320px;
+  max-width: 100%;
+}
+
+.asset-toolbar-texture .field {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 6px;
+}
+
+.asset-toolbar-texture .field-hint {
+  grid-column: 1 / -1;
+}
+
+.asset-segmented {
+  display: inline-flex;
+}
+
+.asset-segmented button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.asset-segmented button:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+  margin-left: 0;
+}
+
+.asset-segmented button:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.asset-segmented button.active {
+  position: relative;
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
+}
+
+/* Toile */
+
+.asset-canvas-frame {
+  margin: auto;
+  flex: none;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.asset-canvas {
+  display: block;
+  touch-action: none;
+  image-rendering: pixelated;
+}
+
+.asset-coords {
+  padding-left: 24px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: pre;
+}
+
+.asset-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.asset-status {
+  color: var(--text);
+  text-align: right;
+}
+
+/* Liste des éléments */
+
+.asset-add-select {
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.kind-dot.asset-kind-box {
+  background: #2e8b86;
+}
+
+.kind-dot.asset-kind-image {
+  background: #9ecbff;
+}
+
+.kind-dot.asset-kind-text {
+  background: #ffd166;
+}
+
+/* Sélecteur de zone source */
+
+.asset-region-picker {
+  display: grid;
+  gap: 6px;
+}
+
+.asset-region-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.asset-region-toolbar button,
+.asset-region-toolbar select {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.asset-region-scroll {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0d0e11;
+}
+
+.asset-region-scroll canvas {
+  display: block;
+  touch-action: none;
+  image-rendering: pixelated;
+}
+
+.asset-region-picker p {
+  margin: 0;
+}
+
+/* Texte */
+
+.asset-code-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.asset-code-palette button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.asset-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Export */
+
+.asset-preview {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  overflow-x: auto;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: #0d0e11;
+}
+
+.asset-preview figure {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.asset-preview canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.asset-preview figcaption {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.asset-snippet-block {
+  display: grid;
+  gap: 4px;
+}
+
+.asset-snippet {
+  margin: 0;
+  padding: 8px;
+  overflow-x: auto;
+  white-space: pre;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.asset-copy {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+.asset-snippet-block .field-hint,
+.panel-section .warning {
+  margin: 0;
+}
