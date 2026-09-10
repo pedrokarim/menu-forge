@@ -5,6 +5,14 @@ import { ArrowRight } from 'pixelarticons/react/ArrowRight';
 import { ArrowUp } from 'pixelarticons/react/ArrowUp';
 import { Bulletlist } from 'pixelarticons/react/Bulletlist';
 import { Check } from 'pixelarticons/react/Check';
+import { Clock } from 'pixelarticons/react/Clock';
+import { Folder } from 'pixelarticons/react/Folder';
+import { FolderPlus } from 'pixelarticons/react/FolderPlus';
+import { Home } from 'pixelarticons/react/Home';
+import { Open } from 'pixelarticons/react/Open';
+import { Pencil } from 'pixelarticons/react/Pencil';
+import { Reload } from 'pixelarticons/react/Reload';
+import { Sliders } from 'pixelarticons/react/Sliders';
 import { ChevronDown } from 'pixelarticons/react/ChevronDown';
 import { ChevronUp } from 'pixelarticons/react/ChevronUp';
 import { Close } from 'pixelarticons/react/Close';
@@ -97,6 +105,7 @@ const ICONS = {
   chest: Chest,
   'chevron-down': ChevronDown,
   'chevron-up': ChevronUp,
+  clock: Clock,
   close: Close,
   copy: Copy,
   crop: Crop,
@@ -105,7 +114,10 @@ const ICONS = {
   expand: Expand,
   eye: Eye,
   'eye-off': EyeOff,
+  folder: Folder,
+  'folder-plus': FolderPlus,
   grid: Grid3x3,
+  home: Home,
   image: Image,
   info: InfoBox,
   keyboard: Keyboard,
@@ -113,10 +125,14 @@ const ICONS = {
   list: Bulletlist,
   loader: Loader,
   minus: Minus,
+  open: Open,
+  pencil: Pencil,
   plus: Plus,
   redo: Redo,
+  reload: Reload,
   save: Save,
   search: Search,
+  sliders: Sliders,
   sparkles: Sparkles,
   text: LetterT,
   trash: Trash,

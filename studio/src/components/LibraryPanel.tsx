@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { Region } from '../asset/model';
 import { fetchLibraries, fetchLibraryIndex, libraryRawUrl, looksLikeInterface, suggestedTop } from '../lib/libraryApi';
 import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from '../lib/libraryApi';
 import { ID_PATTERN, sanitizeId } from '../model/menu';
 import { Icon } from '../ui/Icon';
 import { Tooltip } from '../ui/Tooltip';
+import { CropDialog } from './CropDialog';
 
 interface LibraryPanelProps {
   /** Ajoute une texture de la bibliothèque comme couche du menu ouvert. */
   onAddLayer: (source: LibrarySourceInfo, texture: LibraryTexture, top: number | null) => Promise<void>;
+  /** Ajoute une partie seulement de la texture (sprite d’un atlas) ; absent = pas de rognage. */
+  onAddRegion?: (source: LibrarySourceInfo, texture: LibraryTexture, region: Region) => Promise<void>;
   /** Crée un nouveau menu à partir d’une police du pack. */
   onImportFont: (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => Promise<void>;
   canAddLayer: boolean;
@@ -24,7 +28,8 @@ function fileNameOf(path: string): string {
 }
 
 /** Navigation dans les packs branchés : vignettes, recherche, import de couches et de menus entiers. */
-export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryPanelProps) {
+export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLayer }: LibraryPanelProps) {
+  const [cropping, setCropping] = useState(false);
   const [sources, setSources] = useState<LibrarySourceInfo[] | null>(null);
   const [sourceId, setSourceId] = useState('');
   const [indexes, setIndexes] = useState<Record<string, LibraryIndex>>({});
@@ -265,17 +270,37 @@ export function LibraryPanel({ onAddLayer, onImportFont, canAddLayer }: LibraryP
               ))}
             </ul>
           )}
-          <button
-            type="button"
-            className="primary"
-            disabled={busy || !canAddLayer}
-            onClick={() => void run(() => onAddLayer(source, selected, top))}
-          >
-            <Icon name={busy ? 'loader' : 'plus'} />
-            Ajouter comme couche
-          </button>
+          <div className="button-row">
+            <button
+              type="button"
+              className="primary"
+              disabled={busy || !canAddLayer}
+              onClick={() => void run(() => onAddLayer(source, selected, top))}
+            >
+              <Icon name={busy ? 'loader' : 'plus'} />
+              Ajouter
+            </button>
+            {onAddRegion && (
+              <Tooltip label="Rogner et ajouter" hint="Une partie seulement : un sprite d’un atlas, une case, une zone">
+                <button type="button" disabled={busy || !canAddLayer} onClick={() => setCropping(true)}>
+                  <Icon name="crop" />
+                  Rogner…
+                </button>
+              </Tooltip>
+            )}
+          </div>
           {!canAddLayer && <p className="field-hint">Ouvre d’abord un menu.</p>}
         </section>
+      )}
+
+      {cropping && selected && source && onAddRegion && (
+        <CropDialog
+          title={`Rogner « ${fileNameOf(selected.path)} »`}
+          url={libraryRawUrl(sourceId, selected.path)}
+          primary={{ label: 'Ajouter', run: (region) => onAddRegion(source, selected, region) }}
+          secondary={{ label: 'Ajouter et continuer', run: (region) => onAddRegion(source, selected, region) }}
+          onClose={() => setCropping(false)}
+        />
       )}
 
       {index && menuFonts.length > 0 && source && (

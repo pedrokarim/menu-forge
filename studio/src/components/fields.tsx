@@ -159,11 +159,14 @@ export function Modal({
   children,
   footer,
   onClose,
+  wide = false,
 }: {
   title: string;
   children: ReactNode;
   footer: ReactNode;
   onClose: () => void;
+  /** Dialogue plus large (aide-mémoire des raccourcis). */
+  wide?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -186,7 +189,7 @@ export function Modal({
         onClose();
       }}
     >
-      <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+      <div ref={dialogRef} className={wide ? 'modal modal-wide' : 'modal'} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <header className="modal-header">
           <h2>{title}</h2>
           <IconButton icon="close" label="Fermer" shortcut="Échap" variant="ghost" size={24} onClick={onClose} />

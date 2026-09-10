@@ -1,0 +1,745 @@
+/* Coquille de l’application : rail d’écrans et écrans « pleine page »
+   (accueil, espaces, bibliothèques, paramètres, à propos). Mêmes jetons
+   Deepslate que le reste du studio (voir index.css). */
+
+.shell {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
+  background: var(--ds-bg);
+}
+
+/* ---------- Rail ---------- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 8px 0 10px;
+  background: var(--ds-panel-sunken);
+  border-right: 2px solid var(--ds-edge);
+  box-shadow: inset -2px 0 0 #2a2b32;
+}
+
+.rail-logo {
+  display: block;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 12px;
+  image-rendering: pixelated;
+}
+
+.rail-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  padding: 0;
+  color: var(--ds-muted);
+  background: transparent;
+  box-shadow: none;
+}
+
+.rail-button:where(:hover:not(:disabled)) {
+  color: var(--ds-ink);
+  background: var(--ds-hover);
+  box-shadow: none;
+}
+
+.rail-button:where(:active:not(:disabled)) {
+  padding: 0;
+}
+
+.rail-button[aria-current='page'] {
+  color: var(--ds-gold);
+  background: var(--ds-sel-bg);
+  box-shadow: inset 0 0 0 2px #4a4130;
+}
+
+/* Liseré d’or contre le bord gauche : l’écran actif se lit de loin. */
+.rail-button[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: -8px;
+  width: 3px;
+  background: var(--ds-gold);
+}
+
+.rail-spacer {
+  flex: 1;
+}
+
+/* ---------- Zone principale ---------- */
+
+.shell-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shell-main > .banner {
+  flex: none;
+}
+
+.shell-editor:not([hidden]) {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shell-editor > .app {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+}
+
+/* ---------- Pastille de l’espace de travail ---------- */
+
+.workspace-pill {
+  gap: 8px;
+  max-width: 280px;
+  padding-inline: 10px;
+  font-weight: 700;
+}
+
+.workspace-pill .icon:first-child {
+  color: var(--ds-gold);
+}
+
+.workspace-pill-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Écran ---------- */
+
+.screen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Même hauteur et même relief que la barre d’outils de l’éditeur. */
+.screen-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 7px 12px 9px 20px;
+  background: var(--ds-panel-raised);
+  border-bottom: 2px solid var(--ds-edge-soft);
+  box-shadow: inset 0 2px 0 #44454f, inset 0 -2px 0 #1f2026;
+}
+
+.screen-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-h);
+  margin: 0;
+  font: 600 18px/1 var(--font-display);
+  letter-spacing: 0.02em;
+  color: var(--ds-ink-strong);
+  white-space: nowrap;
+}
+
+.screen-title .icon {
+  color: var(--ds-gold);
+}
+
+.screen-header-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.screen-scroll {
+  min-height: 0;
+  overflow: auto;
+}
+
+.screen-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 28px;
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  padding: 24px 24px 40px;
+}
+
+.screen-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.screen-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.screen-section-title {
+  margin: 0;
+  font: 400 16px/1.2 var(--font-display);
+  letter-spacing: 0.02em;
+  color: var(--ds-ink-strong);
+}
+
+.screen-lead {
+  max-width: 72ch;
+  margin: 0;
+  line-height: 1.55;
+  color: var(--ds-muted);
+}
+
+.screen-body .empty-state {
+  margin: 0 auto;
+}
+
+/* ---------- Cartes et messages ---------- */
+
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: var(--ds-panel);
+  background-image: var(--checker);
+  background-size: 12px 12px;
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-panel);
+}
+
+.welcome-card {
+  border-top-color: var(--ds-gold);
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ds-ink);
+  background: var(--ds-panel-sunken);
+  box-shadow: inset 0 0 0 1px #3a3b44;
+}
+
+.notice .icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.notice.is-ok .icon {
+  color: var(--ds-ok);
+}
+
+.notice.is-error {
+  color: #ffd0d0;
+  background: var(--ds-danger-bg);
+  box-shadow: inset 0 0 0 1px #7a2a30;
+}
+
+.notice.is-error .icon {
+  color: var(--ds-danger);
+}
+
+.notice.is-warning {
+  color: #ffe2b8;
+  background: var(--ds-warn-bg);
+  box-shadow: inset 0 0 0 1px #6b4a1a;
+}
+
+.notice.is-warning .icon {
+  color: var(--ds-warn);
+}
+
+/* ---------- Accueil ---------- */
+
+.home-hero,
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.home-hero img,
+.about-hero img {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.home-hero p,
+.about-hero p {
+  margin: 0;
+}
+
+.home-title {
+  margin-bottom: 4px !important;
+  font: 600 28px/1 var(--font-display);
+  color: var(--ds-ink-strong);
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1279px) {
+  .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Grandes cases façon inventaire : picto dans une case de slot. */
+.quick-action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  align-items: start;
+  justify-content: stretch;
+  gap: 4px 12px;
+  min-height: 104px;
+  padding: 14px;
+  text-align: left;
+  white-space: normal;
+}
+
+.quick-action-icon {
+  display: grid;
+  grid-row: 1 / span 3;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: #2b2c33;
+  background: var(--ds-slot);
+  box-shadow: var(--bevel-slot);
+}
+
+.quick-action strong {
+  font: 600 15px/1.25 var(--font-display);
+  color: var(--ds-ink-strong);
+}
+
+.quick-action-text {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ds-muted);
+}
+
+.quick-action .shortcut-keys {
+  justify-self: start;
+}
+
+.doc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: 12px;
+}
+
+.doc-card {
+  display: grid;
+  grid-template-rows: 132px auto;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  white-space: normal;
+}
+
+.doc-card:where(:active:not(:disabled)) {
+  padding: 0;
+}
+
+.doc-thumb {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 10px;
+  overflow: hidden;
+  color: var(--ds-faint);
+  background-color: var(--ds-stage);
+  background-image:
+    linear-gradient(var(--ds-stage-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ds-stage-line) 1px, transparent 1px);
+  background-size: 12px 12px;
+  border-bottom: 2px solid var(--ds-edge);
+}
+
+.doc-thumb canvas,
+.doc-thumb img {
+  display: block;
+  max-width: 100%;
+  max-height: 112px;
+  image-rendering: pixelated;
+}
+
+.doc-meta {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 10px 10px;
+}
+
+.doc-name {
+  overflow: hidden;
+  font-weight: 700;
+  color: var(--ds-ink-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ds-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kind-dot.doc-kind-menu {
+  --kind: var(--ds-gold);
+}
+
+.kind-dot.doc-kind-asset {
+  --kind: var(--kind-image);
+}
+
+/* ---------- Listes (espaces, bibliothèques) ---------- */
+
+.row-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.row-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: stretch;
+  gap: 14px;
+  min-height: 0;
+  padding: 12px 14px;
+  text-align: left;
+  white-space: normal;
+  background-color: var(--ds-panel);
+  background-image: var(--checker);
+  background-size: 12px 12px;
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-panel);
+}
+
+button.row-card:where(:hover:not(:disabled)) {
+  background-color: var(--ds-panel-raised);
+}
+
+button.row-card:where(:active:not(:disabled)) {
+  padding: 12px 14px;
+}
+
+.row-card.is-active {
+  border-color: var(--ds-gold-lo);
+  box-shadow: var(--bevel-panel), 0 0 0 2px #4a3a10;
+}
+
+.row-card.is-missing .row-icon {
+  opacity: 0.5;
+}
+
+.row-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: #2b2c33;
+  background: var(--ds-slot);
+  box-shadow: var(--bevel-slot);
+}
+
+.row-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 700;
+  color: var(--ds-ink-strong);
+}
+
+.row-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-path {
+  min-width: 0;
+  overflow: hidden;
+  font: 11.5px/1.4 var(--font-mono);
+  color: var(--ds-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 12px;
+  color: var(--ds-faint);
+}
+
+.row-meta-error {
+  color: var(--ds-danger);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.row-edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 6px;
+}
+
+.badge-active {
+  color: var(--ds-gold-ink);
+  background: var(--ds-gold);
+  box-shadow: inset 0 0 0 1px var(--ds-gold-lo);
+}
+
+.badge-missing {
+  color: #ffc2c2;
+  background: var(--ds-danger-bg);
+  box-shadow: inset 0 0 0 1px #7a2a30;
+}
+
+/* ---------- Formulaires ---------- */
+
+.open-folder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+/* Le bouton s’aligne sur le champ, pas sur son libellé. */
+.inline-form > button {
+  margin-top: 21px;
+}
+
+.form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.form-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+.path-input {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.path-input input {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.form-actions-end {
+  grid-column: 1 / -1;
+}
+
+/* ---------- Paramètres ---------- */
+
+.card.setting-list {
+  gap: 0;
+  padding-block: 4px;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 24px;
+  padding: 12px 0;
+}
+
+.setting-row + .setting-row {
+  border-top: 2px solid var(--ds-divider);
+  box-shadow: inset 0 2px 0 var(--ds-divider-light);
+}
+
+.setting-text {
+  display: grid;
+  gap: 3px;
+}
+
+.setting-text strong {
+  color: var(--ds-ink-strong);
+}
+
+.setting-text span {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ds-muted);
+}
+
+.setting-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.setting-control > select {
+  width: min(100%, 300px);
+}
+
+.setting-control .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-value {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.setting-checks {
+  display: grid;
+  gap: 8px;
+}
+
+/* ---------- À propos ---------- */
+
+.about-name {
+  margin-bottom: 6px !important;
+  font: 600 34px/1 var(--font-display);
+  color: var(--ds-ink-strong);
+}
+
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.info-table th,
+.info-table td {
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--ds-divider-light);
+}
+
+.info-table tr:last-child > * {
+  border-bottom: 0;
+}
+
+.info-table tbody th {
+  width: 180px;
+  font-weight: 400;
+  color: var(--ds-muted);
+}
+
+.info-table thead th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ds-muted);
+}
+
+.info-table .break {
+  word-break: break-all;
+}
+
+.legal {
+  max-width: 80ch;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ds-faint);
+}
+
+/* ---------- Aide-mémoire des raccourcis ---------- */
+
+.modal.modal-wide {
+  width: min(860px, calc(100vw - 48px));
+}
+
+.shortcut-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 32px;
+}
+
+.shortcut-group h3 {
+  margin: 0 0 10px;
+  font: 400 14px/1.2 var(--font-display);
+  letter-spacing: 0.02em;
+  color: var(--ds-ink-strong);
+}
+
+.shortcut-group .shortcut-list {
+  grid-template-columns: 128px minmax(0, 1fr);
+}
+
+.shortcut-gesture {
+  font-size: 11.5px;
+  color: var(--ds-ink);
+}

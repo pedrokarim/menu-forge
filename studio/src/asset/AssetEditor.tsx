@@ -44,13 +44,19 @@ export interface AssetEditorProps {
    * Demande d’insertion d’une image venue de l’extérieur (bibliothèque) ; `nonce` change à chaque demande.
    * La demande présente au montage est considérée comme déjà traitée.
    */
-  insertRequest: { texture: string; nonce: number } | null;
+  insertRequest: { texture: string; source?: ImageElement['source']; nonce: number } | null;
   /** Contenu à afficher dans l’onglet « Bibliothèque » de la colonne de gauche (fourni par l’application). */
   librarySlot: ReactNode;
   /** Enregistre le JSON et le PNG exporté (échelle 1). Lève une erreur en cas d’échec. */
   onSave: (asset: AssetDefinition, png: Blob) => Promise<void>;
   /** Signale au parent s’il y a des changements non enregistrés. */
   onDirtyChange: (dirty: boolean) => void;
+  /** Écran affiché ; sinon l’éditeur ignore le clavier. */
+  active?: boolean;
+  /** Grille de pixels à l’ouverture (réglage de l’éditeur). */
+  defaultShowGrid?: boolean;
+  /** Zoom à l’ouverture : 0 ou absent = « Ajuster ». */
+  defaultZoom?: number;
 }
 
 const TOOLS: readonly AssetTool[] = ['select', 'box', 'text', 'image'];
@@ -72,16 +78,27 @@ function onElement(id: string, mutate: (element: AssetElement) => void): Recipe 
  * inspecteur et export à droite.
  */
 export function AssetEditor(props: AssetEditorProps): JSX.Element {
-  const { initial, textures, textureVersions, insertRequest, librarySlot, onSave, onDirtyChange } = props;
+  const {
+    initial,
+    textures,
+    textureVersions,
+    insertRequest,
+    librarySlot,
+    onSave,
+    onDirtyChange,
+    active = true,
+    defaultShowGrid = true,
+    defaultZoom: openingZoom = 0,
+  } = props;
   const [history, dispatch] = useReducer(historyReducer, initial, createHistory);
   const asset = history.present;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tool, setTool] = useState<AssetTool>('select');
   const [boxPresetId, setBoxPresetId] = useState(DEFAULT_BOX_PRESET);
   const [imageTexture, setImageTexture] = useState('');
-  const [zoom, setZoom] = useState(() => defaultZoom(initial.size.width, initial.size.height));
+  const [zoom, setZoom] = useState(() => openingZoom || defaultZoom(initial.size.width, initial.size.height));
   // Zoom « Ajuster » par défaut, comme pour les menus : le plus grand palier où l’asset tient dans la zone.
-  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit');
+  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(openingZoom === 0 ? 'fit' : 'manual');
   const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
   const observeStage = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
@@ -91,7 +108,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  const [showGrid, setShowGrid] = useState(true);
+  const [showGrid, setShowGrid] = useState(defaultShowGrid);
   const [leftTab, setLeftTab] = useState<'elements' | 'library'>('elements');
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
   const [saving, setSaving] = useState(false);
@@ -144,15 +161,20 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
 
   const takenIds = () => assetRef.current.elements.map((element) => element.id);
 
-  /** Ajoute une image (au point donné, ou centrée), à une échelle qui tient dans l’asset. */
+  /**
+   * Ajoute une image (au point donné, ou centrée), à une échelle qui tient dans l’asset.
+   * `source` : zone de la texture à afficher (sprite rogné dans un atlas).
+   */
   const insertImage = useCallback(
-    (texture: string, loaded: LoadedTexture | null, at: Point | null) => {
+    (texture: string, loaded: LoadedTexture | null, at: Point | null, source?: ImageElement['source']) => {
       const current = assetRef.current;
       const base = sanitizeId(texture.split('/').pop()?.replace(/\.png$/i, '') ?? 'image');
       const id = uniqueId(base, current.elements.map((element) => element.id));
-      const scale = loaded ? fitScale(loaded.width, loaded.height, current.size.width, current.size.height) : 1;
-      const width = loaded ? Math.max(1, Math.round(loaded.width * scale)) : 16;
-      const height = loaded ? Math.max(1, Math.round(loaded.height * scale)) : 16;
+      const sourceWidth = source?.width ?? loaded?.width ?? 16;
+      const sourceHeight = source?.height ?? loaded?.height ?? 16;
+      const scale = loaded ? fitScale(sourceWidth, sourceHeight, current.size.width, current.size.height) : 1;
+      const width = Math.max(1, Math.round(sourceWidth * scale));
+      const height = Math.max(1, Math.round(sourceHeight * scale));
       const element: ImageElement = {
         id,
         type: 'image',
@@ -160,20 +182,32 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
         y: at ? at.y : Math.floor((current.size.height - height) / 2),
         texture,
       };
+      if (source) element.source = source;
       if (scale !== 1) element.scale = scale;
       addElement(element);
     },
     [addElement],
   );
 
+  /** Copie d’un élément, décalée de 4 px pour qu’on la voie ; la copie est sélectionnée. */
+  const duplicateElement = (id: string) => {
+    const original = assetRef.current.elements.find((element) => element.id === id);
+    if (!original) return;
+    const copy = structuredClone(original);
+    copy.id = uniqueId(original.id, takenIds());
+    copy.x += 4;
+    copy.y += 4;
+    addElement(copy);
+  };
+
   // Insertion demandée par la bibliothèque : la texture est chargée d’abord pour centrer l’image.
   const handledNonce = useRef(insertRequest?.nonce ?? null);
   useEffect(() => {
     if (!insertRequest || insertRequest.nonce === handledNonce.current) return;
     handledNonce.current = insertRequest.nonce;
-    const { texture } = insertRequest;
+    const { texture, source } = insertRequest;
     void loadAssetTexture(texture, textureVersions[texture] ?? 0).then((loaded) => {
-      insertImage(texture, loaded, null);
+      insertImage(texture, loaded, null, source);
       setStatus(loaded ? `Image insérée : ${texture}` : `Texture introuvable : ${texture}`);
     });
   }, [insertRequest, textureVersions, insertImage]);
@@ -269,6 +303,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   /* Clavier */
 
   const handleKeyDown = (event: KeyboardEvent) => {
+    if (!active) return;
     const key = event.key.toLowerCase();
     const withModifier = event.ctrlKey || event.metaKey;
     if (withModifier && key === 's') {
@@ -290,6 +325,11 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     if (withModifier && key === '0') {
       event.preventDefault();
       setZoomMode('fit');
+      return;
+    }
+    if (withModifier && key === 'd') {
+      event.preventDefault();
+      if (selected) duplicateElement(selected.id);
       return;
     }
     if (withModifier || event.altKey) return;
@@ -402,6 +442,10 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                     <kbd>Suppr</kbd>
                   </dt>
                   <dd>Supprimer l’élément</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Ctrl+D" />
+                  </dt>
+                  <dd>Dupliquer l’élément</dd>
                   <dt>
                     <kbd>Échap</kbd>
                   </dt>

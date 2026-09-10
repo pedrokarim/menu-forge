@@ -55,6 +55,23 @@ L’existant : bascule Menus / Assets, toile, bibliothèque, inspecteur, aperçu
 d’état, titre composé. S’y ajoutent la manipulation directe (slots déplaçables
 et redimensionnables, aimantation) et les infobulles.
 
+**Rognage (sprites d’atlas).** Beaucoup de textures des packs sont des atlas :
+une grande image, plusieurs sprites. « Rogner… » (bibliothèque, ou couche
+sélectionnée dans l’inspecteur) ouvre un sélecteur à trois modes : tracer une
+zone, cliquer une case d’une grille (8, 16, 18, 32, 64 ou taille libre, avec
+décalage), cliquer un sprite (zone détectée sur les pixels opaques reliés).
+« Ajouter et continuer » pose plusieurs sprites à la suite.
+
+- Menus : la découpe devient sa propre texture (`textures/cropped/`), car
+  chaque couche finit en glyphe de police ; rogner une couche la décale pour
+  que la partie gardée reste en place, « Extraire en nouvelle couche » garde
+  l’originale.
+- Assets : l’image garde la texture entière et n’en affiche que la zone source.
+- `Ctrl+D` duplique la couche ou l’élément sélectionné.
+
+La fenêtre descend à 1180 × 700 : en dessous, rail d’écrans et trois colonnes
+ne laissent plus à la toile la place de ses outils.
+
 ### Bibliothèques (`#/bibliotheques`)
 
 - Liste des packs branchés : nom, chemin, badge « maison » / « tiers · local »,

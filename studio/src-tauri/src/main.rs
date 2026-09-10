@@ -160,7 +160,8 @@ fn open_windows(app: &AppHandle, origin: &Url) -> Result<(), BoxError> {
     WebviewWindowBuilder::new(app, "main", WebviewUrl::External(origin.clone()))
         .title("menu-forge · studio")
         .inner_size(1440.0, 900.0)
-        .min_inner_size(1100.0, 700.0)
+        // Rail d’écrans + trois colonnes de l’éditeur : en dessous, la toile n’a plus la place de ses outils.
+        .min_inner_size(1180.0, 700.0)
         .center()
         .visible(false)
         .background_color(MAIN_BACKGROUND)

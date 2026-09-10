@@ -20,8 +20,8 @@ interface TooltipProps {
   shortcut?: string;
   /** Seconde ligne, plus discrète. */
   hint?: ReactNode;
-  /** Côté préféré ; l’infobulle bascule de l’autre côté si la place manque. */
-  placement?: 'top' | 'bottom';
+  /** Côté préféré ; l’infobulle bascule de l’autre côté si la place manque (`right` : rail d’écrans). */
+  placement?: 'top' | 'bottom' | 'right';
   /** Un seul élément focalisable (bouton, champ…). */
   children: ReactElement<TriggerProps>;
 }
@@ -61,6 +61,14 @@ export function Tooltip({ label, shortcut, hint, placement = 'bottom', children 
     const { width, height } = tip.getBoundingClientRect();
     const viewWidth = document.documentElement.clientWidth;
     const viewHeight = document.documentElement.clientHeight;
+    if (placement === 'right') {
+      const middle = anchor.top + anchor.height / 2 - height / 2;
+      const sideTop = Math.max(EDGE, Math.min(middle, viewHeight - EDGE - height));
+      const sideLeft = Math.min(anchor.right + GAP, viewWidth - EDGE - width);
+      tip.style.transform = `translate(${Math.round(sideLeft)}px, ${Math.round(sideTop)}px)`;
+      tip.style.visibility = 'visible';
+      return;
+    }
     const below = anchor.bottom + GAP;
     const above = anchor.top - GAP - height;
     let top = placement === 'top' ? above : below;

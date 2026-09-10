@@ -1,0 +1,298 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { fetchWorkspace } from './lib/api';
+import type { WorkspaceSnapshot } from './lib/api';
+import {
+  fetchAppInfo,
+  fetchRecentDocuments,
+  fetchSettings,
+  fetchWorkspaces,
+  forgetWorkspace,
+  openWorkspace,
+  reindexLibrary,
+  updateSettings,
+} from './lib/appApi';
+import type { AppInfo, LibraryCounts, RecentDocument, SettingsPatch, StudioSettings, WorkspaceList } from './lib/appApi';
+import { NBSP } from './lib/format';
+import { AboutScreen } from './screens/AboutScreen';
+import { EditorScreen } from './screens/EditorScreen';
+import type { EditorPreferences, EditorRequest } from './screens/EditorScreen';
+import { HomeScreen } from './screens/HomeScreen';
+import type { QuickAction } from './screens/HomeScreen';
+import { LibrariesScreen } from './screens/LibrariesScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+import { WorkspacesScreen } from './screens/WorkspacesScreen';
+import { ScreenRail } from './shell/ScreenRail';
+import type { RailScreen } from './shell/ScreenRail';
+import { ShortcutsDialog } from './shell/ShortcutsDialog';
+import { WorkspacePill } from './shell/WorkspacePill';
+import { navigate, parseRoute, useRoute } from './shell/router';
+import type { EditorMode } from './shell/router';
+import { Icon } from './ui/Icon';
+import './shell/shell.css';
+
+const DEFAULT_PREFERENCES: EditorPreferences = { defaultZoom: 0, showGrid: true, confirmDiscard: true };
+const SCREEN_ORDER: RailScreen[] = ['home', 'editor', 'libraries', 'settings', 'about'];
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select') !== null);
+}
+
+/**
+ * Coquille de l’application : rail d’écrans, routeur par l’adresse, données
+ * partagées (réglages, espaces de travail). L’éditeur reste monté quand on
+ * change d’écran : historique, sélection et modifications sont conservés.
+ */
+export default function App() {
+  const route = useRoute();
+  const [app, setApp] = useState<AppInfo | null>(null);
+  const [settings, setSettings] = useState<StudioSettings | null>(null);
+  const [workspaces, setWorkspaces] = useState<WorkspaceList | null>(null);
+  const [recent, setRecent] = useState<RecentDocument[] | null>(null);
+  const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [editorDirty, setEditorDirty] = useState(false);
+  const [editorRequest, setEditorRequest] = useState<EditorRequest | null>(null);
+  const [editorRoute, setEditorRoute] = useState<{ mode: EditorMode; id: string | null }>({ mode: 'menus', id: null });
+  const [librariesVersion, setLibrariesVersion] = useState(0);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [welcomed, setWelcomed] = useState(false);
+
+  const refreshShell = useCallback(async () => {
+    try {
+      const [nextApp, nextSettings, nextWorkspaces] = await Promise.all([fetchAppInfo(), fetchSettings(), fetchWorkspaces()]);
+      setApp(nextApp);
+      setSettings(nextSettings);
+      setWorkspaces(nextWorkspaces);
+      setLoadError(null);
+      return nextApp;
+    } catch (error) {
+      setLoadError(errorMessage(error));
+      return null;
+    }
+  }, []);
+
+  // Premier chargement, puis écran de départ : la sélection d’espace au premier lancement, sinon l’accueil.
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
+    void refreshShell().then((info) => {
+      if (parseRoute(window.location.hash) === null) navigate({ screen: info?.firstLaunch ? 'workspaces' : 'home' }, true);
+    });
+  }, [refreshShell]);
+
+  const screen = route?.screen ?? 'home';
+  const activePath = workspaces?.active ?? null;
+
+  // Accueil : documents récents et vignettes, relus à chaque visite et à chaque changement d’espace.
+  useEffect(() => {
+    if (screen !== 'home' || !activePath) return;
+    let cancelled = false;
+    void Promise.all([fetchRecentDocuments(), fetchWorkspace()]).then(
+      ([documents, nextSnapshot]) => {
+        if (cancelled) return;
+        // oxlint-disable-next-line react/set-state-in-effect
+        setRecent(documents);
+        setSnapshot(nextSnapshot);
+      },
+      () => {
+        if (!cancelled) setRecent([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [screen, activePath]);
+
+  const routeMode = route?.screen === 'editor' ? route.mode : editorRoute.mode;
+  const routeId = route?.screen === 'editor' ? route.id : editorRoute.id;
+  const editorTarget = useMemo(() => ({ mode: routeMode, id: routeId }), [routeMode, routeId]);
+
+  /** Document ouvert dans l’éditeur, reflété dans l’adresse sans empiler l’historique. */
+  const handleEditorRoute = useCallback((mode: EditorMode, id: string | null) => {
+    setEditorRoute({ mode, id });
+    if (parseRoute(window.location.hash)?.screen === 'editor') navigate({ screen: 'editor', mode, id }, true);
+  }, []);
+
+  const goTo = useCallback(
+    (target: RailScreen) => {
+      if (target === 'editor') navigate({ screen: 'editor', mode: editorRoute.mode, id: editorRoute.id });
+      else navigate({ screen: target });
+    },
+    [editorRoute],
+  );
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const withModifier = event.ctrlKey || event.metaKey;
+      if (withModifier && !event.shiftKey && !event.altKey && /^[1-5]$/.test(event.key)) {
+        event.preventDefault();
+        goTo(SCREEN_ORDER[Number(event.key) - 1]);
+      } else if (withModifier && !event.shiftKey && event.key.toLowerCase() === 'o') {
+        event.preventDefault();
+        navigate({ screen: 'workspaces' });
+      } else if (event.key === '?' && !withModifier && !isTypingTarget(event.target)) {
+        event.preventDefault();
+        setShowShortcuts(true);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [goTo]);
+
+  const preferences = useMemo<EditorPreferences>(
+    () =>
+      settings
+        ? {
+            defaultZoom: settings.ui.defaultZoom,
+            showGrid: settings.ui.showGrid,
+            confirmDiscard: settings.ui.confirmations.discardChanges,
+          }
+        : DEFAULT_PREFERENCES,
+    [settings],
+  );
+  const confirmRemoval = settings?.ui.confirmations.delete ?? true;
+
+  const switchWorkspace = async (path: string) => {
+    if (
+      editorDirty &&
+      preferences.confirmDiscard &&
+      !window.confirm(`Des modifications ne sont pas enregistrées dans l’éditeur. Changer d’espace de travail quand même${NBSP}?`)
+    ) {
+      return;
+    }
+    await openWorkspace(path);
+    setWelcomed(true);
+    setEditorDirty(false);
+    setEditorRoute({ mode: 'menus', id: null });
+    setRecent(null);
+    await refreshShell();
+    navigate({ screen: 'home' });
+  };
+
+  const forget = async (path: string) => {
+    await forgetWorkspace(path);
+    await refreshShell();
+  };
+
+  const patchSettings = async (patch: SettingsPatch) => {
+    setSettings(await updateSettings(patch));
+    if (patch.libraries) setLibrariesVersion((version) => version + 1);
+  };
+
+  const librariesChanged = async () => {
+    await refreshShell();
+    setLibrariesVersion((version) => version + 1);
+  };
+
+  const reindexAll = async () => {
+    const results: LibraryCounts[] = [];
+    for (const library of settings?.libraries ?? []) results.push(await reindexLibrary(library.id));
+    setLibrariesVersion((version) => version + 1);
+    return results;
+  };
+
+  const quickAction = (action: QuickAction) => {
+    if (action === 'open-workspace') {
+      navigate({ screen: 'workspaces' });
+      return;
+    }
+    setEditorRequest({ kind: action, nonce: Date.now() });
+    const mode: EditorMode = action === 'new-asset' ? 'assets' : 'menus';
+    navigate({ screen: 'editor', mode, id: editorRoute.mode === mode ? editorRoute.id : null });
+  };
+
+  const activeWorkspace = workspaces?.workspaces.find((candidate) => candidate.active) ?? null;
+  const pill = (
+    <WorkspacePill
+      name={activeWorkspace?.name ?? '…'}
+      path={activePath ?? ''}
+      onClick={() => navigate({ screen: 'workspaces' })}
+    />
+  );
+
+  return (
+    <div className="shell">
+      <ScreenRail current={screen} onSelect={goTo} onShowShortcuts={() => setShowShortcuts(true)} />
+      <div className="shell-main">
+        {loadError && (
+          <div className="banner error" role="alert">
+            <Icon name="alert" size={24} />
+            <span>
+              Réglages du studio illisibles&nbsp;: {loadError}. Le studio doit être lancé avec <code>npm run dev</code> ou depuis
+              l’appli.
+            </span>
+          </div>
+        )}
+        <div className="shell-editor" hidden={screen !== 'editor'}>
+          {(workspaces || loadError) && (
+            <EditorScreen
+              key={activePath ?? 'workspace'}
+              active={screen === 'editor'}
+              route={editorTarget}
+              onRouteChange={handleEditorRoute}
+              request={editorRequest}
+              preferences={preferences}
+              librariesVersion={librariesVersion}
+              workspacePill={pill}
+              onDirtyChange={setEditorDirty}
+            />
+          )}
+        </div>
+        {screen === 'home' && (
+          <HomeScreen
+            pill={pill}
+            workspace={activeWorkspace}
+            recent={recent}
+            snapshot={snapshot}
+            workspaces={workspaces?.workspaces ?? []}
+            onQuickAction={quickAction}
+            onOpenDocument={(document) =>
+              navigate({ screen: 'editor', mode: document.type === 'menu' ? 'menus' : 'assets', id: document.id })
+            }
+            onSwitchWorkspace={switchWorkspace}
+          />
+        )}
+        {screen === 'workspaces' && (
+          <WorkspacesScreen
+            pill={pill}
+            list={workspaces}
+            welcome={Boolean(app?.firstLaunch) && !welcomed}
+            confirmRemoval={confirmRemoval}
+            onOpen={switchWorkspace}
+            onForget={forget}
+            onContinue={() => {
+              setWelcomed(true);
+              navigate({ screen: 'home' });
+            }}
+          />
+        )}
+        {screen === 'libraries' && (
+          <LibrariesScreen
+            pill={pill}
+            settings={settings}
+            sessionOverride={app?.overrides.includes('libraries') ?? false}
+            confirmRemoval={confirmRemoval}
+            onPatch={patchSettings}
+            onChanged={librariesChanged}
+          />
+        )}
+        {screen === 'settings' && (
+          <SettingsScreen
+            pill={pill}
+            app={app}
+            settings={settings}
+            activeWorkspace={activeWorkspace}
+            onPatch={patchSettings}
+            onReindexAll={reindexAll}
+            onBrowseWorkspaces={() => navigate({ screen: 'workspaces' })}
+          />
+        )}
+        {screen === 'about' && <AboutScreen pill={pill} app={app} />}
+      </div>
+      {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+    </div>
+  );
+}

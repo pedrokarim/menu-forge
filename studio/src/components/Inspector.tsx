@@ -17,6 +17,7 @@ import type { ElementKind } from '../model/resolve';
 import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
 import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
+import { Tooltip } from '../ui/Tooltip';
 import { CommitField, Field, JsonField, NumberField } from './fields';
 import { SLOT_COLORS } from './slotColors';
 
@@ -32,6 +33,9 @@ interface InspectorProps {
   onChange: (recipe: Recipe) => void;
   onSelect: (selection: Selection | null) => void;
   onEditGenerator: (layerId: string) => void;
+  /** Rogner la texture d’une couche (garder un sprite d’un atlas). */
+  onCropLayer: (layerId: string) => void;
+  onDuplicateLayer: (layerId: string) => void;
 }
 
 const SLOT_KIND_LABELS: Record<SlotKind, string> = {
@@ -185,6 +189,23 @@ export function Inspector(props: InspectorProps) {
         <div className="field-row">
           <NumberField label="x" value={layer.x} onChange={(value) => update((target) => (target.x = value))} />
           <NumberField label="y" value={layer.y} onChange={(value) => update((target) => (target.y = value))} />
+        </div>
+        <div className="button-row">
+          <Tooltip
+            label="Rogner la texture"
+            hint={layer.generator ? 'Indisponible pour une texture générée' : 'Garder une partie : un sprite d’un atlas, une case…'}
+          >
+            <button type="button" className="sm" disabled={Boolean(layer.generator)} onClick={() => props.onCropLayer(layer.id)}>
+              <Icon name="crop" />
+              Rogner…
+            </button>
+          </Tooltip>
+          <Tooltip label="Dupliquer la couche" shortcut="Ctrl+D">
+            <button type="button" className="sm" onClick={() => props.onDuplicateLayer(layer.id)}>
+              <Icon name="copy" />
+              Dupliquer
+            </button>
+          </Tooltip>
         </div>
         {layer.generator && (
           <button type="button" className="wide" onClick={() => props.onEditGenerator(layer.id)}>
@@ -426,6 +447,10 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
             <kbd>Suppr</kbd>
           </dt>
           <dd>Supprimer l’élément</dd>
+          <dt>
+            <ShortcutKeys shortcut="Ctrl+D" />
+          </dt>
+          <dd>Dupliquer la couche</dd>
           <dt>
             <ArrowKeys />
           </dt>

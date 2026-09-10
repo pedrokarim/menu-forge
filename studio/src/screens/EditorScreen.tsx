@@ -1,47 +1,52 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
-import { GeneratorDialog } from './components/GeneratorDialog';
-import type { GeneratorResult } from './components/GeneratorDialog';
-import { Inspector } from './components/Inspector';
-import { MenuCanvas } from './components/MenuCanvas';
-import type { BackgroundMode, CanvasTool } from './components/MenuCanvas';
-import { NewMenuDialog } from './components/NewMenuDialog';
-import type { NewMenuInput } from './components/NewMenuDialog';
-import { AssetEditor } from './asset/AssetEditor';
-import { createEmptyAsset } from './asset/model';
-import type { AssetDefinition } from './asset/model';
-import { LibraryPanel } from './components/LibraryPanel';
-import { NewAssetDialog } from './components/NewAssetDialog';
-import type { NewAssetInput } from './components/NewAssetDialog';
-import { OutlinePanel } from './components/OutlinePanel';
-import { PreviewPanel } from './components/PreviewPanel';
-import { fetchWorkspace, saveAsset, saveMenu, uploadTexture } from './lib/api';
-import type { WorkspaceSnapshot } from './lib/api';
-import { importFromLibrary } from './lib/libraryApi';
-import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from './lib/libraryApi';
-import { buildMenuFromFont } from './lib/libraryImport';
-import { useTextures } from './lib/textures';
-import { composeTitle } from './model/compose';
-import { GENERATOR_PRESETS, canvasToBlob, renderGenerator } from './model/generator';
-import { GRID_COLUMNS, SLOT_SIZE, WINDOW_WIDTH, windowHeight } from './model/geometry';
-import { Icon } from './ui/Icon';
-import { IconButton } from './ui/IconButton';
-import { ShortcutKeys } from './ui/Keys';
-import { Tooltip } from './ui/Tooltip';
-import { fitZoom, stepZoom } from './canvas/viewport';
-import type { Point } from './model/geometry';
-import { createEmptyMenu, sanitizeId, uniqueId } from './model/menu';
-import type { GeneratorSpec, MenuDefinition, SlotArea } from './model/menu';
-import { DEFAULT_PREVIEW, buildPreviewContext } from './model/preview';
-import type { PreviewValues } from './model/preview';
-import { resolveMenu } from './model/resolve';
-import { INITIAL_EDITOR, editorReducer } from './state/editor';
-import type { Selection } from './state/editor';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import type { EditorMode } from '../shell/router';
+import { GeneratorDialog } from '../components/GeneratorDialog';
+import type { GeneratorResult } from '../components/GeneratorDialog';
+import { Inspector } from '../components/Inspector';
+import { MenuCanvas } from '../components/MenuCanvas';
+import type { BackgroundMode, CanvasTool } from '../components/MenuCanvas';
+import { NewMenuDialog } from '../components/NewMenuDialog';
+import type { NewMenuInput } from '../components/NewMenuDialog';
+import { AssetEditor } from '../asset/AssetEditor';
+import { createEmptyAsset } from '../asset/model';
+import type { AssetDefinition, Region } from '../asset/model';
+import { CropDialog } from '../components/CropDialog';
+import { cropToBlob, croppedTexturePath, textureBaseName } from '../lib/crop';
+import { LibraryPanel } from '../components/LibraryPanel';
+import { NewAssetDialog } from '../components/NewAssetDialog';
+import type { NewAssetInput } from '../components/NewAssetDialog';
+import { OutlinePanel } from '../components/OutlinePanel';
+import { PreviewPanel } from '../components/PreviewPanel';
+import { fetchWorkspace, saveAsset, saveMenu, textureUrl, uploadTexture } from '../lib/api';
+import type { WorkspaceSnapshot } from '../lib/api';
+import { importFromLibrary, libraryRawUrl } from '../lib/libraryApi';
+import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from '../lib/libraryApi';
+import { buildMenuFromFont } from '../lib/libraryImport';
+import { loadTexture, useTextures } from '../lib/textures';
+import { composeTitle } from '../model/compose';
+import { GENERATOR_PRESETS, canvasToBlob, renderGenerator } from '../model/generator';
+import { GRID_COLUMNS, SLOT_SIZE, WINDOW_WIDTH, windowHeight } from '../model/geometry';
+import { Icon } from '../ui/Icon';
+import { IconButton } from '../ui/IconButton';
+import { ShortcutKeys } from '../ui/Keys';
+import { Tooltip } from '../ui/Tooltip';
+import { fitZoom, stepZoom } from '../canvas/viewport';
+import type { Point } from '../model/geometry';
+import { createEmptyMenu, sanitizeId, uniqueId } from '../model/menu';
+import type { GeneratorSpec, MenuDefinition, SlotArea } from '../model/menu';
+import { DEFAULT_PREVIEW, buildPreviewContext } from '../model/preview';
+import type { PreviewValues } from '../model/preview';
+import { resolveMenu } from '../model/resolve';
+import { INITIAL_EDITOR, editorReducer } from '../state/editor';
+import type { Selection } from '../state/editor';
 
 type DialogState =
   | { kind: 'new-menu' }
   | { kind: 'new-asset' }
   | { kind: 'generator'; mode: 'create' }
   | { kind: 'generator'; mode: 'edit'; layerId: string }
+  | { kind: 'crop-layer'; layerId: string }
   | null;
 
 type Recipe = (draft: MenuDefinition) => void;
@@ -81,15 +86,59 @@ async function bakeTexture(path: string, spec: GeneratorSpec, origin: Point) {
   await uploadTexture(path, await canvasToBlob(renderGenerator(spec, origin)));
 }
 
-export default function App() {
+/** Demande venue d’un autre écran (actions rapides de l’accueil) ; `nonce` change à chaque demande. */
+export interface EditorRequest {
+  kind: 'new-menu' | 'new-asset' | 'import-font';
+  nonce: number;
+}
+
+/** Préférences de l’éditeur, tirées des réglages. */
+export interface EditorPreferences {
+  /** Zoom à l’ouverture : 0 = « Ajuster ». */
+  defaultZoom: number;
+  /** Grille de pixels de l’éditeur d’assets. */
+  showGrid: boolean;
+  /** Demander avant d’abandonner des modifications non enregistrées. */
+  confirmDiscard: boolean;
+}
+
+export interface EditorScreenProps {
+  /** Écran affiché ; sinon l’éditeur reste monté (historique conservé) mais ignore le clavier. */
+  active: boolean;
+  /** Document demandé par l’adresse (`#/editeur/<mode>/<id>`). */
+  route: { mode: EditorMode; id: string | null };
+  /** Document effectivement ouvert, à refléter dans l’adresse. */
+  onRouteChange: (mode: EditorMode, id: string | null) => void;
+  request: EditorRequest | null;
+  preferences: EditorPreferences;
+  /** Change quand les bibliothèques branchées changent : la liste du panneau est relue. */
+  librariesVersion: number;
+  /** Pastille de l’espace de travail, en tête de la barre d’outils. */
+  workspacePill: ReactNode;
+  onDirtyChange: (dirty: boolean) => void;
+}
+
+/** Éditeur : menus (toile, couches, slots, inspecteur) et assets du mode libre. */
+export function EditorScreen({
+  active,
+  route,
+  onRouteChange,
+  request,
+  preferences,
+  librariesVersion,
+  workspacePill,
+  onDirtyChange,
+}: EditorScreenProps) {
   const [workspace, setWorkspace] = useState<WorkspaceSnapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editor, dispatch] = useReducer(editorReducer, INITIAL_EDITOR);
   const [textureVersions, setTextureVersions] = useState<Record<string, number>>({});
   const [preview, setPreview] = useState<PreviewValues>(DEFAULT_PREVIEW);
-  const [zoom, setZoom] = useState(3);
+  const [zoom, setZoom] = useState(() => preferences.defaultZoom || 3);
   // Zoom « Ajuster » par défaut : le plus grand palier où tout le coffre tient dans la zone.
-  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit');
+  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(() => (preferences.defaultZoom === 0 ? 'fit' : 'manual'));
+  // Espace lu et premier document ouvert : l’adresse peut dès lors piloter l’éditeur.
+  const [ready, setReady] = useState(false);
   const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
   const [tool, setTool] = useState<CanvasTool>('select');
   const [background, setBackground] = useState<BackgroundMode>('slots-only');
@@ -101,7 +150,7 @@ export default function App() {
   const [mode, setMode] = useState<'menus' | 'assets'>('menus');
   const [assetId, setAssetId] = useState<string | null>(null);
   const [assetDirty, setAssetDirty] = useState(false);
-  const [insertRequest, setInsertRequest] = useState<{ texture: string; nonce: number } | null>(null);
+  const [insertRequest, setInsertRequest] = useState<{ texture: string; source?: Region; nonce: number } | null>(null);
 
   const menu = editor.menu;
   const dirty = menu !== null && JSON.stringify(menu) !== editor.savedJson;
@@ -118,12 +167,21 @@ export default function App() {
     }
   }, []);
 
+  // L’adresse de départ n’est lue qu’une fois, au premier chargement de l’espace.
+  const initialRoute = useRef(route);
   useEffect(() => {
     // Chargement initial : les setState ont lieu après l’await du fetch, pas pendant l’effet.
     // oxlint-disable-next-line react/set-state-in-effect
     void refreshWorkspace().then((snapshot) => {
-      const first = snapshot?.menus.find((candidate) => !candidate.template) ?? snapshot?.menus[0];
+      const wanted = initialRoute.current;
+      if (snapshot && wanted.mode === 'assets') {
+        setMode('assets');
+        setAssetId(snapshot.assets.find((candidate) => candidate.id === wanted.id)?.id ?? snapshot.assets[0]?.id ?? null);
+      }
+      const requested = wanted.mode === 'menus' ? snapshot?.menus.find((candidate) => candidate.id === wanted.id) : undefined;
+      const first = requested ?? snapshot?.menus.find((candidate) => !candidate.template) ?? snapshot?.menus[0];
       if (first) dispatch({ type: 'load', menu: first });
+      setReady(true);
     });
   }, [refreshWorkspace]);
 
@@ -203,10 +261,32 @@ export default function App() {
     [change],
   );
 
+  /** Duplique une couche juste au-dessus d’elle ; une texture générée est recopiée sous le nouvel identifiant. */
+  const duplicateLayer = useCallback(
+    async (layerId: string) => {
+      if (!menu) return;
+      const original = menu.layers.find((candidate) => candidate.id === layerId);
+      if (!original) return;
+      const id = uniqueId(original.id, menu.layers.map((layer) => layer.id));
+      const copy = { ...structuredClone(original), id };
+      if (original.generator) {
+        copy.texture = generatedTexturePath(menu.id, id);
+        await bakeTexture(copy.texture, original.generator, original);
+        bumpTextures([copy.texture]);
+      }
+      change((draft) => {
+        const index = draft.layers.findIndex((layer) => layer.id === layerId);
+        draft.layers.splice(index < 0 ? draft.layers.length : index + 1, 0, copy);
+      });
+      select({ kind: 'layer', id });
+    },
+    [menu, change, select, bumpTextures],
+  );
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      // En mode assets, l’éditeur gère ses propres raccourcis.
-      if (mode === 'assets') return;
+      // Écran caché : aucun raccourci. En mode assets, l’éditeur d’assets gère les siens.
+      if (!active || mode === 'assets') return;
       const key = event.key.toLowerCase();
       const withModifier = event.ctrlKey || event.metaKey;
       if (withModifier && key === 's') {
@@ -230,6 +310,11 @@ export default function App() {
         dispatch({ type: 'redo' });
         return;
       }
+      if (withModifier && key === 'd') {
+        event.preventDefault();
+        if (editor.selection?.kind === 'layer') void duplicateLayer(editor.selection.id);
+        return;
+      }
       if (withModifier) return;
       if (key === 'v') setTool('select');
       else if (key === 's') setTool('slot');
@@ -245,16 +330,20 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [save, select, deleteElement, nudge, editor.selection, mode]);
+  }, [save, select, deleteElement, nudge, duplicateLayer, editor.selection, mode, active]);
 
   const confirmDiscard = () =>
-    !dirty || window.confirm('Des modifications ne sont pas enregistrées. Continuer quand même ?');
+    !dirty ||
+    !preferences.confirmDiscard ||
+    window.confirm('Des modifications ne sont pas enregistrées. Continuer quand même ?');
 
+  /** Ouvre un menu de l’espace ; faux si l’utilisateur garde le menu en cours (ou si le menu est introuvable). */
   const openMenu = (id: string) => {
     const target = workspace?.menus.find((candidate) => candidate.id === id);
-    if (!target || !confirmDiscard()) return;
+    if (!target || !confirmDiscard()) return false;
     dispatch({ type: 'load', menu: target });
     setPreview(DEFAULT_PREVIEW);
+    return true;
   };
 
   const handleCreateSlot = (area: SlotArea) => {
@@ -375,20 +464,87 @@ export default function App() {
   };
 
   const confirmLeaveAsset = () =>
-    !assetDirty || window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
+    !assetDirty ||
+    !preferences.confirmDiscard ||
+    window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
 
-  const switchMode = (next: 'menus' | 'assets') => {
-    if (next === mode || (mode === 'assets' && !confirmLeaveAsset())) return;
+  /** Change de mode ; faux si l’utilisateur reste sur l’asset en cours. */
+  const switchMode = (next: EditorMode) => {
+    if (next === mode) return true;
+    if (mode === 'assets' && !confirmLeaveAsset()) return false;
     setAssetDirty(false);
     setMode(next);
     if (next === 'assets' && !assetId && workspace?.assets[0]) setAssetId(workspace.assets[0].id);
+    return true;
   };
 
+  /** Ouvre un asset ; faux s’il est introuvable ou si l’utilisateur reste sur l’asset en cours. */
   const openAsset = (id: string) => {
-    if (id === assetId || !confirmLeaveAsset()) return;
+    if (id === assetId) return true;
+    if (!workspace?.assets.some((candidate) => candidate.id === id) || !confirmLeaveAsset()) return false;
     setAssetDirty(false);
     setAssetId(id);
+    return true;
   };
+
+  const currentId = mode === 'menus' ? (menu?.id ?? null) : assetId;
+
+  // Adresse → éditeur : un document demandé par l’adresse (accueil, Précédent / Suivant) est ouvert ;
+  // s’il ne l’est pas (refus, introuvable), l’adresse revient au document resté ouvert.
+  const syncedRoute = useRef('');
+  const applyRoute = () => {
+    if (!ready || !active) return;
+    const key = `${route.mode}/${route.id ?? ''}`;
+    if (key === syncedRoute.current) return;
+    syncedRoute.current = key;
+    let accepted = switchMode(route.mode);
+    if (accepted && route.id) {
+      accepted = route.mode === 'menus' ? route.id === menu?.id || openMenu(route.id) : openAsset(route.id);
+    }
+    if (!accepted) {
+      syncedRoute.current = `${mode}/${currentId ?? ''}`;
+      onRouteChange(mode, currentId);
+    }
+  };
+  const applyRouteRef = useRef(applyRoute);
+  useEffect(() => {
+    applyRouteRef.current = applyRoute;
+  });
+  useEffect(() => {
+    applyRouteRef.current();
+  }, [route.mode, route.id, ready, active]);
+
+  // Éditeur → adresse : le document ouvert est reflété dans l’adresse.
+  useEffect(() => {
+    if (!ready || !active) return;
+    syncedRoute.current = `${mode}/${currentId ?? ''}`;
+    onRouteChange(mode, currentId);
+  }, [ready, active, mode, currentId, onRouteChange]);
+
+  // Actions rapides de l’accueil (nouveau menu, nouvel asset, import depuis une police).
+  const handleRequest = (kind: EditorRequest['kind']) => {
+    if (kind === 'new-asset') {
+      if (switchMode('assets')) setDialog({ kind: 'new-asset' });
+    } else if (switchMode('menus')) {
+      if (kind === 'new-menu') setDialog({ kind: 'new-menu' });
+      else setLeftTab('library');
+    }
+  };
+  const handleRequestRef = useRef(handleRequest);
+  useEffect(() => {
+    handleRequestRef.current = handleRequest;
+  });
+  const handledRequest = useRef<number | null>(null);
+  useEffect(() => {
+    if (!request || !ready || request.nonce === handledRequest.current) return;
+    handledRequest.current = request.nonce;
+    handleRequestRef.current(request.kind);
+  }, [request, ready]);
+
+  const anyDirty = dirty || assetDirty;
+  useEffect(() => {
+    onDirtyChange(anyDirty);
+  }, [anyDirty, onDirtyChange]);
 
   const handleSaveAsset = async (asset: AssetDefinition, png: Blob) => {
     const texture = `assets/${asset.id}.png`;
@@ -415,6 +571,67 @@ export default function App() {
     await refreshWorkspace();
     setInsertRequest({ texture: imported, nonce: Date.now() });
     setStatus(`Image « ${imported} » ajoutée à l’asset`);
+  };
+
+  /** Découpe `region` dans une image et l’enregistre sous textures/cropped/ ; renvoie son chemin. */
+  const bakeCrop = async (url: string, base: string, region: Region) => {
+    const loaded = await loadTexture(url);
+    const path = croppedTexturePath(sanitizeId(base) || 'sprite', region);
+    await uploadTexture(path, await cropToBlob(loaded.image, region));
+    bumpTextures([path]);
+    return path;
+  };
+
+  /** Bibliothèque → menu : une partie seulement de la texture devient une couche (sa propre texture, pour le glyphe). */
+  const handleLibraryRegion = async (source: LibrarySourceInfo, texture: LibraryTexture, region: Region) => {
+    if (!menu) return;
+    const base = textureBaseName(texture.path);
+    const path = await bakeCrop(libraryRawUrl(source.id, texture.path), base, region);
+    const id = uniqueId(sanitizeId(base) || 'sprite', menu.layers.map((layer) => layer.id));
+    change((draft) => {
+      draft.layers.push({ id, texture: path, x: 0, y: 0 });
+    });
+    select({ kind: 'layer', id });
+    setStatus(`Couche « ${id} » ajoutée : ${region.width} × ${region.height} px rognés depuis ${source.name}`);
+    void refreshWorkspace();
+  };
+
+  /** Bibliothèque → asset : la texture est copiée entière, l’image n’en affiche que la zone choisie. */
+  const handleLibraryRegionToAsset = async (source: LibrarySourceInfo, texture: LibraryTexture, region: Region) => {
+    const imported = await importFromLibrary(source.id, texture.path);
+    bumpTextures([imported]);
+    await refreshWorkspace();
+    setInsertRequest({ texture: imported, source: region, nonce: Date.now() });
+    setStatus(`Zone ${region.width} × ${region.height} de « ${imported} » ajoutée à l’asset`);
+  };
+
+  /** Rogne la texture d’une couche ; la couche se décale pour que la partie gardée reste en place. */
+  const handleCropLayer = async (layerId: string, region: Region) => {
+    const layer = menu?.layers.find((candidate) => candidate.id === layerId);
+    if (!layer) return;
+    const path = await bakeCrop(textureUrl(layer.texture, textureVersions[layer.texture] ?? 0), textureBaseName(layer.texture), region);
+    change((draft) => {
+      const target = draft.layers.find((candidate) => candidate.id === layerId);
+      if (!target) return;
+      target.texture = path;
+      target.x += region.x;
+      target.y += region.y;
+    });
+    setStatus(`Couche « ${layerId} » rognée à ${region.width} × ${region.height} px`);
+    void refreshWorkspace();
+  };
+
+  /** Extrait une partie de la texture d’une couche en nouvelle couche, à la même place ; la couche d’origine reste intacte. */
+  const handleExtractLayer = async (layerId: string, region: Region) => {
+    const layer = menu?.layers.find((candidate) => candidate.id === layerId);
+    if (!layer || !menu) return;
+    const path = await bakeCrop(textureUrl(layer.texture, textureVersions[layer.texture] ?? 0), textureBaseName(layer.texture), region);
+    const id = uniqueId(`${layer.id}_part`, menu.layers.map((candidate) => candidate.id));
+    change((draft) => {
+      draft.layers.push({ id, texture: path, x: layer.x + region.x, y: layer.y + region.y });
+    });
+    setStatus(`Couche « ${id} » extraite de « ${layerId} »`);
+    void refreshWorkspace();
   };
 
   const handleImportFontFromAssets = async (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => {
@@ -445,6 +662,8 @@ export default function App() {
     };
   })();
 
+  const cropLayer = dialog?.kind === 'crop-layer' ? (menu?.layers.find((layer) => layer.id === dialog.layerId) ?? null) : null;
+
   // Taille de la zone de la toile, suivie en continu pour le zoom « Ajuster ».
   const observeStage = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
@@ -471,11 +690,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="toolbar">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true" />
-          <span className="brand-name">menu-forge</span>
-          <span className="brand-sub">studio</span>
-        </div>
+        {workspacePill}
         <span className="tb-sep" aria-hidden="true" />
         <div className="segmented" role="tablist" aria-label="Type de document">
           <button type="button" role="tab" aria-selected={mode === 'menus'} className={mode === 'menus' ? 'active' : ''} onClick={() => switchMode('menus')}>
@@ -604,7 +819,13 @@ export default function App() {
           </div>
           {/* Les deux onglets restent montés : la bibliothèque garde ses filtres et son index. */}
           <div hidden={leftTab !== 'library'}>
-            <LibraryPanel canAddLayer={menu !== null} onAddLayer={handleLibraryLayer} onImportFont={handleImportFont} />
+            <LibraryPanel
+              key={librariesVersion}
+              canAddLayer={menu !== null}
+              onAddLayer={handleLibraryLayer}
+              onAddRegion={handleLibraryRegion}
+              onImportFont={handleImportFont}
+            />
           </div>
           {leftTab === 'outline' && resolved && context && (
             <OutlinePanel
@@ -778,6 +999,8 @@ export default function App() {
               onChange={change}
               onSelect={select}
               onEditGenerator={(layerId) => setDialog({ kind: 'generator', mode: 'edit', layerId })}
+              onCropLayer={(layerId) => setDialog({ kind: 'crop-layer', layerId })}
+              onDuplicateLayer={(layerId) => void duplicateLayer(layerId)}
             />
           )}
           {resolved && (
@@ -800,10 +1023,15 @@ export default function App() {
               textures={workspace?.textures ?? []}
               textureVersions={textureVersions}
               insertRequest={insertRequest}
+              active={active}
+              defaultShowGrid={preferences.showGrid}
+              defaultZoom={preferences.defaultZoom}
               librarySlot={
                 <LibraryPanel
+                  key={librariesVersion}
                   canAddLayer
                   onAddLayer={handleLibraryToAsset}
+                  onAddRegion={handleLibraryRegionToAsset}
                   onImportFont={handleImportFontFromAssets}
                 />
               }
@@ -843,7 +1071,7 @@ export default function App() {
             <span>
               {WINDOW_WIDTH} × {windowHeight(resolved.menu.container.rows)} px
             </span>
-            <span>×{zoom}</span>
+            <span>×{effectiveZoom}</span>
           </span>
         )}
         {mode === 'assets' && currentAsset && (
@@ -877,6 +1105,15 @@ export default function App() {
           takenIds={menu.layers.map((layer) => layer.id)}
           onCancel={() => setDialog(null)}
           onConfirm={handleGenerator}
+        />
+      )}
+      {dialog?.kind === 'crop-layer' && cropLayer && (
+        <CropDialog
+          title={`Rogner la couche « ${cropLayer.id} »`}
+          url={textureUrl(cropLayer.texture, textureVersions[cropLayer.texture] ?? 0)}
+          primary={{ label: 'Rogner la couche', run: (region) => handleCropLayer(cropLayer.id, region) }}
+          secondary={{ label: 'Extraire en nouvelle couche', run: (region) => handleExtractLayer(cropLayer.id, region) }}
+          onClose={() => setDialog(null)}
         />
       )}
     </div>

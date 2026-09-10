@@ -1,23 +1,52 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { NumberField } from '../components/fields';
 import type { LoadedTexture } from '../lib/textures';
 import { Icon } from '../ui/Icon';
+import type { IconName } from '../ui/Icon';
 import { Tooltip } from '../ui/Tooltip';
 import { fillChecker } from './canvasUtils';
 import { clamp, clampInsets, clampRegion, rectFromPixels } from './geometry';
 import type { Point } from './geometry';
 import type { Insets, Region } from './model';
 import { MAX_CANVAS_SIDE } from './presets';
+import { findSprites } from './sprites';
 
 const PICKER_ZOOMS = [1, 2, 3, 4, 6, 8, 12, 16] as const;
-/** Largeur visée pour le zoom automatique (colonne de droite). */
+/** Largeur visée par défaut pour le zoom automatique (colonne de droite). */
 const PICKER_TARGET = 288;
 const LINE_HIT = 4;
+/** Tailles de case courantes des atlas (18 = une case d’inventaire). */
+const GRID_PRESETS = [8, 16, 18, 32, 64] as const;
 
 type InsetSide = keyof Insets;
 
-type PickerDrag = { kind: 'region'; start: Point; moved: boolean } | { kind: 'inset'; side: InsetSide; started: boolean };
+/** Façon de choisir la zone : tracé libre, cases d’une grille, sprite détecté. */
+type PickMode = 'draw' | 'grid' | 'sprite';
+
+interface GridSpec {
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+type PickerDrag =
+  | { kind: 'region'; start: Point; moved: boolean }
+  | { kind: 'cells'; start: Region }
+  | { kind: 'inset'; side: InsetSide; started: boolean };
+
+const MODES: ReadonlyArray<{ mode: PickMode; label: string; icon: IconName; hint: string }> = [
+  { mode: 'draw', label: 'Tracer', icon: 'crop', hint: 'Glisser pour tracer la zone' },
+  { mode: 'grid', label: 'Grille', icon: 'grid', hint: 'Cliquer une case, ou glisser sur plusieurs cases' },
+  { mode: 'sprite', label: 'Sprite', icon: 'sparkles', hint: 'Cliquer un sprite : sa zone est détectée d’après ses pixels opaques' },
+];
+
+const MODE_HINTS: Record<PickMode, string> = {
+  draw: 'Glisse sur l’aperçu pour tracer la zone source',
+  grid: 'Clique une case de la grille, ou glisse pour en prendre plusieurs',
+  sprite: 'Clique un sprite : sa zone est détectée d’après ses pixels opaques',
+};
 
 interface RegionPickerProps {
   /** `undefined` = en chargement, `null` = introuvable. */
@@ -31,6 +60,8 @@ interface RegionPickerProps {
   /** `live` : changement continu pendant un tracé (sans entrée d’historique). */
   onRegionChange: (region: Region | undefined, live: boolean) => void;
   onInsetsChange?: (insets: Insets, live: boolean) => void;
+  /** Taille visée par le zoom automatique (px écran). */
+  fitSize?: number;
 }
 
 /** Zooms possibles sans dépasser la taille maximale de toile. */
@@ -40,30 +71,75 @@ function allowedZooms(texture: LoadedTexture | null | undefined): number[] {
   return levels.length > 0 ? levels : [1];
 }
 
-function autoZoom(texture: LoadedTexture | null | undefined): number {
+function autoZoom(texture: LoadedTexture | null | undefined, target: number): number {
   if (!texture) return 1;
-  const fit = Math.max(1, Math.floor(PICKER_TARGET / Math.max(texture.width, texture.height, 1)));
+  const fit = Math.max(1, Math.floor(target / Math.max(texture.width, texture.height, 1)));
   return allowedZooms(texture).filter((level) => level <= fit).at(-1) ?? 1;
 }
 
+/** Case de la grille sous un pixel. */
+function cellAt(grid: GridSpec, pixel: Point): Region {
+  const col = Math.floor((pixel.x - grid.offsetX) / grid.width);
+  const row = Math.floor((pixel.y - grid.offsetY) / grid.height);
+  return { x: grid.offsetX + col * grid.width, y: grid.offsetY + row * grid.height, width: grid.width, height: grid.height };
+}
+
+/** Plus petit rectangle contenant deux zones. */
+function unionRegion(a: Region, b: Region): Region {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
+}
+
 /**
- * Sélecteur visuel : aperçu agrandi de la texture, où l’on trace la zone
- * source à la souris ; les lignes des insets sont affichées et se déplacent
- * en les tirant.
+ * Sélecteur visuel : aperçu agrandi de la texture, où l’on choisit la zone
+ * source en la traçant, en cliquant les cases d’une grille (atlas réguliers)
+ * ou en cliquant un sprite (zone détectée). Les lignes des insets sont
+ * affichées et se déplacent en les tirant.
  */
-export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionChange, onInsetsChange }: RegionPickerProps) {
+export function RegionPicker({
+  texture,
+  region,
+  insets,
+  onBeginEdit,
+  onRegionChange,
+  onInsetsChange,
+  fitSize = PICKER_TARGET,
+}: RegionPickerProps) {
   const [zoomChoice, setZoomChoice] = useState<number | null>(null);
   const [hover, setHover] = useState<Point | null>(null);
-  const [cursor, setCursor] = useState('crosshair');
+  const [mode, setMode] = useState<PickMode>('draw');
+  const [grid, setGrid] = useState<GridSpec>({ width: 16, height: 16, offsetX: 0, offsetY: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<PickerDrag | null>(null);
 
   const zoomLevels = allowedZooms(texture);
-  const zoom = Math.min(zoomChoice ?? autoZoom(texture), zoomLevels.at(-1) ?? 1);
+  const zoom = Math.min(zoomChoice ?? autoZoom(texture, fitSize), zoomLevels.at(-1) ?? 1);
   const textureWidth = texture?.width ?? 0;
   const textureHeight = texture?.height ?? 0;
   const area = clampRegion(region, textureWidth, textureHeight);
   const safeInsets = insets ? clampInsets(insets, area) : null;
+  const safeGrid: GridSpec = {
+    width: Math.max(1, grid.width),
+    height: Math.max(1, grid.height),
+    offsetX: Math.max(0, grid.offsetX),
+    offsetY: Math.max(0, grid.offsetY),
+  };
+  // Étiquetage des sprites : calculé une fois par texture, à l’entrée dans le mode « Sprite ».
+  const sprites = useMemo(() => (mode === 'sprite' && texture ? findSprites(texture) : null), [mode, texture]);
+
+  const hoverRect: Region | null = !hover
+    ? null
+    : mode === 'grid'
+      ? clampRegion(cellAt(safeGrid, hover), textureWidth, textureHeight)
+      : mode === 'sprite'
+        ? (sprites?.at(hover.x, hover.y) ?? null)
+        : null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -76,6 +152,24 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
     ctx.imageSmoothingEnabled = false;
     fillChecker(ctx, 0, 0, width, height, 8);
     ctx.drawImage(texture.image, 0, 0, texture.width, texture.height, 0, 0, width, height);
+
+    // Grille des cases (seulement si elle reste lisible).
+    if (mode === 'grid' && safeGrid.width * zoom >= 4 && safeGrid.height * zoom >= 4) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let gridX = safeGrid.offsetX % safeGrid.width; gridX <= texture.width; gridX += safeGrid.width) {
+        ctx.moveTo(gridX * zoom + 0.5, 0);
+        ctx.lineTo(gridX * zoom + 0.5, height);
+      }
+      for (let gridY = safeGrid.offsetY % safeGrid.height; gridY <= texture.height; gridY += safeGrid.height) {
+        ctx.moveTo(0, gridY * zoom + 0.5);
+        ctx.lineTo(width, gridY * zoom + 0.5);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
 
     const x = area.x * zoom;
     const y = area.y * zoom;
@@ -92,6 +186,15 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
     if (w > 0 && h > 0) {
       ctx.strokeStyle = '#f2c94c';
       ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, w - 1), Math.max(0, h - 1));
+    }
+
+    // Case ou sprite sous le pointeur : ce qu’un clic prendrait.
+    if (hoverRect && !dragRef.current) {
+      ctx.save();
+      ctx.strokeStyle = '#8fc7ff';
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(hoverRect.x * zoom + 0.5, hoverRect.y * zoom + 0.5, hoverRect.width * zoom - 1, hoverRect.height * zoom - 1);
+      ctx.restore();
     }
 
     if (safeInsets && w > 0 && h > 0) {
@@ -130,6 +233,8 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
     y: clamp(Math.floor(point.y), 0, textureHeight - 1),
   });
 
+  const clampCell = (pixel: Point) => clampRegion(cellAt(safeGrid, pixel), textureWidth, textureHeight);
+
   function insetAt(point: Point): InsetSide | null {
     if (!safeInsets) return null;
     const near = (a: number, b: number) => Math.abs(a - b) * zoom <= LINE_HIT;
@@ -159,12 +264,25 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
     if (event.button !== 0 || !texture) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
     const point = toTexture(event);
+    const pixel = clampPixel(point);
+    if (mode === 'sprite') {
+      const found = sprites?.at(pixel.x, pixel.y);
+      if (found) onRegionChange(found, false);
+      return;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
     const side = onInsetsChange ? insetAt(point) : null;
-    dragRef.current = side
-      ? { kind: 'inset', side, started: false }
-      : { kind: 'region', start: clampPixel(point), moved: false };
+    if (side) {
+      dragRef.current = { kind: 'inset', side, started: false };
+    } else if (mode === 'grid') {
+      const cell = clampCell(pixel);
+      dragRef.current = { kind: 'cells', start: cell };
+      onBeginEdit();
+      onRegionChange(cell, true);
+    } else {
+      dragRef.current = { kind: 'region', start: pixel, moved: false };
+    }
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
@@ -183,17 +301,17 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
       onRegionChange(rectFromPixels(drag.start, pixel), true);
       return;
     }
+    if (drag?.kind === 'cells') {
+      onRegionChange(clampRegion(unionRegion(drag.start, clampCell(pixel)), textureWidth, textureHeight), true);
+      return;
+    }
     if (drag?.kind === 'inset' && safeInsets && onInsetsChange) {
       if (!drag.started) {
         drag.started = true;
         onBeginEdit();
       }
       onInsetsChange({ ...safeInsets, [drag.side]: insetValue(drag.side, point, safeInsets) }, true);
-      return;
     }
-    const side = onInsetsChange ? insetAt(point) : null;
-    const nextCursor = side === 'left' || side === 'right' ? 'ew-resize' : side ? 'ns-resize' : 'crosshair';
-    if (nextCursor !== cursor) setCursor(nextCursor);
   }
 
   function handlePointerUp() {
@@ -201,22 +319,49 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
   }
 
   if (texture === undefined) return <p className="muted small">Chargement de la texture…</p>;
-  if (texture === null) return <p className="warning">Texture introuvable dans l’espace de travail.</p>;
+  if (texture === null) return <p className="warning">Texture introuvable.</p>;
 
   const setRegionField = (key: keyof Region, value: number) => onRegionChange({ ...area, [key]: value }, false);
   const setInsetField = (key: InsetSide, value: number) => {
     if (safeInsets && onInsetsChange) onInsetsChange({ ...safeInsets, [key]: Math.max(0, value) }, false);
   };
   const opaque = texture.bounds;
+  const hoverSide = mode !== 'sprite' && hover && onInsetsChange ? insetAt(hover) : null;
+  const cursor =
+    hoverSide === 'left' || hoverSide === 'right'
+      ? 'ew-resize'
+      : hoverSide
+        ? 'ns-resize'
+        : mode === 'sprite'
+          ? hoverRect
+            ? 'pointer'
+            : 'default'
+          : mode === 'grid'
+            ? 'cell'
+            : 'crosshair';
+  const gridPreset = GRID_PRESETS.find((size) => size === grid.width && size === grid.height);
+  const setGridField = (key: keyof GridSpec, value: number) =>
+    setGrid((previous) => ({ ...previous, [key]: Number.isFinite(value) ? Math.round(value) : previous[key] }));
 
   return (
     <div className="asset-region-picker">
       <div className="asset-region-toolbar">
-        <select
-          value={zoom}
-          onChange={(event) => setZoomChoice(Number(event.target.value))}
-          aria-label="Zoom de l’aperçu"
-        >
+        <div className="asset-segmented region-modes" role="group" aria-label="Choix de la zone">
+          {MODES.map((item) => (
+            <Tooltip key={item.mode} label={item.label} hint={item.hint}>
+              <button
+                type="button"
+                className={mode === item.mode ? 'active' : ''}
+                aria-pressed={mode === item.mode}
+                onClick={() => setMode(item.mode)}
+              >
+                <Icon name={item.icon} />
+                {item.label}
+              </button>
+            </Tooltip>
+          ))}
+        </div>
+        <select value={zoom} onChange={(event) => setZoomChoice(Number(event.target.value))} aria-label="Zoom de l’aperçu">
           {zoomLevels.map((level) => (
             <option key={level} value={level}>
               ×{level}
@@ -241,6 +386,62 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
           </button>
         </Tooltip>
       </div>
+      {mode === 'grid' && (
+        <div className="asset-region-toolbar region-grid">
+          <select
+            aria-label="Taille de case"
+            value={gridPreset ?? 'custom'}
+            onChange={(event) => {
+              const size = Number(event.target.value);
+              if (Number.isFinite(size)) setGrid((previous) => ({ ...previous, width: size, height: size }));
+            }}
+          >
+            {GRID_PRESETS.map((size) => (
+              <option key={size} value={size}>
+                {size} × {size}
+              </option>
+            ))}
+            <option value="custom" disabled>
+              Autre
+            </option>
+          </select>
+          <span>case</span>
+          <input
+            className="mini-input"
+            type="number"
+            min={1}
+            aria-label="Largeur de case"
+            value={grid.width}
+            onChange={(event) => setGridField('width', Number(event.target.value))}
+          />
+          <span>×</span>
+          <input
+            className="mini-input"
+            type="number"
+            min={1}
+            aria-label="Hauteur de case"
+            value={grid.height}
+            onChange={(event) => setGridField('height', Number(event.target.value))}
+          />
+          <span>décalage</span>
+          <input
+            className="mini-input"
+            type="number"
+            min={0}
+            aria-label="Décalage horizontal de la grille"
+            value={grid.offsetX}
+            onChange={(event) => setGridField('offsetX', Number(event.target.value))}
+          />
+          <input
+            className="mini-input"
+            type="number"
+            min={0}
+            aria-label="Décalage vertical de la grille"
+            value={grid.offsetY}
+            onChange={(event) => setGridField('offsetY', Number(event.target.value))}
+          />
+        </div>
+      )}
       <div className="asset-region-scroll">
         <canvas
           ref={canvasRef}
@@ -255,9 +456,11 @@ export function RegionPicker({ texture, region, insets, onBeginEdit, onRegionCha
       <p className="muted small">
         Texture {texture.width} × {texture.height} · zone {area.x}, {area.y} · {area.width} × {area.height}
         {hover ? ` · pixel ${hover.x}, ${hover.y}` : ''}
+        {sprites ? ` · ${sprites.count} sprite${sprites.count > 1 ? 's' : ''} détecté${sprites.count > 1 ? 's' : ''}` : ''}
       </p>
       <p className="field-hint">
-        Glisse sur l’aperçu pour tracer la zone source{safeInsets ? ' ; tire les lignes turquoise pour régler les insets' : ''}.
+        {MODE_HINTS[mode]}
+        {safeInsets ? ' ; tire les lignes turquoise pour régler les insets' : ''}.
       </p>
       <div className="field-row">
         <NumberField label="Zone x" value={area.x} min={0} max={texture.width - 1} onChange={(value) => setRegionField('x', value)} />

@@ -16,7 +16,7 @@ interface IconButtonProps {
   /** Taille de l’icône : 12 px dans les listes, 24 px dans les barres d’outils. */
   size?: 12 | 24;
   pressed?: boolean;
-  placement?: 'top' | 'bottom';
+  placement?: 'top' | 'bottom' | 'right';
 }
 
 /** Bouton réduit à une icône, toujours accompagné d’une infobulle (et de son raccourci). */
