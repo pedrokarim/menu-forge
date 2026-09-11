@@ -99,6 +99,8 @@ function DocumentThumbnail({ document, snapshot }: { document: RecentDocument; s
   }
   const menu = snapshot?.menus.find((candidate) => candidate.id === document.id);
   if (!menu) return <Icon name="chest" size={36} />;
+  // Formulaire Bedrock : pas de couches à dessiner.
+  if (menu.form) return <Icon name="grid" size={36} />;
   return <MenuThumbnail menu={menu} menus={snapshot?.menus ?? []} version={version} />;
 }
 

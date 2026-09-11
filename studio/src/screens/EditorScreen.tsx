@@ -9,7 +9,6 @@ import type { GeneratorResult } from '../components/GeneratorDialog';
 import { Inspector } from '../components/Inspector';
 import { MenuCanvas } from '../components/MenuCanvas';
 import type { BackgroundMode, CanvasTool } from '../components/MenuCanvas';
-import { NewMenuDialog } from '../components/NewMenuDialog';
 import type { NewMenuInput } from '../components/NewMenuDialog';
 import { RenameDocumentDialog } from '../components/DocumentDialogs';
 import { createEmptyAsset } from '../asset/model';
@@ -115,6 +114,9 @@ const AssetEditor = lazy(() => import('../asset/AssetEditor').then((module) => (
 /** Bibliothèque et rognage (sélecteur de zones, détection des sprites) : chargés à leur premier affichage. */
 const LibraryPanel = lazy(() => import('../components/LibraryPanel').then((module) => ({ default: module.LibraryPanel })));
 const CropDialog = lazy(() => import('../components/CropDialog').then((module) => ({ default: module.CropDialog })));
+/** Éditeur des formulaires Bedrock et dialogue « Nouveau menu » (dispositions) : chargés à la demande. */
+const FormEditor = lazy(() => import('../form/FormEditor').then((module) => ({ default: module.FormEditor })));
+const NewMenuDialog = lazy(() => import('../components/NewMenuDialog').then((module) => ({ default: module.NewMenuDialog })));
 
 const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8];
 
@@ -233,6 +235,8 @@ export function EditorScreen({
   const [pixelSaveRequest, setPixelSaveRequest] = useState(0);
   // Mode « Essayer » : session simulée (pile de menus, état, journal) ; `null` en édition.
   const [trySession, setTrySession] = useState<TrySession | null>(null);
+  // Formulaire Bedrock : texture choisie dans la bibliothèque, pour l’icône du bouton sélectionné.
+  const [iconRequest, setIconRequest] = useState<{ texture: string; nonce: number } | null>(null);
   const stageNode = useRef<HTMLDivElement | null>(null);
 
   const menu = editor.menu;
@@ -651,6 +655,14 @@ export function EditorScreen({
       return;
     }
     if (isEditableTarget(event.target)) return;
+    // Formulaire Bedrock : son éditeur gère ses propres touches ; seuls annuler et rétablir restent ici.
+    if (menu?.form) {
+      if (command && (letter === 'z' || letter === 'y')) {
+        event.preventDefault();
+        dispatch({ type: letter === 'y' || event.shiftKey ? 'redo' : 'undo' });
+      }
+      return;
+    }
     // Mode « Essayer » : Échap ou E terminent l’essai, Retour arrière simule « back » ; rien ne modifie le menu.
     if (trySession) {
       if (!command && !event.altKey && (event.key === 'Escape' || letter === 'e')) {
@@ -706,7 +718,7 @@ export function EditorScreen({
   });
 
   useClipboardShortcuts({
-    enabled: () => active && mode === 'menus' && menu !== null && trySession === null,
+    enabled: () => active && mode === 'menus' && menu !== null && !menu.form && trySession === null,
     copy: () => clipboardFor(ownSelection),
     remove: () => deleteTargets(ownSelection),
     paste: (content) => void pasteContent(content),
@@ -811,9 +823,13 @@ export function EditorScreen({
     void refreshWorkspace();
   };
 
-  const handleNewMenu = async ({ id, name, rows, template }: NewMenuInput) => {
+  const handleNewMenu = async ({ id, name, rows, template, form }: NewMenuInput) => {
     if (!confirmDiscard()) return;
-    const created = template ? instantiateTemplate(template, id, name) : createEmptyMenu(id, name, rows);
+    const created = form
+      ? (await import('../model/bedrockForm')).createEmptyForm(id, name, form)
+      : template
+        ? instantiateTemplate(template, id, name)
+        : createEmptyMenu(id, name, rows);
     const baked: string[] = [];
     for (const layer of created.layers) {
       if (!layer.generator) continue;
@@ -1256,6 +1272,36 @@ export function EditorScreen({
     void refreshWorkspace();
   };
 
+  /* Formulaire Bedrock : icônes des boutons */
+
+  /** Bibliothèque → icône : la texture est copiée dans l’espace, puis donnée au bouton sélectionné. */
+  const handleLibraryIcon = async (source: LibrarySourceInfo, texture: LibraryTexture) => {
+    const imported = await importFromLibrary(source.id, texture.path);
+    bumpTextures([imported]);
+    void refreshWorkspace();
+    setIconRequest((previous) => ({ texture: imported, nonce: (previous?.nonce ?? 0) + 1 }));
+  };
+
+  /** Bibliothèque → icône : une partie seulement de la texture (sprite d’un atlas), rognée dans sa propre texture. */
+  const handleLibraryIconRegion = async (source: LibrarySourceInfo, texture: LibraryTexture, region: Region) => {
+    const path = await bakeCrop(libraryRawUrl(source.id, texture.path), textureBaseName(texture.path), region);
+    void refreshWorkspace();
+    setIconRequest((previous) => ({ texture: path, nonce: (previous?.nonce ?? 0) + 1 }));
+  };
+
+  /** Dessine l’icône d’un bouton : nouvelle image de 32 × 32, qui devient son icône, ouverte dans l’éditeur de pixels. */
+  const handleDrawFormIcon = async (buttonId: string) => {
+    if (!menu?.form || !confirmLeavePixel()) return;
+    const id = uniqueId(sanitizeId(`${menu.id}_${buttonId}`), pixelList.map((candidate) => candidate.id));
+    const texture = defaultTexture(id);
+    change((draft) => {
+      const button = draft.form?.buttons.find((candidate) => candidate.id === buttonId);
+      if (button) button.icon = { texture };
+    });
+    await createPixel({ id, name: `Icône ${buttonId}`, texture }, createState(32, 32), true);
+    setStatus(`Icône «${NBSP}${buttonId}${NBSP}» : image «${NBSP}${id}${NBSP}» créée, le formulaire reste à enregistrer`);
+  };
+
   const handleLibraryToAsset = async (source: LibrarySourceInfo, texture: LibraryTexture) => {
     const imported = await importFromLibrary(source.id, texture.path);
     bumpTextures([imported]);
@@ -1650,7 +1696,7 @@ export function EditorScreen({
                 {menu && !menuIsOnDisk && <option value={menu.id}>{menu.name} (non enregistré)</option>}
                 {knownMenus.map((candidate) => (
                   <option key={candidate.id} value={candidate.id}>
-                    {candidate.name} ({candidate.id}){candidate.template ? ' · gabarit' : candidate.component ? ' · composant' : ''}
+                    {candidate.name} ({candidate.id}){candidate.template ? ' · gabarit' : candidate.component ? ' · composant' : candidate.form ? ' · formulaire Bedrock' : ''}
                   </option>
                 ))}
               </select>
@@ -1832,7 +1878,55 @@ export function EditorScreen({
         </div>
       )}
 
-      {mode === 'menus' ? (
+      {mode === 'menus' && menu?.form ? (
+        <Suspense
+          fallback={
+            <main className="asset-host">
+              <section className="stage">
+                <p className="muted loading-line empty-state">
+                  <Icon name="loader" />
+                  Chargement de l’éditeur de formulaires…
+                </p>
+              </section>
+            </main>
+          }
+        >
+          <FormEditor
+            key={menu.id}
+            menu={menu}
+            active={active}
+            onChange={change}
+            onCheckpoint={() => dispatch({ type: 'checkpoint' })}
+            canUndo={editor.past.length > 0}
+            canRedo={editor.future.length > 0}
+            onUndo={() => dispatch({ type: 'undo' })}
+            onRedo={() => dispatch({ type: 'redo' })}
+            textures={workspace?.textures ?? []}
+            textureVersions={textureVersions}
+            actionContext={actionContext}
+            flags={knownFlagList}
+            errors={resolved?.errors ?? []}
+            lookup={resolvedLookup}
+            onOpenMenu={(id) => void openMenu(id)}
+            onDrawIcon={(buttonId) => void handleDrawFormIcon(buttonId)}
+            onImportIcon={(file) => importTexture(file, file.name)}
+            iconRequest={iconRequest}
+            librarySlot={
+              <Suspense fallback={null}>
+                <LibraryPanel
+                  key={librariesVersion}
+                  addLabel="Choisir comme icône"
+                  canAddLayer
+                  onAddLayer={handleLibraryIcon}
+                  onAddRegion={handleLibraryIconRegion}
+                  onImportFont={handleImportFont}
+                  onOpenInPixels={openLibraryInPixels}
+                />
+              </Suspense>
+            }
+          />
+        </Suspense>
+      ) : mode === 'menus' ? (
       <main className="workspace">
         <aside className="sidebar">
           <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche" hidden={trySession !== null}>
@@ -2216,7 +2310,15 @@ export function EditorScreen({
         <span className="statusbar-path">
           Espace de travail : <code>{workspace?.root ?? '…'}</code>
         </span>
-        {mode === 'menus' && resolved && (
+        {mode === 'menus' && menu?.form && (
+          <span className="statusbar-meta">
+            <span>formulaire Bedrock</span>
+            <span>{menu.form.layout}</span>
+            <span>{plural(menu.form.buttons.length, 'bouton')}</span>
+            <span>pas de rendu Java</span>
+          </span>
+        )}
+        {mode === 'menus' && resolved && !menu?.form && (
           <span className="statusbar-meta">
             {ownSelection.length > 1 && <span>{plural(ownSelection.length, 'élément')} sélectionnés</span>}
             <span>
@@ -2246,12 +2348,14 @@ export function EditorScreen({
       </footer>
 
       {dialog?.kind === 'new-menu' && (
+        <Suspense fallback={null}>
         <NewMenuDialog
           templates={workspace?.templates ?? []}
           existingIds={knownMenus.map((candidate) => candidate.id)}
           onCancel={() => setDialog(null)}
           onCreate={handleNewMenu}
         />
+        </Suspense>
       )}
       {dialog?.kind === 'new-asset' && (
         <NewAssetDialog

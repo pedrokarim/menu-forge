@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { FORM_LAYOUTS } from '../model/bedrockForm';
 import { MAX_ROWS } from '../model/geometry';
 import { ID_PATTERN, sanitizeId, uniqueId } from '../model/menu';
-import type { MenuDefinition } from '../model/menu';
+import type { FormLayout, MenuDefinition } from '../model/menu';
 import { Icon } from '../ui/Icon';
 import { Field, FieldError, Modal, NumberField } from './fields';
 
@@ -10,6 +11,8 @@ export interface NewMenuInput {
   name: string;
   rows: number;
   template: MenuDefinition | null;
+  /** Formulaire Bedrock dans cette disposition, à la place d’un coffre. */
+  form: FormLayout | null;
 }
 
 interface NewMenuDialogProps {
@@ -27,10 +30,11 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
   const [idTouched, setIdTouched] = useState(false);
   const [rows, setRows] = useState(6);
   const [templateId, setTemplateId] = useState('');
+  const [formLayout, setFormLayout] = useState<FormLayout | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const template = templates.find((candidate) => candidate.id === templateId) ?? null;
+  const template = formLayout ? null : (templates.find((candidate) => candidate.id === templateId) ?? null);
   let idError: string | null = null;
   if (!ID_PATTERN.test(id)) idError = 'Lettres minuscules, chiffres et _ uniquement';
   else if (existingIds.includes(id)) idError = 'Un menu porte déjà cet identifiant';
@@ -40,7 +44,7 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
     setBusy(true);
     setError(null);
     try {
-      await onCreate({ id, name, rows: template?.container.rows ?? rows, template });
+      await onCreate({ id, name, rows: template?.container.rows ?? rows, template, form: formLayout });
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
       setBusy(false);
@@ -48,7 +52,7 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
   };
 
   const card = (key: string, title: string, description: string) => {
-    const selected = templateId === key;
+    const selected = formLayout === null && templateId === key;
     return (
       <button
         type="button"
@@ -56,7 +60,10 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
         aria-checked={selected}
         key={key || 'blank'}
         className={`template-card ${selected ? 'selected' : ''}`}
-        onClick={() => setTemplateId(key)}
+        onClick={() => {
+          setTemplateId(key);
+          setFormLayout(null);
+        }}
       >
         <strong>
           {title}
@@ -98,6 +105,28 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
           );
         })}
       </div>
+      <p className="field-label">Formulaire Bedrock&nbsp;: une disposition du pack mcrs_ui, sans rendu Java</p>
+      <div className="template-gallery" role="radiogroup" aria-label="Formulaire Bedrock">
+        {FORM_LAYOUTS.map((info) => {
+          const selected = formLayout === info.layout;
+          return (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              key={info.layout}
+              className={`template-card ${selected ? 'selected' : ''}`}
+              onClick={() => setFormLayout(info.layout)}
+            >
+              <strong>
+                {info.label}
+                {selected && <Icon name="check" className="template-check" />}
+              </strong>
+              <span className="muted small">{info.description}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className="field-row">
         <Field label="Nom">
           <input
@@ -120,7 +149,7 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
           {idError && <FieldError>{idError}</FieldError>}
         </Field>
       </div>
-      {!template && (
+      {!template && !formLayout && (
         <NumberField label="Lignes du coffre" value={rows} min={1} max={MAX_ROWS} onChange={(value) => setRows(Math.min(MAX_ROWS, Math.max(1, value)))} />
       )}
     </Modal>
