@@ -6,6 +6,7 @@ publish = false
 description = "Backend local du studio menu-forge (espace de travail, textures, bibliothèques)."
 repository = "https://github.com/pedrokarim/menu-forge"
 homepage = "https://pedrokarim.github.io/menu-forge/"
+license = "MIT"
 
 [lib]
 name = "studio_backend"

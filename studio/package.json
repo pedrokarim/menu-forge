@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Studio menu-forge : éditeur local d’inventaires Minecraft custom (interface React, backend Rust, coquille Tauri).",
+  "license": "MIT",
   "homepage": "https://pedrokarim.github.io/menu-forge/",
   "repository": {
     "type": "git",
