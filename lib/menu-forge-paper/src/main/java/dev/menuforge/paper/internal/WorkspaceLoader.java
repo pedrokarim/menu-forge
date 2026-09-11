@@ -2,6 +2,7 @@ package dev.menuforge.paper.internal;
 
 import dev.menuforge.MenuForgeException;
 import dev.menuforge.calibration.CalibrationMenu;
+import dev.menuforge.image.CompositeTextureSource;
 import dev.menuforge.image.DirectoryTextureSource;
 import dev.menuforge.image.TextureLibrary;
 import dev.menuforge.model.MenuDefinition;
@@ -23,9 +24,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Charge l’espace de travail : tous les {@code *.menu.json} (sous-dossiers
- * compris) et leurs textures. Un fichier invalide est signalé et ignoré, sans
- * empêcher le chargement des autres.
+ * Charge un ou plusieurs espaces de travail : tous les {@code *.menu.json}
+ * (sous-dossiers compris) de chaque {@code <racine>/menus/}, et les textures
+ * de chaque {@code <racine>/textures/}. Un fichier invalide est signalé et
+ * ignoré, sans empêcher le chargement des autres.
+ *
+ * <p>Les espaces sont lus dans l’ordre : un id de menu déjà vu est refusé, et
+ * une texture est prise dans le premier espace qui la possède.
  */
 final class WorkspaceLoader {
 
@@ -48,32 +53,55 @@ final class WorkspaceLoader {
     return CalibrationMenu.MENU_ID.equals(menuId);
   }
 
+  /** Charge un seul espace de travail (dossiers des menus et des textures donnés). */
   static Result load(final Path menusDirectory, final Path texturesDirectory, final Logger logger) {
+    return load(List.of(new Root(menusDirectory, texturesDirectory, "")), logger);
+  }
+
+  /**
+   * Un espace de travail.
+   *
+   * @param menus    dossier des menus
+   * @param textures dossier des textures
+   * @param label    préfixe des messages d’erreur (vide pour l’espace du plugin)
+   */
+  record Root(Path menus, Path textures, String label) {
+
+    /** Espace de racine {@code root} ({@code root/menus}, {@code root/textures}). */
+    static Root of(final Path root, final String label) {
+      return new Root(root.resolve("menus"), root.resolve("textures"), label);
+    }
+  }
+
+  static Result load(final List<Root> roots, final Logger logger) {
     final List<String> errors = new ArrayList<>();
     final Map<String, MenuDefinition> definitions = new LinkedHashMap<>();
     final Map<String, String> sources = new LinkedHashMap<>();
     final MenuParser parser = new MenuParser();
 
-    for (final Path file : menuFiles(menusDirectory, errors)) {
-      final String source = menusDirectory.relativize(file).toString().replace('\\', '/');
-      try {
-        final MenuDefinition definition = parser.parse(file);
-        if (isBuiltIn(definition.id())) {
-          errors.add(source + " : l’id « " + definition.id() + " » est réservé");
-        } else if (definitions.containsKey(definition.id())) {
-          errors.add(source + " : id « " + definition.id() + " » déjà utilisé par " + sources.get(definition.id()));
-        } else {
-          definitions.put(definition.id(), definition);
-          sources.put(definition.id(), source);
+    for (final Root root : roots) {
+      for (final Path file : menuFiles(root.menus(), errors)) {
+        final String source = root.label() + root.menus().relativize(file).toString().replace('\\', '/');
+        try {
+          final MenuDefinition definition = parser.parse(file);
+          if (isBuiltIn(definition.id())) {
+            errors.add(source + " : l’id « " + definition.id() + " » est réservé");
+          } else if (definitions.containsKey(definition.id())) {
+            errors.add(source + " : id « " + definition.id() + " » déjà utilisé par " + sources.get(definition.id()));
+          } else {
+            definitions.put(definition.id(), definition);
+            sources.put(definition.id(), source);
+          }
+        } catch (final MenuForgeException exception) {
+          errors.add(root.label() + exception.getMessage());
+        } catch (final IOException exception) {
+          errors.add(source + " : lecture impossible : " + exception.getMessage());
         }
-      } catch (final MenuForgeException exception) {
-        errors.add(exception.getMessage());
-      } catch (final IOException exception) {
-        errors.add(source + " : lecture impossible : " + exception.getMessage());
       }
     }
 
-    final TextureLibrary textures = new TextureLibrary(new DirectoryTextureSource(texturesDirectory));
+    final TextureLibrary textures = new TextureLibrary(new CompositeTextureSource(
+      roots.stream().map(root -> new DirectoryTextureSource(root.textures())).collect(Collectors.toList())));
     final TemplateResolver resolver = new TemplateResolver(definitions::get);
     final Map<String, CompiledMenu> menus = new TreeMap<>();
     for (final MenuDefinition definition : definitions.values()) {

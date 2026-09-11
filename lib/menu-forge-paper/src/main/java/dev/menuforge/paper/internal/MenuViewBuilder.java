@@ -84,8 +84,8 @@ final class MenuViewBuilder {
 
     // 5. Slots.
     final Map<Integer, SlotBinding> bindings = new HashMap<>();
-    final MenuHolder holder = new MenuHolder(session, frame, snapshot, variables, bindings);
-    final Inventory inventory = Bukkit.createInventory(holder, menu.effectiveContainer().size(), title);
+    final MenuHolder holder = new MenuHolder(session, frame, snapshot, variables, bindings, titleJson);
+    final Inventory inventory = service.inventoryFactory().create(holder, menu.effectiveContainer().size(), title);
     holder.attach(inventory);
 
     final Map<String, Integer> listPositions = new HashMap<>();

@@ -14,8 +14,11 @@ import org.bukkit.plugin.java.JavaPlugin;
  * <p>Plugin séparé à dessein : un plugin qui shade et relocalise
  * {@code net.kyori} (comme Enderium) casse les appels Adventure natifs de
  * Paper ; ici, Adventure est celui de Paper, sans relocalisation.
+ *
+ * <p>Classe non {@code final} : MockBukkit, utilisé par les tests, charge le
+ * plugin à travers une sous-classe générée.
  */
-public final class MenuForgePlugin extends JavaPlugin {
+public class MenuForgePlugin extends JavaPlugin {
 
   private MenuForgeService service;
 

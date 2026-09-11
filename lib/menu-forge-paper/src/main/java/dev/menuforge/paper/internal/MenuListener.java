@@ -29,7 +29,7 @@ public final class MenuListener implements Listener {
   }
 
   private static MenuHolder holderOf(final Inventory inventory) {
-    return inventory != null && inventory.getHolder(false) instanceof MenuHolder holder ? holder : null;
+    return MenuHolder.of(inventory);
   }
 
   @EventHandler(priority = EventPriority.LOWEST)

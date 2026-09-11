@@ -6,9 +6,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * API publique de MenuForge, publiée dans le {@code ServicesManager} de Bukkit.
@@ -104,4 +106,34 @@ public interface MenuForgeApi {
 
   /** Recharge la configuration, les menus et les textures, et régénère le pack. Ferme les menus ouverts. */
   void reload();
+
+  // --- Espaces de travail supplémentaires ----------------------------------
+
+  /**
+   * Ajoute un espace de travail lu à chaque rechargement, après celui de
+   * MenuForge ({@code plugins/MenuForge/workspace}) : ses menus
+   * ({@code root/menus/**}) et ses textures ({@code root/textures/**}).
+   * C’est ainsi qu’un plugin embarque ses propres menus. Ne recharge pas :
+   * appeler {@link #reload()} ensuite.
+   *
+   * <p>Un id de menu déjà fourni par un espace précédent est refusé (erreur de
+   * rechargement) ; une texture est prise dans le premier espace qui la possède.
+   */
+  void addWorkspace(Path root);
+
+  /** Retire un espace ajouté par {@link #addWorkspace(Path)}. Ne recharge pas. */
+  void removeWorkspace(Path root);
+
+  /** Espaces lus au rechargement, dans l’ordre (celui de MenuForge en premier). */
+  List<Path> workspaces();
+
+  /**
+   * Appelé après chaque rechargement réussi ou non (démarrage compris), avec
+   * le pack régénéré : permet à un serveur de reconstruire son propre
+   * resource pack. Appelé sur le thread principal.
+   */
+  void registerReloadListener(Consumer<GeneratedPack> listener);
+
+  /** Retire un écouteur de rechargement. */
+  void unregisterReloadListener(Consumer<GeneratedPack> listener);
 }
