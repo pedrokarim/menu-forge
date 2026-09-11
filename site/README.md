@@ -28,11 +28,37 @@ node scripts/serve.mjs      # http://localhost:5223/
 
 Les captures sont **reproductibles** : `scripts/capture.mjs` monte un espace de
 travail de démonstration (`scripts/demo-workspace.mjs`) fait uniquement de
-textures générées par le studio et du logo du projet, avec des réglages sans
+textures générées ou dessinées par le code du studio (générateur, rendu des
+assets, encodeur de l’éditeur de pixels) et du logo du projet, avec des réglages sans
 aucune bibliothèque (`"libraries": []`). Aucun asset tiers ne peut donc
 apparaître à l’écran. Il lance le backend (`studio-api --no-discord`) et Vite
 sur des ports dédiés (5221 et 5222), pilote l’interface avec Playwright, masque
 les chemins de la machine, puis écrit les PNG dans `assets/screens/`.
+
+L’espace de démonstration contient une boutique à onglets, une modale de
+confirmation, un profil qui inclut un composant (« Barre de retour »), trois
+assets et une image de l’éditeur de pixels (« Onglet boutique », en calques).
+Son dossier « Export vers le plugin » est un sous-dossier du dossier de
+travail, affiché comme les ressources d’enderium-core : la capture `export` y
+écrit vraiment, et tout est effacé au lancement suivant.
+
+| Capture | Ce qu’elle montre |
+|---|---|
+| `home` | Accueil : actions rapides, documents récents (menus, assets, image) |
+| `menu-editor` | Éditeur de menus : la boutique, le slot « buy » sélectionné (capture du haut de page) |
+| `pixel-editor` | Éditeur de pixels : l’onglet de boutique en trois calques, symétrie et crayon en cours |
+| `multi-select` | Quatre couches sélectionnées, barre « Aligner et répartir » de l’inspecteur |
+| `visual-editors` | Slot « buy » : actions au clic, « Visible si », « Actif si » en arbre (fenêtre de 1180 px de haut) |
+| `try-mode` | Mode « Essayer » : clics simulés, pile de deux menus, journal |
+| `components` | Profil : éléments d’instance marqués « composant », « Composants inclus » |
+| `export` | Export vers le plugin fait, menu contextuel des exports (fenêtre de 1920 px de large) |
+| `modal-editor` | Modale de confirmation, bouton « Oui » sélectionné |
+| `menu-canvas` | Gros plan : la boutique telle qu’en jeu, zones masquées |
+| `title-composition` | Gros plan : la toile et les jetons du titre composé |
+| `texture-generator` | Générateur de textures, cellules de slots cochées |
+| `asset-editor` | Éditeur d’assets : l’encart d’aide et son export |
+| `shortcuts` | Aide-mémoire des raccourcis |
+| `settings` | Paramètres (export vers le plugin compris) |
 
 Prérequis : les dépendances du studio installées (`npm install` dans
 `studio/`), Rust (le backend est compilé s’il manque) et, pour réduire le poids

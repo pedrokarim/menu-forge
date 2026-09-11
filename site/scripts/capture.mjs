@@ -3,7 +3,8 @@
  * Captures d’écran du studio pour le site et le README.
  *
  * 1. Monte un espace de travail de démonstration (`demo-workspace.mjs`) :
- *    uniquement des textures générées par le studio et le logo du projet,
+ *    uniquement des textures générées ou dessinées par le code du studio et
+ *    le logo du projet,
  *    réglages avec `"libraries": []` – aucun asset tiers ne peut apparaître.
  * 2. Lance le backend Rust (`studio-api`, sans Discord) et Vite sur des ports
  *    dédiés, cuit les textures avec le code du studio, puis pilote l’interface
@@ -31,7 +32,7 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { DEMO_ASSETS, DEMO_MENUS, DEMO_WORKSPACE_NAME } from './demo-workspace.mjs';
+import { DEMO_ASSETS, DEMO_MENUS, DEMO_PIXELS, DEMO_WORKSPACE_NAME } from './demo-workspace.mjs';
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_DIR = path.resolve(SITE_DIR, '..');
@@ -44,12 +45,15 @@ const UI_ORIGIN = `http://localhost:${UI_PORT}`;
 const WORK_DIR = path.resolve(process.env.MF_CAPTURE_DIR ?? path.join(os.tmpdir(), 'menu-forge-capture'));
 const WORKSPACE_DIR = path.join(WORK_DIR, DEMO_WORKSPACE_NAME);
 const SETTINGS_FILE = path.join(WORK_DIR, 'settings.json');
+/** Dossier « Export vers le plugin » de la démonstration (affiché comme les ressources d’enderium-core). */
+const EXPORT_DIR = path.join(WORK_DIR, 'enderium-core', 'resources');
 const ONLY = new Set((process.env.MF_ONLY ?? '').split(',').map((name) => name.trim()).filter(Boolean));
 const VIEWPORT = { width: 1440, height: 900 };
 
 /** Chemins de la machine remplacés dans les captures par des chemins neutres. */
 const PATH_MASKS = [
   [SETTINGS_FILE, 'C:\\Users\\vous\\AppData\\Roaming\\menu-forge\\settings.json'],
+  [EXPORT_DIR, 'C:\\Users\\vous\\enderium-core\\core\\src\\main\\resources'],
   [WORKSPACE_DIR, 'C:\\Users\\vous\\Documents\\serveur-demo'],
   [WORK_DIR, 'C:\\Users\\vous\\Documents'],
 ].flatMap(([real, shown]) => [
@@ -135,8 +139,9 @@ async function waitForApi() {
 
 function prepareWorkDir() {
   rmSync(WORK_DIR, { recursive: true, force: true });
-  for (const folder of ['menus', 'assets', 'textures']) mkdirSync(path.join(WORKSPACE_DIR, folder), { recursive: true });
+  for (const folder of ['menus', 'assets', 'textures', 'pixels']) mkdirSync(path.join(WORKSPACE_DIR, folder), { recursive: true });
   mkdirSync(path.join(WORK_DIR, 'cache'), { recursive: true });
+  mkdirSync(EXPORT_DIR, { recursive: true });
   writeFileSync(path.join(WORK_DIR, 'libraries.json'), '[]\n');
   const settings = {
     version: 1,
@@ -144,20 +149,24 @@ function prepareWorkDir() {
     workspaces: [{ path: WORKSPACE_DIR, name: DEMO_WORKSPACE_NAME, lastOpened: new Date().toISOString() }],
     libraries: [],
     ui: { defaultZoom: 0, showGrid: true, confirmations: { delete: true, discardChanges: true } },
-    export: { enderiumResources: null, namespace: 'menuforge', packFormat: 46 },
+    export: { enderiumResources: EXPORT_DIR, namespace: 'menuforge', packFormat: 46 },
   };
   writeFileSync(SETTINGS_FILE, `${JSON.stringify(settings, null, 2)}\n`);
 }
 
 /**
- * Écrit menus, assets et textures par l’API, depuis la page : les PNG sont
- * produits par le code du studio (`renderGenerator`, `renderAsset`).
+ * Écrit menus, assets, images de pixels et textures par l’API, depuis la page :
+ * les PNG sont produits par le code du studio (`renderGenerator`, `renderAsset`,
+ * encodeur PNG de l’éditeur de pixels).
  */
 async function seedWorkspace(page) {
   await page.evaluate(
-    async ({ menus, assets }) => {
+    async ({ menus, assets, pixels }) => {
       const generator = await import('/src/model/generator.ts');
       const assetRender = await import('/src/asset/render.ts');
+      const pixelDocument = await import('/src/pixel/document.ts');
+      const pixelIo = await import('/src/pixel/io.ts');
+      const pixelApi = await import('/src/lib/pixelApi.ts');
       const pause = () => new Promise((resolve) => setTimeout(resolve, 40));
       const put = async (url, body, type) => {
         const response = await fetch(url, { method: 'PUT', headers: { 'Content-Type': type, 'X-Menu-Forge': '1' }, body });
@@ -188,8 +197,36 @@ async function seedWorkspace(page) {
         await put(`/api/menus/${menu.id}`, JSON.stringify(menu, null, 2), 'application/json');
         await pause();
       }
+
+      // Images de pixels : calques peints au rectangle (ou par le générateur), encodés par le studio.
+      for (const image of pixels) {
+        const { width, height } = image.size;
+        let state = pixelDocument.createState(width, height);
+        state = { ...state, layers: [] };
+        for (const spec of image.layers) {
+          const layer = pixelDocument.createLayer(width, height, state.layers);
+          layer.name = spec.name;
+          layer.opacity = spec.opacity ?? 100;
+          if (spec.generator) {
+            const canvas = generator.renderGenerator(spec.generator, { x: 0, y: 0 });
+            layer.data.set(canvas.getContext('2d').getImageData(0, 0, width, height).data);
+          }
+          for (const [x, y, w, h, color] of spec.rects) {
+            const rgb = [1, 3, 5].map((index) => parseInt(color.slice(index, index + 2), 16));
+            for (let row = y; row < y + h; row++) {
+              for (let col = x; col < x + w; col++) layer.data.set([...rgb, 255], (row * width + col) * 4);
+            }
+          }
+          state.layers.push(layer);
+        }
+        state.activeLayerId = state.layers.at(-1).id;
+        const texture = pixelDocument.defaultTexture(image.id);
+        await pixelApi.savePixel(await pixelIo.encodeDocument({ id: image.id, name: image.name, texture }, state));
+        await put(`/api/textures/${texture}`, await pixelIo.flattenToBlob(state), 'image/png');
+        await pause();
+      }
     },
-    { menus: DEMO_MENUS, assets: DEMO_ASSETS },
+    { menus: DEMO_MENUS, assets: DEMO_ASSETS, pixels: DEMO_PIXELS },
   );
 }
 
@@ -347,6 +384,144 @@ shot('shortcuts', 'Aide-mémoire des raccourcis', async (page) => {
   await wait(400);
 });
 
+/* ---------- Éditeur de menus : gestes, éditeurs visuels, essai, composants, export ---------- */
+
+/** Ligne de la liste des éléments : section 0 = couches, 1 = textes, 2 = zones de slots. */
+const outlineRow = (page, section, name) =>
+  page
+    .locator('.outline .panel-section')
+    .nth(section)
+    .locator('.outline-item')
+    .filter({ has: page.locator('.outline-name', { hasText: new RegExp(`^${name}$`) }) })
+    .first();
+
+/** Zoom fixe de la toile, et point de la page qui correspond au centre d’une case du coffre. */
+async function fixedZoom(page, zoom) {
+  await page.getByLabel('Niveau de zoom').first().selectOption(String(zoom));
+  await wait(400);
+  const box = await page.locator('canvas.menu-canvas').boundingBox();
+  const at = (x, y) => ({ x: box.x + (32 + x) * zoom, y: box.y + (32 + y) * zoom });
+  return { at, cell: (col, row) => at(7 + 18 * col + 9, 17 + 18 * row + 9) };
+}
+
+/** Fait défiler la colonne de droite jusqu’à un élément. */
+async function scrollSidebarTo(locator, offset = 8) {
+  await locator.evaluate((node, shift) => {
+    const sidebar = node.closest('.sidebar');
+    sidebar.scrollTo({ top: node.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop - shift });
+  }, offset);
+  await wait(250);
+}
+
+shot('multi-select', 'Sélection multiple et barre d’alignement', async (page) => {
+  await open(page, '#/editeur/menus/shop');
+  await zoomIn(page);
+  const tabs = ['tab_blocks', 'tab_tools', 'tab_food', 'tab_misc'];
+  for (const [index, name] of tabs.entries()) {
+    await outlineRow(page, 0, name).locator('.outline-name').click(index === 0 ? {} : { modifiers: ['Control'] });
+  }
+  await page.locator('.inspector .align-bar').first().waitFor();
+  await page.mouse.move(700, 880);
+  await wait(400);
+});
+
+shot('visual-editors', 'Éditeurs visuels des actions et des conditions d’un slot', async (page) => {
+  await page.setViewportSize(TALL_VIEWPORT);
+  await open(page, '#/editeur/menus/shop');
+  await fixedZoom(page, 3);
+  await outlineRow(page, 2, 'buy').locator('.outline-name').click();
+  await page.locator('.inspector .action-editor').first().waitFor();
+  await page.locator('.inspector .condition-editor').first().waitFor();
+  await wait(400);
+  // Colonne de droite : les actions au clic en haut, puis « Visible si » et « Actif si ».
+  await scrollSidebarTo(page.locator('.inspector .action-editor').first(), 12);
+  await page.mouse.move(700, 1150);
+  await wait(300);
+});
+
+shot('try-mode', 'Mode « Essayer » : clics simulés et journal', async (page) => {
+  await open(page, '#/editeur/menus/shop');
+  const { cell } = await fixedZoom(page, 3);
+  await page.getByRole('button', { name: 'Essayer', exact: true }).click();
+  await page.locator('.try-journal').waitFor();
+  for (const [col, row] of [[1, 0], [8, 5], [8, 5], [4, 4]]) {
+    const point = cell(col, row);
+    await page.mouse.click(point.x, point.y);
+    await wait(250);
+  }
+  // La confirmation est ouverte (pile de deux menus) : « Oui » lance la commande puis revient.
+  const yes = cell(2, 4);
+  await page.mouse.click(yes.x, yes.y);
+  await wait(250);
+  const buy = cell(4, 4);
+  await page.mouse.click(buy.x, buy.y);
+  await wait(400);
+  await page.mouse.move(10, 400);
+  await wait(200);
+});
+
+shot('components', 'Un composant réutilisable et son instance', async (page) => {
+  await open(page, '#/editeur/menus/profile');
+  await fixedZoom(page, 3);
+  const includes = page.locator('.includes-editor').first();
+  await includes.waitFor();
+  await scrollSidebarTo(includes, 12);
+  await outlineRow(page, 2, 'nav_back').hover();
+  await wait(300);
+});
+
+shot('export', 'Export vers le plugin et pack ZIP de test', async (page) => {
+  // Fenêtre plus large : le message d’export (dossier compris) tient dans la barre d’outils.
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await open(page, '#/editeur/menus/shop');
+  await zoomIn(page);
+  await page.getByRole('button', { name: 'Pack ZIP', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Pack de test écrit' }).waitFor({ timeout: 30000 });
+  await page.getByRole('button', { name: 'Exporter', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Exporté vers le plugin' }).waitFor({ timeout: 30000 });
+  // Menu contextuel d’une zone vide de la toile : les deux exports et leurs raccourcis.
+  const stage = await page.locator('.stage').first().boundingBox();
+  await page.mouse.click(stage.x + stage.width - 60, stage.y + stage.height - 330, { button: 'right' });
+  await page.locator('.context-menu').waitFor();
+  await page.locator('.context-menu').getByRole('menuitem', { name: /Exporter vers le plugin/ }).hover();
+  await wait(400);
+});
+
+/* ---------- Éditeur de pixels ---------- */
+
+shot('pixel-editor', 'Éditeur de pixels : une texture d’onglet dessinée en calques', async (page) => {
+  await open(page, '#/editeur/pixels/shop_tab_icon');
+  const canvas = page.locator('canvas.pixel-canvas');
+  await canvas.waitFor({ timeout: 30000 });
+  await wait(500);
+  await page.keyboard.press('Control+0');
+  await wait(300);
+  const box = await canvas.boundingBox();
+  const zoom = Number(await page.locator('select.pixel-zoom').inputValue());
+  const size = 32;
+  const ox = Math.round((Math.floor(box.width) - size * zoom) / 2);
+  const oy = Math.round((Math.floor(box.height) - size * zoom) / 2);
+  const at = (x, y) => ({ x: box.x + ox + (x + 0.5) * zoom, y: box.y + oy + (y + 0.5) * zoom });
+  const stroke = async (points) => {
+    await page.mouse.move(at(...points[0]).x, at(...points[0]).y);
+    await page.mouse.down();
+    for (const point of points.slice(1)) await page.mouse.move(at(...point).x, at(...point).y, { steps: 4 });
+    await page.mouse.up();
+    await wait(80);
+  };
+  // Petits éclats dorés dessinés au crayon sur le calque « Reflets », en symétrie horizontale.
+  const hex = page.getByLabel('Code hexadécimal (#rrggbb ou #rrggbbaa)');
+  await hex.fill('#fff6c8');
+  await hex.press('Tab');
+  await page.keyboard.press('b');
+  await page.getByRole('button', { name: 'Symétrie horizontale' }).click();
+  await stroke([[4, 4], [4, 6]]);
+  await stroke([[3, 5], [5, 5]]);
+  await stroke([[6, 26], [6, 27]]);
+  await page.mouse.move(at(20, 14).x, at(20, 14).y);
+  await wait(300);
+});
+
 shot('settings', 'Paramètres', async (page) => {
   await open(page, '#/parametres');
 });
@@ -430,7 +605,8 @@ try {
   browser = await launchBrowser(await loadChromium());
   const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1, colorScheme: 'dark', locale: 'fr-FR' });
   const page = await context.newPage();
-  page.on('dialog', (dialog) => dialog.dismiss());
+  // « Quitter la page ? » (dessin non enregistré) : on quitte ; toute autre question est refusée.
+  page.on('dialog', (dialog) => (dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss()));
   page.on('pageerror', (error) => errors.push(`pageerror : ${error.message}`));
   page.on('console', (message) => {
     // Les ressources introuvables sont signalées avec leur adresse ci-dessous.
