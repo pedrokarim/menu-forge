@@ -58,6 +58,11 @@
   border-top: 2px solid var(--ds-divider);
 }
 
+/* La fiche n'a pas de marge intérieure (son en-tête est cliquable d'un bord à l'autre) : la liste des réglages en prend une. */
+.ai-provider > .setting-list {
+  padding: 4px 12px 10px;
+}
+
 .ai-provider-result {
   padding: 0 12px 10px;
 }

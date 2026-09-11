@@ -3,6 +3,7 @@ import { Field, FieldError, Modal, NumberField } from '../components/fields';
 import { textureUrl } from '../lib/api';
 import { NBSP, plural } from '../lib/format';
 import { imageToCanvas, renderGeneratorImage } from '../model/textureRender';
+import { DEFAULT_PREVIEW, buildPreviewContext, interpolate } from '../model/preview';
 import { MAX_ROWS, WINDOW_WIDTH, areaRect, windowHeight } from '../model/geometry';
 import { ID_PATTERN, sanitizeId, uniqueId } from '../model/menu';
 import type { MenuDefinition } from '../model/menu';
@@ -72,10 +73,12 @@ function MenuSketch({ menu }: { menu: MenuDefinition }) {
       }
       context.font = '8px monospace';
       context.textBaseline = 'top';
+      // Variables remplacées comme dans l'éditeur (« {page.number} » devient « 1 »).
+      const preview = buildPreviewContext(menu, DEFAULT_PREVIEW);
       for (const text of menu.texts ?? []) {
         context.fillStyle = text.color ?? '#404040';
         context.textAlign = text.align ?? 'left';
-        context.fillText(text.value, text.x, text.y);
+        context.fillText(interpolate(text.value, preview.variables), text.x, text.y);
       }
     });
     return () => {
