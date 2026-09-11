@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchWorkspace } from './lib/api';
 import type { WorkspaceSnapshot } from './lib/api';
 import {
@@ -29,7 +29,6 @@ import { SCREEN_TITLES, describeActivity } from './shell/activity';
 import type { OpenDocument } from './shell/activity';
 import { TitleBar } from './shell/TitleBar';
 import { ContextMenuProvider } from './ui/ContextMenu';
-import { AboutScreen } from './screens/AboutScreen';
 import { EditorScreen } from './screens/EditorScreen';
 import type { EditorPreferences, EditorRequest } from './screens/EditorScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -38,17 +37,20 @@ import { RenameDocumentDialog } from './components/DocumentDialogs';
 import { duplicateWithFreeId, renameWithReferences, trashWithConfirmation } from './lib/documents';
 import type { DocumentEvent } from './lib/documents';
 import { menuReferences } from './model/references';
-import { LibrariesScreen } from './screens/LibrariesScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
 import { WorkspacesScreen } from './screens/WorkspacesScreen';
 import { ScreenRail } from './shell/ScreenRail';
 import type { RailScreen } from './shell/ScreenRail';
-import { ShortcutsDialog } from './shell/ShortcutsDialog';
 import { WorkspacePill } from './shell/WorkspacePill';
 import { navigate, parseRoute, useRoute } from './shell/router';
 import type { EditorMode } from './shell/router';
 import { Icon } from './ui/Icon';
 import './shell/shell.css';
+
+/** Écrans secondaires et aide-mémoire : chargés à leur première ouverture, hors du paquet principal. */
+const AboutScreen = lazy(() => import('./screens/AboutScreen').then((module) => ({ default: module.AboutScreen })));
+const LibrariesScreen = lazy(() => import('./screens/LibrariesScreen').then((module) => ({ default: module.LibrariesScreen })));
+const SettingsScreen = lazy(() => import('./screens/SettingsScreen').then((module) => ({ default: module.SettingsScreen })));
+const ShortcutsDialog = lazy(() => import('./shell/ShortcutsDialog').then((module) => ({ default: module.ShortcutsDialog })));
 
 const DEFAULT_PREFERENCES: EditorPreferences = { defaultZoom: 0, showGrid: true, confirmDiscard: true, confirmDelete: true };
 const SCREEN_ORDER: RailScreen[] = ['home', 'editor', 'libraries', 'settings', 'about'];
@@ -415,6 +417,7 @@ export default function App() {
             }}
           />
         )}
+        <Suspense fallback={null}>
         {screen === 'libraries' && (
           <LibrariesScreen
             pill={pill}
@@ -437,8 +440,13 @@ export default function App() {
           />
         )}
         {screen === 'about' && <AboutScreen pill={pill} app={app} />}
+        </Suspense>
       </div>
-      {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {showShortcuts && (
+        <Suspense fallback={null}>
+          <ShortcutsDialog onClose={() => setShowShortcuts(false)} />
+        </Suspense>
+      )}
       {renaming && (
         <RenameDocumentDialog
           type={renaming.type}
