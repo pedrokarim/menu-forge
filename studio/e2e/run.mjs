@@ -193,7 +193,9 @@ function writeViteConfig(paths) {
   const allow = [STUDIO_DIR, realpathSync(path.join(STUDIO_DIR, 'node_modules'))];
   const config = {
     root: STUDIO_DIR,
-    cacheDir: paths.viteCacheDir,
+    // Cache des dépendances gardé d'une passe à l'autre (dans node_modules, jamais effacé par la suite) :
+    // sans lui, Vite repart à froid à chaque lancement et la première page dépasse les délais.
+    cacheDir: path.join(STUDIO_DIR, 'node_modules', '.vite-e2e'),
     logLevel: VERBOSE ? 'info' : 'warn',
     clearScreen: false,
     server: {
@@ -338,7 +340,8 @@ try {
 
   // Espace de démonstration écrit par le code du studio, depuis une page (textures cuites par lui).
   const seedPage = await context.newPage();
-  await seedPage.goto(`${env.uiOrigin}/#/accueil`, { waitUntil: 'load' });
+  // Premier chargement : Vite peut encore précompiler ses dépendances (poste chargé, premier lancement).
+  await seedPage.goto(`${env.uiOrigin}/#/accueil`, { waitUntil: 'load', timeout: 180_000 });
   await seedPage.locator('.rail').first().waitFor({ timeout: 90_000 });
   const demo = await loadDemoData(REPO_DIR);
   await seedWorkspace(seedPage, { menus: demo.DEMO_MENUS, assets: demo.DEMO_ASSETS, pixels: demo.DEMO_PIXELS });
