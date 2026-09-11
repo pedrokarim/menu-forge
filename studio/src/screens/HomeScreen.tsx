@@ -67,10 +67,24 @@ function MenuThumbnail({ menu, menus, version }: { menu: MenuDefinition; menus: 
   return <canvas ref={canvasRef} width={WINDOW_WIDTH} height={windowHeight(menu.container.rows)} aria-hidden="true" />;
 }
 
+/** Vignette d’une image de pixels : agrandie d’un nombre entier de fois (une icône de 16 px reste lisible et nette). */
+function PixelThumbnail({ src }: { src: string }) {
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const scale = size ? Math.max(1, Math.floor(Math.min(160 / size.width, 112 / size.height))) : 1;
+  return (
+    <img
+      src={src}
+      alt=""
+      style={size ? { width: size.width * scale, height: size.height * scale } : undefined}
+      onLoad={(event) => setSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+    />
+  );
+}
+
 function DocumentThumbnail({ document, snapshot }: { document: RecentDocument; snapshot: WorkspaceSnapshot | null }) {
   const version = Date.parse(document.modified) || 0;
   if (document.type === 'pixel') {
-    if (document.texture && snapshot?.textures.includes(document.texture)) return <img src={textureUrl(document.texture, version)} alt="" />;
+    if (document.texture && snapshot?.textures.includes(document.texture)) return <PixelThumbnail src={textureUrl(document.texture, version)} />;
     return <Icon name="pencil" size={36} />;
   }
   if (document.type === 'asset') {

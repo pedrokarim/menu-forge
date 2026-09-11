@@ -85,6 +85,18 @@ const OPAQUE_WHITE: Rgba = { r: 255, g: 255, b: 255, a: 255 };
 
 const quote = (text: string) => `«${NBSP}${text}${NBSP}»`;
 
+/** Champ où l’on tape du texte : les lettres et les chiffres y restent (un curseur ou une case à cocher, non). */
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  return target instanceof HTMLInputElement && !['range', 'checkbox', 'radio', 'color', 'button'].includes(target.type);
+}
+
+/** Contrôle de formulaire ou bouton : flèches, Entrée et Suppr lui reviennent. */
+function isControl(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('input, textarea, select, button, [contenteditable="true"]') !== null;
+}
+
 /** Charge l’image puis ouvre l’éditeur (un éditeur par image : historique propre). */
 export function PixelEditor(props: PixelEditorProps) {
   const [loaded, setLoaded] = useState<{ id: string; meta: PixelMeta; state: PixelState } | null>(null);
@@ -564,7 +576,7 @@ function PixelWorkbench(props: WorkbenchProps) {
       void save();
       return;
     }
-    if (isTypingTarget(event.target)) return;
+    if (isTextEntry(event.target)) return;
     if (withModifier) {
       const actions: Record<string, () => void> = {
         KeyZ: event.shiftKey ? redo : undo,
@@ -626,7 +638,11 @@ function PixelWorkbench(props: WorkbenchProps) {
     if (event.key === 'Escape') {
       if (present.floating) dropContent();
       else deselect();
-    } else if (event.key === 'Enter') {
+      return;
+    }
+    // Un curseur, un bouton ou une case gardent leurs touches (flèches, Entrée, Suppr).
+    if (isControl(event.target)) return;
+    if (event.key === 'Enter') {
       dropContent();
     } else if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();

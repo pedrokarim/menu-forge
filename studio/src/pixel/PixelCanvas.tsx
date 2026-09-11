@@ -373,7 +373,11 @@ export function PixelCanvas(props: PixelCanvasProps) {
   }
 
   function draw() {
-    frame.current = 0;
+    // Une image demandée plus tôt dessinerait un état périmé par-dessus celui-ci.
+    if (frame.current) {
+      cancelAnimationFrame(frame.current);
+      frame.current = 0;
+    }
     const canvas = canvasRef.current;
     const context = canvas?.getContext('2d');
     if (!canvas || !context || !stage) return;
@@ -514,12 +518,19 @@ export function PixelCanvas(props: PixelCanvasProps) {
     }
   }
 
+  // L’image demandée dessine toujours avec le dernier rendu (état, outil, vue), jamais celui de la demande.
+  const drawRef = useRef<() => void>(() => undefined);
   const scheduleDraw = () => {
-    if (!frame.current) frame.current = requestAnimationFrame(draw);
+    if (frame.current) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      drawRef.current();
+    });
   };
 
   // Chaque rendu redessine (état, outil, vue…).
   useLayoutEffect(() => {
+    drawRef.current = draw;
     draw();
   });
 
