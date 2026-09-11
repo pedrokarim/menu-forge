@@ -20,10 +20,12 @@ const PACK_FORMATS: ReadonlyArray<{ value: number; label: string }> = [
 
 const DEFAULT_DISCORD: DiscordSettings = { enabled: true, clientId: null, showDocument: true };
 
+/** Application Discord « menu-forge », utilisée tant qu’aucun autre identifiant n’est saisi (même valeur que le backend). */
+const MENU_FORGE_CLIENT_ID = '1370756359037124698';
+
 /** Pastille d’état de la connexion à Discord. */
 function presenceBadge(discord: DiscordSettings, status: PresenceStatus | null): { label: string; className: string } {
   if (!discord.enabled) return { label: 'désactivée', className: 'badge' };
-  if (!discord.clientId) return { label: 'à configurer', className: 'badge badge-dirty' };
   if (!status) return { label: 'état inconnu', className: 'badge' };
   if (status.connected) return { label: 'connectée', className: 'badge badge-clean' };
   return { label: 'Discord introuvable', className: 'badge badge-missing' };
@@ -308,8 +310,8 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
             title="Identifiant d’application"
             text={
               <>
-                Portail développeur Discord, ton application, <em>Application ID</em>. Image à téléverser sous la clé{' '}
-                <code>logo</code>.
+                Vide : l’application menu-forge (<code>{MENU_FORGE_CLIENT_ID}</code>). Pour utiliser la tienne : portail
+                développeur Discord, <em>Application ID</em>.
               </>
             }
           >
@@ -317,7 +319,7 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
               mono
               label="Identifiant d’application Discord"
               value={discord.clientId ?? ''}
-              placeholder="Non défini"
+              placeholder={`${MENU_FORGE_CLIENT_ID} (menu-forge)`}
               onCommit={(value) => void save({ discord: { clientId: value.trim() === '' ? null : value.trim() } }, 'Identifiant Discord')}
             />
           </SettingRow>

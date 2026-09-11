@@ -18,7 +18,7 @@ réglages) :
 | Réglage | Rôle |
 |---|---|
 | `enabled` | active la présence (vrai par défaut) |
-| `clientId` | *Application ID* de l’application Discord (17 à 20 chiffres), `null` tant qu’aucune n’est configurée |
+| `clientId` | *Application ID* d’une autre application Discord (17 à 20 chiffres) ; `null` (défaut) = l’application officielle **menu-forge**, `1370756359037124698` |
 | `showDocument` | affiche le nom du document ouvert ; sinon un texte générique (« Édite un menu ») |
 
 Côté Discord, il faut aussi que **Paramètres utilisateur → Confidentialité de
@@ -26,8 +26,15 @@ l’activité → Partager mon activité** soit activé.
 
 ## Mise en place dans le portail développeur
 
+L’application officielle **menu-forge** (`1370756359037124698`, constante
+`DEFAULT_CLIENT_ID` de `presence.rs`) est utilisée par défaut par l’appli et
+par `npm run dev` : sans réglage, la présence marche dès que ses images sont
+téléversées. Les tests d’intégration ne la reçoivent pas, et
+`studio-api --no-discord` s’en passe (tests de bout en bout) : les tests ne
+touchent jamais au vrai profil Discord. Pour une autre application :
+
 1. Sur <https://discord.com/developers/applications>, créer une application
-   nommée **menu-forge** : c’est ce nom que Discord affiche après « Joue à ».
+   (son nom est celui que Discord affiche après « Joue à »).
 2. *General Information* : copier l’**Application ID** et le coller dans
    Paramètres → Discord → Identifiant d’application.
 3. *Rich Presence → Art Assets* : téléverser les huit images de

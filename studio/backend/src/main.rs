@@ -23,6 +23,7 @@ Options (chacune a sa variable d’environnement) :
   --templates <dir>   MENU_FORGE_TEMPLATES    gabarits (<studio>/../templates)
   --cache <dir>       MENU_FORGE_CACHE        caches (<studio>/.cache)
   --studio-dir <dir>  MENU_FORGE_STUDIO_DIR   dossier studio/ servant de base aux valeurs par défaut
+  --no-discord        MENU_FORGE_NO_DISCORD   sans l’application Discord par défaut (tests : jamais le vrai profil)
 ";
 
 struct Options {
@@ -33,6 +34,7 @@ struct Options {
     libraries: Option<String>,
     templates: Option<String>,
     cache: Option<String>,
+    no_discord: bool,
 }
 
 fn parse_options() -> Result<Options, String> {
@@ -46,12 +48,17 @@ fn parse_options() -> Result<Options, String> {
     let mut libraries = env("MENU_FORGE_LIBRARIES");
     let mut templates = env("MENU_FORGE_TEMPLATES");
     let mut cache = env("MENU_FORGE_CACHE");
+    let mut no_discord = env("MENU_FORGE_NO_DISCORD").is_some();
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         if arg == "-h" || arg == "--help" {
             print!("{USAGE}");
             std::process::exit(0);
+        }
+        if arg == "--no-discord" {
+            no_discord = true;
+            continue;
         }
         let (name, inline) = match arg.split_once('=') {
             Some((name, value)) => (name.to_owned(), Some(value.to_owned())),
@@ -76,7 +83,7 @@ fn parse_options() -> Result<Options, String> {
         Some(port) => port.parse().map_err(|_| format!("port invalide : {port}"))?,
         None => DEFAULT_PORT,
     };
-    Ok(Options { port, studio_dir, settings, workspace, libraries, templates, cache })
+    Ok(Options { port, studio_dir, settings, workspace, libraries, templates, cache, no_discord })
 }
 
 fn build_config(options: &Options) -> BackendConfig {
@@ -95,6 +102,9 @@ fn build_config(options: &Options) -> BackendConfig {
     }
     if let Some(file) = &options.libraries {
         config.libraries_override = Some(load_library_sources(&paths::resolve(&[file])));
+    }
+    if options.no_discord {
+        config.discord_client_id = None;
     }
     config
 }

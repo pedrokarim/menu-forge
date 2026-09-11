@@ -58,6 +58,8 @@ fn config(dir: &TempDir) -> BackendConfig {
         cache_dir: dir.text("cache"),
         workspace_override: None,
         libraries_override: None,
+        // Jamais l’application Discord par défaut : les tests ne touchent pas au vrai profil.
+        discord_client_id: None,
     }
 }
 

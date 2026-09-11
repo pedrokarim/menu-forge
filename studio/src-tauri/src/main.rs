@@ -85,6 +85,8 @@ fn setup(app: &mut tauri::App) -> Result<(), BoxError> {
         cache_dir: path_text(&cache_dir),
         workspace_override: None,
         libraries_override: None,
+        // Rich Presence : l’application officielle menu-forge tant qu’aucune autre n’est réglée.
+        discord_client_id: Some(studio_backend::presence::DEFAULT_CLIENT_ID.to_owned()),
     };
     let backend = Arc::new(Backend::new(config));
 

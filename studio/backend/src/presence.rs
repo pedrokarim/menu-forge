@@ -10,7 +10,9 @@
 //! cause de Discord.
 //!
 //! Le fil :
-//! - se connecte quand `discord.enabled` est vrai et `discord.clientId` défini ;
+//! - se connecte quand `discord.enabled` est vrai, avec `discord.clientId`, ou à
+//!   défaut l’application de repli fournie par l’hôte (l’application officielle
+//!   [`DEFAULT_CLIENT_ID`] pour l’appli et `npm run dev`, aucune pour les tests) ;
 //!   si Discord n’est pas lancé ou si la connexion tombe, il réessaie toutes
 //!   les 15 s ([`RETRY_INTERVAL`]) et n’écrit dans les journaux qu’à chaque
 //!   **nouveau** message d’erreur ;
@@ -38,6 +40,9 @@ pub const RETRY_INTERVAL: Duration = Duration::from_secs(15);
 pub const REFRESH_INTERVAL: Duration = Duration::from_secs(15);
 /// Texte affiché quand le document ne doit pas l’être (ou avant toute activité).
 pub const GENERIC_DETAILS: &str = "Crée des menus";
+/// Application Discord officielle « menu-forge » (identifiant public, pas un secret),
+/// utilisée tant que `discord.clientId` n’est pas défini.
+pub const DEFAULT_CLIENT_ID: &str = "1370756359037124698";
 /// Clé de la grande image, à déclarer dans le portail développeur Discord.
 pub const LARGE_IMAGE: &str = "logo";
 /// Texte au survol de la grande image.
@@ -288,6 +293,8 @@ struct Shared {
     desired: Mutex<Desired>,
     wake: Condvar,
     observed: Mutex<Observed>,
+    /// Application utilisée quand `discord.clientId` n’est pas défini.
+    fallback: Option<String>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -308,15 +315,18 @@ pub struct Presence {
 
 impl Presence {
     /// Lance le fil de présence avec ces réglages.
-    pub fn start(settings: DiscordSettings) -> Self {
-        Self::spawn(settings, Box::new(connect_discord), Timing { retry: RETRY_INTERVAL, refresh: REFRESH_INTERVAL })
+    /// `fallback` : application utilisée tant que `discord.clientId` n’est pas
+    /// défini (`None` : la présence attend un identifiant).
+    pub fn start(settings: DiscordSettings, fallback: Option<String>) -> Self {
+        Self::spawn(settings, fallback, Box::new(connect_discord), Timing { retry: RETRY_INTERVAL, refresh: REFRESH_INTERVAL })
     }
 
-    fn spawn(settings: DiscordSettings, connector: Connector, timing: Timing) -> Self {
+    fn spawn(settings: DiscordSettings, fallback: Option<String>, connector: Connector, timing: Timing) -> Self {
         let shared = Arc::new(Shared {
             desired: Mutex::new(Desired { settings, activity: None, generation: 0, stop: false, finished: false }),
             wake: Condvar::new(),
             observed: Mutex::new(Observed::default()),
+            fallback,
         });
         let started = SystemTime::now().duration_since(UNIX_EPOCH).map(|elapsed| elapsed.as_secs()).unwrap_or(0);
         let worker = Worker { shared: Arc::clone(&shared), connector, timing, started, logged_error: None };
@@ -357,7 +367,7 @@ impl Presence {
     pub fn status(&self) -> PresenceStatus {
         let (enabled, configured) = {
             let desired = lock(&self.shared.desired);
-            (desired.settings.enabled, desired.settings.client_id.is_some())
+            (desired.settings.enabled, desired.settings.client_id.is_some() || self.shared.fallback.is_some())
         };
         let observed = lock(&self.shared.observed);
         PresenceStatus { enabled, configured, connected: observed.connected, error: observed.error.clone() }
@@ -434,7 +444,11 @@ impl Worker {
                 let desired = lock(&self.shared.desired);
                 (desired.settings.clone(), desired.activity.clone(), desired.generation, desired.stop)
             };
-            let wanted = if stop || !settings.enabled { None } else { settings.client_id.clone() };
+            let wanted = if stop || !settings.enabled {
+                None
+            } else {
+                settings.client_id.clone().or_else(|| self.shared.fallback.clone())
+            };
 
             // Désactivée, identifiant changé ou arrêt : effacer et fermer.
             if link.as_ref().is_some_and(|link| wanted.as_deref() != Some(link.client_id.as_str())) {
@@ -667,7 +681,7 @@ mod tests {
         let calls = Calls::default();
         let settings = DiscordSettings { enabled: true, client_id: Some(ID.into()), show_document: true };
         let timing = Timing { retry: Duration::from_millis(30), refresh: Duration::from_secs(60) };
-        let presence = Presence::spawn(settings.clone(), fake(&calls, 1), timing);
+        let presence = Presence::spawn(settings.clone(), None, fake(&calls, 1), timing);
 
         // Premier essai raté (Discord absent), puis connexion au suivant.
         eventually("échec signalé", || presence.status().error.is_some() || presence.status().connected);
@@ -709,10 +723,23 @@ mod tests {
     fn unconfigured_presence_stays_idle() {
         let calls = Calls::default();
         let timing = Timing { retry: Duration::from_millis(10), refresh: Duration::from_millis(10) };
-        let presence = Presence::spawn(DiscordSettings::default(), fake(&calls, 0), timing);
+        let presence = Presence::spawn(DiscordSettings::default(), None, fake(&calls, 0), timing);
         presence.set_activity(Activity { details: "ab".into(), ..Activity::default() });
         thread::sleep(Duration::from_millis(50));
         assert!(lock(&calls).is_empty());
         assert_eq!(presence.status(), PresenceStatus { enabled: true, configured: false, connected: false, error: None });
+    }
+
+    #[test]
+    fn fallback_application_is_used_without_client_id() {
+        let calls = Calls::default();
+        let timing = Timing { retry: Duration::from_millis(10), refresh: Duration::from_secs(60) };
+        let presence = Presence::spawn(DiscordSettings::default(), Some(DEFAULT_CLIENT_ID.into()), fake(&calls, 0), timing);
+        eventually("connexion à l’application de repli", || has(&calls, &format!("{DEFAULT_CLIENT_ID} connect")));
+        assert_eq!(presence.status(), PresenceStatus { enabled: true, configured: true, connected: true, error: None });
+        // Un identifiant saisi dans les réglages l’emporte sur le repli.
+        presence.configure(DiscordSettings { client_id: Some(ID.into()), ..DiscordSettings::default() });
+        eventually("identifiant des réglages", || has(&calls, &format!("{ID} connect")));
+        assert!(has(&calls, &format!("{DEFAULT_CLIENT_ID} close")));
     }
 }

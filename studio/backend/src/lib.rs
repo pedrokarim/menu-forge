@@ -150,6 +150,10 @@ pub struct BackendConfig {
     /// **non enregistrées** ; toute modification des bibliothèques par l’API
     /// part de cette liste et l’enregistre.
     pub libraries_override: Option<Vec<LibrarySource>>,
+    /// Application Discord utilisée tant que `discord.clientId` n’est pas
+    /// défini : l’application officielle pour l’appli et `npm run dev`,
+    /// `None` pour les tests (jamais le vrai profil Discord).
+    pub discord_client_id: Option<String>,
 }
 
 impl BackendConfig {
@@ -168,6 +172,7 @@ impl BackendConfig {
             cache_dir: paths::resolve(&[&studio_dir, ".cache"]),
             workspace_override: None,
             libraries_override: None,
+            discord_client_id: Some(presence::DEFAULT_CLIENT_ID.to_owned()),
         }
     }
 }
@@ -227,7 +232,7 @@ impl Backend {
         let workspace_override = config.workspace_override.map(|path| paths::resolve(&[&path]));
         let active = workspace_override.clone().unwrap_or_else(|| settings.active_workspace.clone());
         let libraries = config.libraries_override.clone().unwrap_or_else(|| settings.libraries.clone());
-        let presence = presence::Presence::start(settings.discord.clone());
+        let presence = presence::Presence::start(settings.discord.clone(), config.discord_client_id.clone());
         let runtime = Runtime {
             workspace: Arc::new(Workspace::new(active, templates_root.clone())),
             libraries: Arc::new(Libraries::new(libraries, library_cache_dir.clone())),
