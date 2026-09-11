@@ -483,3 +483,11 @@ button.swatch:where(:active:not(:disabled)) {
 .try-log-entry.tone-warn {
   color: var(--ds-warn);
 }
+
+/* Trois outils sur la toile (Sélection, Slots, Essayer) : sous 880 px de large, leur nom
+   passe dans l’infobulle avant que la barre ne revienne à la ligne (la touche reste). */
+@container stage (max-width: 880px) {
+  .stage-toolbar .tool-label {
+    display: none;
+  }
+}
