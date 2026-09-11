@@ -4,6 +4,8 @@
 
 <h1 align="center">menu-forge</h1>
 
+<p align="center"><strong>Français</strong> · <a href="README.en.md">English</a></p>
+
 <p align="center">
   <strong>Dessinez des inventaires Minecraft custom au pixel près, ouvrez-les en jeu sans calculer un seul décalage.</strong><br>
   Un studio local (appli de bureau ou navigateur) et une lib Paper, reliés par un format JSON ouvert.
@@ -21,6 +23,12 @@
 > **État : jeune projet, en développement actif.** Le modèle de rendu est validé
 > en jeu (Paper 1.20.6), le studio et la lib fonctionnent de bout en bout, mais
 > il n’y a pas encore de version publiée : on construit depuis les sources.
+
+menu-forge est né pour **Enderium**, un serveur Minecraft : son plugin
+(`enderium-core`) est le premier consommateur de la lib, branchée sur ses
+actions, ses conditions et son pipeline de resource pack par un adaptateur.
+La lib, elle, ne dépend d’aucun type d’Enderium et sert n’importe quel serveur
+Paper.
 
 ## Pourquoi
 
@@ -157,6 +165,10 @@ cd lib
 ./gradlew build
 ```
 
+Le plugin vise **Paper 1.20.6 et plus** (Java 21, `api-version` 1.20). Sur
+1.21.4 et plus, il sait aussi donner un modèle d’item (`item_model`) aux
+boutons invisibles ; avant, il utilise `CustomModelData`.
+
 1. Déposer `menu-forge-paper/build/libs/MenuForge-<version>.jar` dans
    `plugins/`.
 2. Copier les menus exportés par le studio dans
@@ -221,10 +233,8 @@ changement important. Quelques règles du dépôt (détail dans
 
 ## Licence
 
-<!-- LICENCE À CHOISIR -->
-
-La licence du projet n’est pas encore choisie. En attendant, aucune licence
-n’est accordée sur le code de ce dépôt.
+menu-forge est distribué sous licence **MIT**, © 2026 Karim (pedrokarim) : voir [`LICENSE`](LICENSE).
+Les composants tiers gardent leur propre licence (ci-dessous).
 
 ## Crédits
 
