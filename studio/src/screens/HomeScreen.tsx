@@ -3,9 +3,12 @@ import type { ReactNode } from 'react';
 import { textureUrl } from '../lib/api';
 import type { WorkspaceSnapshot } from '../lib/api';
 import type { RecentDocument, WorkspaceSummary } from '../lib/appApi';
+import { textRect } from '../canvas/menuRects';
 import { NBSP, formatDate, formatRelative, plural } from '../lib/format';
+import { usePreviewFont } from '../lib/previewFont';
 import { WINDOW_WIDTH, windowHeight } from '../model/geometry';
 import type { MenuDefinition } from '../model/menu';
+import { DEFAULT_PREVIEW, buildPreviewContext, interpolate } from '../model/preview';
 import { resolveMenu } from '../model/resolve';
 import { Notice, ScreenFrame } from '../shell/ScreenFrame';
 import { Icon } from '../ui/Icon';
@@ -48,27 +51,37 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Vignette d’un menu : ses couches toujours visibles (héritage compris), à l’échelle 1. */
+/** Vignette d’un menu : ses couches et ses textes toujours visibles (héritage compris), à l’échelle 1. */
 function MenuThumbnail({ menu, menus, version }: { menu: MenuDefinition; menus: MenuDefinition[]; version: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewFont = usePreviewFont();
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const byId = new Map(menus.map((candidate) => [candidate.id, candidate]));
-    const layers = resolveMenu(menu, (id) => byId.get(id)).menu.layers.filter((layer) => !layer.visibleWhen);
+    const resolved = resolveMenu(menu, (id) => byId.get(id)).menu;
+    const layers = resolved.layers.filter((layer) => !layer.visibleWhen);
+    const texts = (resolved.texts ?? []).filter((text) => !text.visibleWhen);
+    const preview = buildPreviewContext(resolved, DEFAULT_PREVIEW);
+    const font = previewFont?.font ?? null;
     let cancelled = false;
     void Promise.all(layers.map((layer) => loadImage(textureUrl(layer.texture, version)).catch(() => null))).then((images) => {
       const context = canvas.getContext('2d');
       if (cancelled || !context) return;
       context.clearRect(0, 0, canvas.width, canvas.height);
+      context.imageSmoothingEnabled = false;
       images.forEach((image, index) => {
         if (image) context.drawImage(image, layers[index].x, layers[index].y);
       });
+      for (const text of texts) {
+        const rect = textRect(text, preview);
+        font?.draw(context, interpolate(text.value, preview.variables), rect.x, rect.y, { color: text.color ?? '#404040' });
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [menu, menus, version]);
+  }, [menu, menus, version, previewFont]);
   return <canvas ref={canvasRef} width={WINDOW_WIDTH} height={windowHeight(menu.container.rows)} aria-hidden="true" />;
 }
 

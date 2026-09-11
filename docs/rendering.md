@@ -145,6 +145,32 @@ des 95 caractères ASCII imprimables, recalculées depuis le vrai `ascii.png`
 d’espacement), sont identiques à celles du studio et de la lib. Les accents
 courants (`é è à ç É`) avancent de 6, `€` de 7.
 
+### Aperçu dans le studio
+
+Le studio dessine les textes du jeu avec la **police du jeu** quand la
+bibliothèque `vanilla` est branchée (lue dans le pack, jamais copiée dans le
+dépôt). Sinon, il se sert de la **police pixel de Menu Forge**
+(`studio/src/lib/pixelFontGlyphs.ts`) : des lettres dessinées pour le
+projet, sous la licence MIT du dépôt, mais avec les **métriques** du jeu :
+
+- ligne de 8 px, capitales sur les rangées 0 à 6, jambages sur la rangée 7 ;
+- avance de chaque caractère lue dans la table de `fontMetrics.ts` (la même que
+  `CharWidths`) et, pour l’ASCII, dernière colonne encrée = avance − 2
+  (1 px d’espacement, comme la règle du jeu) ;
+- ombre, gras et codes « § » rendus par le même moteur que la police du jeu ;
+- accents des capitales jusqu’à 3 px au-dessus de la ligne, comme dans le jeu.
+
+Centrage, alignement à droite et titre composé tombent donc aux positions du
+jeu : seul le dessin des lettres change. `npm test` vérifie ces métriques
+(`tests/pixel-font.test.ts`). Caractères dessinés : l’ASCII imprimable, les
+lettres accentuées du français (et les plus courantes des langues voisines),
+« » ‘ ’ “ ” … – —, € £ § ° ± × ÷ ² ³ ¡ ¿, ß œ æ ø et leurs
+capitales ; les espaces insécables avancent sans dessin. Un caractère absent
+s’affiche comme dans le jeu, en cadre de 5 × 8 px (avance 6).
+
+Un asset exporté **sans** pack vanilla garde dans son PNG les lettres de cette
+police : branchez le pack pour exporter avec celles du jeu.
+
 ## 6. Pièges connus
 
 - **Avance** : voir plus haut. Toujours la calculer depuis les pixels.

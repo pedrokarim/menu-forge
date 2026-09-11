@@ -91,8 +91,9 @@ facteurs admis : 0.125, 0.25, 0.5, 1, 2, 3, 4 – rendu au plus proche voisin).
 `text` (plusieurs lignes séparées par `\n`, codes `§` acceptés), `color`
 (défaut `#ffffff`), `shadow` (défaut `false`), `bold` (défaut `false`),
 `lineHeight` (défaut 10 : 9 px de ligne + 1), `align` (`left`, `center`,
-`right`, par rapport à `x`). Rendu avec la **vraie police du jeu** (bibliothèque
-`vanilla`), mêmes largeurs et mêmes accents qu’en jeu.
+`right`, par rapport à `x`). Rendu avec la **vraie police du jeu** quand la
+bibliothèque `vanilla` est branchée, sinon avec la police pixel de Menu Forge,
+qui garde les avances du jeu (voir [`rendering.md`](rendering.md)).
 
 ## Groupes
 

@@ -212,7 +212,6 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
 2. **Valider `/profile` en jeu** avec un client, puis migrer les autres
    écrans du prototype d’Enderium (succès, royaumes, maisons).
 3. **Studio** :
-   - police pixel fidèle pour l’aperçu des textes ;
    - repères posés à la main (règles, guides) ;
    - restaurer un document depuis la corbeille.
 4. **Décider** du sort de `generic_54.png` (effet global sur tous les coffres).

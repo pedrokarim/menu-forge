@@ -175,7 +175,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     ...new Set([...assetTexturePaths(asset), ...(tool === 'image' && imageTexture ? [imageTexture] : [])]),
   ].join('\n');
   const texturePaths = useMemo(() => (pathsKey ? pathsKey.split('\n') : []), [pathsKey]);
-  const { resources, fontError } = useAssetResources(texturePaths, textureVersions);
+  const { resources, fontSource } = useAssetResources(texturePaths, textureVersions);
   const preview = useMemo(() => renderAssetSync(asset, resources, { placeholders: true }), [asset, resources]);
   const exportCanvas = useMemo(() => renderAssetSync(asset, resources), [asset, resources]);
   const bounds = useMemo(
@@ -957,7 +957,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
           dirty={dirty}
           saving={saving}
           missingTextures={missingTextures}
-          fontError={fontError}
+          fontSource={fontSource}
           onSave={() => void save()}
           onAscentChange={(ascent) => change((draft) => void (draft.export.ascent = ascent), 'export.ascent')}
         />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadMinecraftFont } from '../lib/minecraftFont';
-import type { MinecraftFont } from '../lib/minecraftFont';
+import { usePreviewFont } from '../lib/previewFont';
+import type { PreviewFontSource } from '../lib/previewFont';
 import type { LoadedTexture } from '../lib/textures';
 import { loadAssetTexture } from './render';
 import type { RenderResources } from './render';
@@ -10,32 +10,18 @@ function cacheKey(path: string, versions: Record<string, number>): string {
 }
 
 /**
- * Charge la police du jeu et les textures demandées pour l’éditeur.
+ * Charge la police des aperçus (celle du jeu, ou la police pixel de Menu
+ * Forge) et les textures demandées pour l’éditeur.
  * Incrémenter `versions[path]` force le rechargement d’une texture.
  */
 export function useAssetResources(
   paths: readonly string[],
   versions: Record<string, number>,
-): { resources: RenderResources; fontError: string | null } {
-  const [font, setFont] = useState<MinecraftFont | null>(null);
-  const [fontError, setFontError] = useState<string | null>(null);
+): { resources: RenderResources; fontSource: PreviewFontSource | null } {
+  const previewFont = usePreviewFont();
+  const font = previewFont?.font ?? null;
   const [loaded, setLoaded] = useState(() => new Map<string, LoadedTexture | null>());
   const pending = useRef(new Set<string>());
-
-  useEffect(() => {
-    let cancelled = false;
-    loadMinecraftFont().then(
-      (result) => {
-        if (!cancelled) setFont(result);
-      },
-      (error: unknown) => {
-        if (!cancelled) setFontError(error instanceof Error ? error.message : String(error));
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     for (const path of paths) {
@@ -58,5 +44,5 @@ export function useAssetResources(
     return { font, textures };
   }, [paths, versions, loaded, font]);
 
-  return { resources, fontError };
+  return { resources, fontSource: previewFont?.source ?? null };
 }

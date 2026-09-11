@@ -278,8 +278,7 @@ pack ZIP, les schémas JSON. Prochaines étapes :
 
 - valider en jeu, avec un client, l’écran `/profile` d’Enderium, puis migrer
   ses autres écrans (succès, royaumes, maisons) ;
-- studio : police pixel fidèle pour l’aperçu des textes, repères posés à la
-  main, restaurer un document depuis la corbeille ;
+- studio : repères posés à la main, restaurer un document depuis la corbeille ;
 - composants : surcharger un seul champ d’un élément d’instance ; aperçu des
   slots « liste » en mode « Essayer » ;
 - éditeur de pixels : animations et planches de sprites, palettes

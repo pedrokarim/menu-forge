@@ -275,7 +275,7 @@ steps:
 
 - validate Enderium's `/profile` screen in game with a client, then migrate
   its other screens (achievements, realms, houses);
-- studio: faithful pixel font for text previews, hand-placed guides, restore
+- studio: hand-placed guides, restore
   a document from the trash;
 - components: override a single field of an instance element; preview
   "list" slots in "Try" mode;

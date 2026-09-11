@@ -151,6 +151,17 @@ Le pack ZIP ne contient pas le `generic_54.png` « cases seules » (visuel de
 coffre fourni par le pack du serveur) : dans un coffre vanilla, le cadre reste
 visible sous les couches.
 
+## Police des aperçus
+
+Les textes du jeu (toile des menus, vignettes de l’accueil, éditeur et export
+des assets) sont dessinés avec la police du jeu quand la bibliothèque
+`vanilla` est branchée, sinon avec la **police pixel de Menu Forge** : des
+glyphes dessinés pour le projet (licence MIT du dépôt), aux avances du jeu.
+Données : `src/lib/pixelFontGlyphs.ts` (une chaîne par glyphe, `#` = pixel),
+chargé à la demande hors du paquet principal ; planche et rendu :
+`src/lib/pixelFont.ts` ; choix de la police : `src/lib/previewFont.ts`.
+Détails et couverture dans [`../docs/rendering.md`](../docs/rendering.md).
+
 ## Tests
 
 ```sh
