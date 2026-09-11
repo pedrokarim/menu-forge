@@ -197,7 +197,8 @@ export const tests = [
       await page.getByRole('button', { name: 'Nouveau', exact: true }).click();
       await modal(page, 'Nouveau menu').waitFor();
       await expectCleanLayout(t, 'dialogue « Nouveau menu »');
-      await page.getByRole('button', { name: /Générer une interface/ }).click();
+      // Carte du générateur dans « Nouveau menu » (la barre de l’éditeur a aussi « Générer une interface par IA… »).
+      await modal(page, 'Nouveau menu').getByRole('button', { name: /Générer une interface/ }).click();
       await modal(page, 'Générer une interface').waitFor();
       await expectCleanLayout(t, 'dialogue « Générer une interface »');
       await page.keyboard.press('Escape');

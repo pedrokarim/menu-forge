@@ -196,10 +196,10 @@ export function HomeScreen({
           <h2 id="home-actions" className="screen-section-title">
             Actions rapides
           </h2>
-          <Tooltip label="Générer une interface" hint="Décrite en quelques mots à une IA, validée, à relire avant enregistrement">
+          <Tooltip label="Générer une interface par IA" hint="Décrite en quelques mots à une IA, validée, à relire avant enregistrement">
             <button type="button" onClick={() => onQuickAction('ai-interface')}>
               <Icon name="sparkles" />
-              Générer une interface…
+              Générer une interface par IA…
             </button>
           </Tooltip>
         </div>

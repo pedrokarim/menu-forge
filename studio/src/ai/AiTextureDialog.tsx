@@ -248,7 +248,7 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
 
   return (
     <Modal
-      title="Générer une texture"
+      title="Générer une texture par IA"
       onClose={() => {
         stop();
         onCancel();

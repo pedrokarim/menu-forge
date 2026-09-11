@@ -237,7 +237,7 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
 
   return (
     <Modal
-      title="Générer une interface"
+      title="Générer une interface par IA"
       onClose={() => {
         stop();
         onCancel();

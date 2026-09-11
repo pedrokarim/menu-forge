@@ -182,7 +182,7 @@ async function waitForUrl(url, name, attempts = 200) {
 }
 
 /** Config Vite de test, écrite dans `studio/.cache/` (supprimée à la fin). */
-function writeViteConfig(paths) {
+function writeViteConfig() {
   const cache = path.join(STUDIO_DIR, '.cache');
   const hadCache = existsSync(cache);
   mkdirSync(cache, { recursive: true });
@@ -308,7 +308,7 @@ try {
   pipeLogs(api, 'api');
   log(`studio-api lancé (PID ${api.pid}) sur ${API_PORT}`);
 
-  const viteConfig = writeViteConfig(paths);
+  const viteConfig = writeViteConfig();
   const vite = spawn(process.execPath, [path.join(STUDIO_DIR, 'node_modules', 'vite', 'bin', 'vite.js'), '--config', viteConfig], {
     cwd: STUDIO_DIR,
     stdio: ['ignore', 'pipe', 'pipe'],

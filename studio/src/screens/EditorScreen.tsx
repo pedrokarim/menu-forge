@@ -1715,7 +1715,7 @@ export function EditorScreen({
               </Tooltip>
               <IconButton
                 icon="sparkles"
-                label="Générer une interface…"
+                label="Générer une interface par IA…"
                 hint="Décrite à une IA, validée par le schéma, à relire avant enregistrement"
                 size={24}
                 onClick={() => setDialog({ kind: 'ai-interface' })}
@@ -1843,7 +1843,7 @@ export function EditorScreen({
             </Tooltip>
             <IconButton
               icon="sparkles"
-              label="Générer une texture…"
+              label="Générer une texture par IA…"
               hint="Par IA, ramenée sur la grille et la palette, puis ouverte ici pour retouche"
               size={24}
               onClick={() =>
@@ -2111,7 +2111,7 @@ export function EditorScreen({
               </button>
               <button type="button" onClick={() => setDialog({ kind: 'ai-interface' })}>
                 <Icon name="sparkles" />
-                Générer une interface…
+                Générer une interface par IA…
               </button>
             </div>
           )}
@@ -2270,7 +2270,7 @@ export function EditorScreen({
                 </button>
                 <button type="button" onClick={() => openAiTexture(null)}>
                   <Icon name="sparkles" />
-                  Générer une texture…
+                  Générer une texture par IA…
                 </button>
               </div>
             </section>
