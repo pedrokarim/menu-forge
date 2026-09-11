@@ -32,6 +32,8 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
       { keys: 'Flèches', label: 'Déplacer de 1 px' },
       { keys: 'Maj+Flèches', label: 'Déplacer de 18 px (une case)' },
       { keys: 'Ctrl+S', label: 'Enregistrer' },
+      { keys: 'Ctrl+E', label: 'Exporter vers le plugin' },
+      { keys: 'Ctrl+Maj+E', label: 'Exporter un pack ZIP de test' },
     ],
   },
   {

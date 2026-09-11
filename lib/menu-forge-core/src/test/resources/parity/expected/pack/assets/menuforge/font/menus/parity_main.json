@@ -1,0 +1,76 @@
+{
+  "providers": [
+    {
+      "type": "space",
+      "advances": {
+        "\uf801": -1,
+        "\uf802": -2,
+        "\uf803": -4,
+        "\uf804": -8,
+        "\uf805": -16,
+        "\uf806": -32,
+        "\uf807": -64,
+        "\uf808": -128,
+        "\uf809": -256,
+        "\uf80a": -512,
+        "\uf80b": -1024,
+        "\uf821": 1,
+        "\uf822": 2,
+        "\uf823": 4,
+        "\uf824": 8,
+        "\uf825": 16,
+        "\uf826": 32,
+        "\uf827": 64,
+        "\uf828": 128,
+        "\uf829": 256,
+        "\uf82a": 512,
+        "\uf82b": 1024
+      }
+    },
+    {
+      "type": "bitmap",
+      "file": "menuforge:menus/parity_main/bar.png",
+      "ascent": 13,
+      "height": 20,
+      "chars": [
+        "\ue000"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "menuforge:menus/parity_main/panel.png",
+      "ascent": -20,
+      "height": 88,
+      "chars": [
+        "\ue001"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "menuforge:menus/parity_main/veil.png",
+      "ascent": 13,
+      "height": 222,
+      "chars": [
+        "\ue002"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "menuforge:menus/parity_main/icon.png",
+      "ascent": 10,
+      "height": 14,
+      "chars": [
+        "\ue003"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "menuforge:menus/parity_main/icon_e004.png",
+      "ascent": -108,
+      "height": 14,
+      "chars": [
+        "\ue004"
+      ]
+    }
+  ]
+}

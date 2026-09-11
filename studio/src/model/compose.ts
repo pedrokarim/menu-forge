@@ -1,7 +1,7 @@
 import { evaluateCondition } from './conditions';
 import { alignedStart, textWidth } from './fontMetrics';
 import { TITLE_X, ascentForTop } from './geometry';
-import type { MenuDefinition } from './menu';
+import type { Layer, MenuDefinition } from './menu';
 import type { PreviewContext } from './preview';
 import { interpolate } from './preview';
 
@@ -44,6 +44,31 @@ export interface Composition {
 /** `undefined` = texture pas encore chargée ; `null` = texture absente ou vide. */
 export type BoundsLookup = (texture: string) => ImageBounds | null | undefined;
 
+/** Métriques du glyphe d’une couche. */
+export interface GlyphMetrics {
+  /** Abscisse fenêtre du premier pixel visible. */
+  x: number;
+  /** Ordonnée fenêtre du premier pixel visible. */
+  top: number;
+  ascent: number;
+  /** `max(hauteur visible, ascent)` : Minecraft exige `ascent ≤ height`. */
+  height: number;
+  /** Largeur visible + 1. */
+  advance: number;
+}
+
+/**
+ * Métriques du glyphe d’une couche posée en (`x`, `y`) dont la texture a pour
+ * zone visible `bounds` : même calcul que `GlyphMetrics` de la lib, partagé par
+ * la composition du titre et la génération du pack.
+ */
+export function glyphMetrics(layer: Pick<Layer, 'x' | 'y'>, bounds: ImageBounds): GlyphMetrics {
+  const x = layer.x + bounds.cropX;
+  const top = layer.y + bounds.cropY;
+  const ascent = ascentForTop(top);
+  return { x, top, ascent, height: Math.max(bounds.height, ascent), advance: bounds.width + 1 };
+}
+
 /**
  * Compose le titre d’un menu résolu : suite de décalages, glyphes et textes.
  * Même algorithme que la lib Java (cf. docs/rendering.md § 3) : chaque couche
@@ -75,12 +100,8 @@ export function composeTitle(
       warnings.push(`« ${layer.id} » : texture introuvable ou vide (${layer.texture})`);
       continue;
     }
-    const x = layer.x + bounds.cropX;
-    const top = layer.y + bounds.cropY;
-    const ascent = ascentForTop(top);
     // Minecraft exige ascent ≤ height : la lib complète le bas de l’image si besoin.
-    const height = Math.max(bounds.height, ascent);
-    const advance = bounds.width + 1;
+    const { x, top, ascent, height, advance } = glyphMetrics(layer, bounds);
     moveTo(x);
     tokens.push({
       kind: 'glyph',

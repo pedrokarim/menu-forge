@@ -1,0 +1,109 @@
+{
+  "parity_main": {
+    "tokens": [
+      {
+        "kind": "shift",
+        "amount": -8
+      },
+      {
+        "kind": "glyph",
+        "layerId": "bar",
+        "ascent": 13,
+        "height": 20,
+        "advance": 177
+      },
+      {
+        "kind": "shift",
+        "amount": -175
+      },
+      {
+        "kind": "glyph",
+        "layerId": "panel",
+        "ascent": -20,
+        "height": 88,
+        "advance": 173
+      },
+      {
+        "kind": "shift",
+        "amount": -154
+      },
+      {
+        "kind": "glyph",
+        "layerId": "Icon",
+        "ascent": 10,
+        "height": 14,
+        "advance": 15
+      },
+      {
+        "kind": "shift",
+        "amount": 115
+      },
+      {
+        "kind": "glyph",
+        "layerId": "icon",
+        "ascent": -108,
+        "height": 14,
+        "advance": 15
+      },
+      {
+        "kind": "shift",
+        "amount": -158
+      },
+      {
+        "kind": "text",
+        "value": "Bonjour Steve",
+        "ascent": 7
+      },
+      {
+        "kind": "shift",
+        "amount": -14
+      },
+      {
+        "kind": "text",
+        "value": "Onglet a",
+        "ascent": -87,
+        "color": "#404040"
+      },
+      {
+        "kind": "shift",
+        "amount": 29
+      },
+      {
+        "kind": "text",
+        "value": "Épée !",
+        "ascent": -7,
+        "color": "#ffaa00"
+      }
+    ],
+    "json": "{\"text\":\"\",\"extra\":[{\"text\":\"\uf804\ue000\uf808\uf806\uf804\uf803\uf802\uf801\ue001\uf808\uf805\uf804\uf802\ue003\uf827\uf826\uf825\uf822\uf821\ue004\uf808\uf805\uf804\uf803\uf802\",\"font\":\"menuforge:menus/parity_main\",\"color\":\"white\"},{\"text\":\"Bonjour Steve\",\"font\":\"menuforge:menus/text_7\"},{\"text\":\"\uf804\uf803\uf802\",\"font\":\"menuforge:menus/parity_main\",\"color\":\"white\"},{\"text\":\"Onglet a\",\"font\":\"menuforge:menus/text_m87\",\"color\":\"#404040\"},{\"text\":\"\uf825\uf824\uf823\uf821\",\"font\":\"menuforge:menus/parity_main\",\"color\":\"white\"},{\"text\":\"Épée !\",\"font\":\"menuforge:menus/text_m7\",\"color\":\"#ffaa00\"}]}"
+  },
+  "parity_small": {
+    "tokens": [
+      {
+        "kind": "shift",
+        "amount": -8
+      },
+      {
+        "kind": "shift",
+        "amount": 2
+      },
+      {
+        "kind": "glyph",
+        "layerId": "panel",
+        "ascent": 0,
+        "height": 88,
+        "advance": 173
+      },
+      {
+        "kind": "shift",
+        "amount": -35
+      },
+      {
+        "kind": "text",
+        "value": "12/46",
+        "ascent": -47
+      }
+    ],
+    "json": "{\"text\":\"\",\"extra\":[{\"text\":\"\uf804\uf822\ue000\uf806\uf802\uf801\",\"font\":\"menuforge:menus/parity_small\",\"color\":\"white\"},{\"text\":\"12/46\",\"font\":\"menuforge:menus/text_m47\"}]}"
+  }
+}

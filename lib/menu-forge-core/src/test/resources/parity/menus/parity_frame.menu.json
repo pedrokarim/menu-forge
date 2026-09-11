@@ -1,0 +1,12 @@
+{
+  "formatVersion": 1,
+  "id": "parity_frame",
+  "name": "Cadre de parité",
+  "template": true,
+  "layers": [
+    { "id": "bar", "texture": "parity/bar.png", "x": 0, "y": 0 }
+  ],
+  "texts": [
+    { "id": "title", "x": 8, "y": 6, "value": "Cadre" }
+  ]
+}

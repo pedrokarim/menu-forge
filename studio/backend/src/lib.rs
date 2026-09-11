@@ -25,6 +25,7 @@
 
 pub mod app;
 mod error;
+pub mod export;
 mod fsutil;
 pub mod js;
 pub mod libraries;

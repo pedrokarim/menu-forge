@@ -18,6 +18,8 @@ libraries.local.json
 examples/menus/
 examples/assets/
 examples/textures/
+# Packs ZIP de test écrits par le studio (« Pack ZIP »).
+examples/exports/
 
 # Environnement
 .env
