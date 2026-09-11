@@ -69,7 +69,7 @@ export interface AssetEditorProps {
    * La demande présente au montage est considérée comme déjà traitée.
    */
   insertRequest: { texture: string; source?: ImageElement['source']; nonce: number } | null;
-  /** Contenu à afficher dans l’onglet « Bibliothèque » de la colonne de gauche (fourni par l’application). */
+  /** Contenu à afficher dans l’onglet « Bibliothèque » de la colonne de gauche (fourni par l’application). */
   librarySlot: ReactNode;
   /** Enregistre le JSON et le PNG exporté (échelle 1). Lève une erreur en cas d’échec. */
   onSave: (asset: AssetDefinition, png: Blob) => Promise<void>;
@@ -79,7 +79,7 @@ export interface AssetEditorProps {
   active?: boolean;
   /** Grille de pixels à l’ouverture (réglage de l’éditeur). */
   defaultShowGrid?: boolean;
-  /** Zoom à l’ouverture : 0 ou absent = « Ajuster ». */
+  /** Zoom à l’ouverture : 0 ou absent = « Ajuster ». */
   defaultZoom?: number;
   /** Demande d’enregistrement venue de la barre du haut ; change à chaque demande. */
   saveRequest?: number;
@@ -111,7 +111,7 @@ interface ImagePlacement {
 }
 
 /**
- * Éditeur d’assets (« mode libre ») : box, images et textes composés
+ * Éditeur d’assets (« mode libre ») : box, images et textes composés
  * librement puis exportés en un PNG, à insérer comme glyphe. Occupe toute la
  * zone de travail : éléments / bibliothèque à gauche, toile au centre,
  * inspecteur et export à droite.
@@ -138,7 +138,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   const [boxPresetId, setBoxPresetId] = useState(DEFAULT_BOX_PRESET);
   const [imageTexture, setImageTexture] = useState('');
   const [zoom, setZoom] = useState(() => openingZoom || defaultZoom(initial.size.width, initial.size.height));
-  // Zoom « Ajuster » par défaut, comme pour les menus : le plus grand palier où l’asset tient dans la zone.
+  // Zoom « Ajuster » par défaut, comme pour les menus : le plus grand palier où l’asset tient dans la zone.
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(openingZoom === 0 ? 'fit' : 'manual');
   const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
   const stageNode = useRef<HTMLDivElement | null>(null);
@@ -146,7 +146,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     stageNode.current = node;
     if (!node) return;
     const observer = new ResizeObserver(([entry]) => {
-      // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
+      // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
       if (entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
       setStageSize({ width: Math.floor(entry.contentRect.width), height: Math.floor(entry.contentRect.height) });
     });
@@ -248,7 +248,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     const { texture, source } = insertRequest;
     void loadAssetTexture(texture, textureVersions[texture] ?? 0).then((loaded) => {
       insertImage(texture, loaded, null, source);
-      setStatus(loaded ? `Image insérée : ${texture}` : `Texture introuvable : ${texture}`);
+      setStatus(loaded ? `Image insérée : ${texture}` : `Texture introuvable : ${texture}`);
     });
   }, [insertRequest, textureVersions, insertImage]);
 
@@ -259,9 +259,9 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       const texture = await onImportImage(blob, fileName);
       const loaded = await loadAssetTexture(texture, 0);
       insertImage(texture, loaded, at);
-      setStatus(`Texture importée : textures/${texture}`);
+      setStatus(`Texture importée : textures/${texture}`);
     } catch (error) {
-      setStatus(`Échec de l’import : ${errorMessage(error)}`);
+      setStatus(`Échec de l’import : ${errorMessage(error)}`);
     }
   };
 
@@ -357,7 +357,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       const group = draft.groups?.find((candidate) => candidate.id === groupId);
       if (group) group.name = name;
     });
-    setStatus(`${plural(ids.length, 'élément')} groupés dans « ${name} »`);
+    setStatus(`${plural(ids.length, 'élément')} groupés dans « ${name} »`);
   };
 
   /** Ctrl+Maj+G : dissout les groupes touchés par la sélection. */
@@ -412,11 +412,11 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     if (content.payload?.kind === 'asset') {
       insertCopies(content.payload, nextPasteShift(content.payload, `asset:${asset.id}`), 'collé(s)');
     } else if (content.payload?.kind === 'menu') {
-      setStatus('Le presse-papiers contient des éléments de menu : colle-les dans un menu.');
+      setStatus('Le presse-papiers contient des éléments de menu : colle-les dans un menu.');
     } else if (content.image) {
       void importImage(content.image, pastedImageName(), { x: asset.size.width / 2, y: asset.size.height / 2, centered: true });
     } else {
-      setStatus('Rien à coller : copie d’abord des éléments (Ctrl+C) ou une image PNG.');
+      setStatus('Rien à coller : copie d’abord des éléments (Ctrl+C) ou une image PNG.');
     }
   };
 
@@ -440,15 +440,15 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       const png = await canvasToBlob(canvas);
       await onSave(snapshot, png);
       setSavedJson(JSON.stringify(snapshot));
-      setStatus(`« ${snapshot.id} » enregistré, PNG exporté (${canvas.width} × ${canvas.height})`);
+      setStatus(`« ${snapshot.id} » enregistré, PNG exporté (${canvas.width} × ${canvas.height})`);
     } catch (error) {
-      setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
+      setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
     } finally {
       setSaving(false);
     }
   };
 
-  // Bouton « Enregistrer » de la barre du haut : chaque nouvelle demande enregistre une fois.
+  // Bouton « Enregistrer » de la barre du haut : chaque nouvelle demande enregistre une fois.
   const saveRef = useRef(save);
   useEffect(() => {
     saveRef.current = save;
@@ -475,9 +475,9 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       whole.length === 1 && touched.length === 1 && targets.every((element) => element.group === whole[0]) ? findGroup(asset, whole[0]) : undefined;
     const heading =
       targets.length === 1
-        ? `${TYPE_NOUNS[targets[0].type]} « ${targets[0].id} »`
+        ? `${TYPE_NOUNS[targets[0].type]} « ${targets[0].id} »`
         : onlyGroup
-          ? `Groupe « ${groupLabel(onlyGroup)} »`
+          ? `Groupe « ${groupLabel(onlyGroup)} »`
           : `${plural(targets.length, 'élément')} sélectionnés`;
     const hidden = targets.every((element) => element.hidden);
     const locked = targets.every((element) => element.locked);
@@ -505,7 +505,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
 
   /** Clic droit sur une zone vide de la toile. */
   const canvasMenu = (): MenuEntry[] => [
-    { heading: `Asset « ${asset.name} »` },
+    { heading: `Asset « ${asset.name} »` },
     { label: 'Coller', icon: 'clipboard', shortcut: 'Ctrl+V', onSelect: () => void readClipboard().then(pasteContent) },
     { label: 'Tout sélectionner', icon: 'marquee', shortcut: 'Ctrl+A', onSelect: selectAll },
     { separator: true },
@@ -550,7 +550,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       dispatch({ type: 'redo' });
       return;
     }
-    // Touche physique : sur AZERTY, Ctrl + la touche du 0 produit « à ».
+    // Touche physique : sur AZERTY, Ctrl + la touche du 0 produit « à ».
     if (command && shortcutDigit(event) === '0') {
       event.preventDefault();
       setZoomMode('fit');
@@ -737,7 +737,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                   <dt>
                     <ShortcutKeys shortcut="Ctrl+G" />
                   </dt>
-                  <dd>Grouper (Ctrl+Maj+G : dégrouper)</dd>
+                  <dd>Grouper (Ctrl+Maj+G : dégrouper)</dd>
                   <dt>
                     <ArrowKeys />
                   </dt>

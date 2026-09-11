@@ -54,7 +54,7 @@ export function RenameDocumentDialog(props: RenameDocumentDialogProps) {
 
   return (
     <Modal
-      title={`Renommer le ${noun} « ${props.name} »`}
+      title={`Renommer le ${noun} « ${props.name} »`}
       onClose={props.onCancel}
       footer={
         <>

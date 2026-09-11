@@ -50,7 +50,7 @@ export function rewriteMenuReferences(draft: MenuDefinition, from: string, to: s
   return changed;
 }
 
-/** « hérite », « ouvre 2 fois »… pour la liste des références. */
+/** « hérite », « ouvre 2 fois »… pour la liste des références. */
 export function describeReference(reference: MenuReference): string {
   const parts: string[] = [];
   if (reference.inherits) parts.push('en hérite');

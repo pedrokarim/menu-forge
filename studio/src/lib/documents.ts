@@ -54,7 +54,7 @@ export async function renameWithReferences(options: {
   return { summary, updated };
 }
 
-/** Duplique un document sous le premier identifiant libre (`shop_2`…), nommé « … (copie) ». */
+/** Duplique un document sous le premier identifiant libre (`shop_2`…), nommé « … (copie) ». */
 export function duplicateWithFreeId(
   type: DocumentType,
   from: string,
@@ -72,7 +72,7 @@ export async function trashWithConfirmation(
   ask: boolean,
 ): Promise<TrashedDocument | null> {
   const question =
-    `Mettre le ${DOCUMENT_NOUNS[type]} « ${name} » à la corbeille${NBSP}? ` +
+    `Mettre le ${DOCUMENT_NOUNS[type]} « ${name} » à la corbeille${NBSP}? ` +
     `Il est déplacé dans le dossier .trash de l’espace de travail${NBSP}: rien n’est supprimé.`;
   if (ask && !window.confirm(question)) return null;
   return trashDocument(type, id);

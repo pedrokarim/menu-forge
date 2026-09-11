@@ -41,7 +41,7 @@ function describe(element: AssetElement): string {
       return element.texture.split('/').pop() ?? element.texture;
     case 'text': {
       const firstLine = element.text.split('\n')[0].replace(/§./gu, '');
-      return `« ${firstLine} »`;
+      return `« ${firstLine} »`;
     }
   }
 }
@@ -96,7 +96,7 @@ export function ElementList(props: ElementListProps) {
       <IconButton
         icon={hidden ? 'eye-off' : 'eye'}
         label={hidden ? 'Afficher' : 'Masquer'}
-        hint={hidden ? 'Masqué : ni affiché ni exporté' : 'Ni affiché ni exporté une fois masqué'}
+        hint={hidden ? 'Masqué : ni affiché ni exporté' : 'Ni affiché ni exporté une fois masqué'}
         variant="ghost"
         pressed={hidden}
         onClick={stop(() => props.onToggleFlag(ids, 'hidden'))}
@@ -104,7 +104,7 @@ export function ElementList(props: ElementListProps) {
       <IconButton
         icon={locked ? 'lock' : 'unlock'}
         label={locked ? 'Déverrouiller' : 'Verrouiller'}
-        hint="Verrouillé : ne se sélectionne plus sur la toile"
+        hint="Verrouillé : ne se sélectionne plus sur la toile"
         variant="ghost"
         pressed={locked}
         onClick={stop(() => props.onToggleFlag(ids, 'locked'))}
@@ -181,7 +181,7 @@ export function ElementList(props: ElementListProps) {
       <header className="section-header">
         <h3>Éléments</h3>
         <div className="section-actions">
-          <Tooltip label="Ajouter une box" hint="Au centre de l’asset, avec le préréglage choisi ; outil Box : B">
+          <Tooltip label="Ajouter une box" hint="Au centre de l’asset, avec le préréglage choisi ; outil Box : B">
             <select
               className="asset-add-select"
               value=""
@@ -198,7 +198,7 @@ export function ElementList(props: ElementListProps) {
               ))}
             </select>
           </Tooltip>
-          <Tooltip label="Ajouter un texte" hint="Posé en haut à gauche ; outil Texte : T">
+          <Tooltip label="Ajouter un texte" hint="Posé en haut à gauche ; outil Texte : T">
             <button type="button" className="sm" onClick={props.onAddText}>
               <Icon name="plus" />
               Texte

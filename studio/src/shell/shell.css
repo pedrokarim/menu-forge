@@ -843,7 +843,7 @@ button.row-card:where(:active:not(:disabled)) {
   background: #9e2621;
 }
 
-/* Carte de document de l’accueil : bouton « … » (renommer, dupliquer, corbeille), visible au survol ou au focus. */
+/* Carte de document de l’accueil : bouton « … » (renommer, dupliquer, corbeille), visible au survol ou au focus. */
 .doc-card-wrap {
   position: relative;
   display: grid;

@@ -11,7 +11,7 @@ export interface EditorState {
   menu: MenuDefinition | null;
   /** JSON du menu tel qu’il est sur disque, pour savoir s’il y a des changements. */
   savedJson: string;
-  /** Éléments sélectionnés, dans l’ordre de sélection (le dernier est l’élément « actif »). */
+  /** Éléments sélectionnés, dans l’ordre de sélection (le dernier est l’élément « actif »). */
   selection: Selection[];
   past: MenuDefinition[];
   future: MenuDefinition[];

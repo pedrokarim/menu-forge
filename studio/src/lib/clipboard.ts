@@ -105,7 +105,7 @@ export function readPasteEvent(event: ClipboardEvent): ClipboardContent {
   return { payload: text ? parseClipboard(text) : image ? null : memory, image };
 }
 
-/** Contenu du presse-papiers lu à la demande (menu contextuel « Coller »). */
+/** Contenu du presse-papiers lu à la demande (menu contextuel « Coller »). */
 export async function readClipboard(): Promise<ClipboardContent> {
   try {
     const items = await navigator.clipboard.read();

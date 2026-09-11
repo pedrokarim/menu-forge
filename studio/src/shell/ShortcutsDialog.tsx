@@ -25,7 +25,7 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
     title: 'Sélection et presse-papiers',
     entries: [
       { keys: 'Maj+Clic', label: 'Ajouter à la sélection ou en retirer (Ctrl+Clic aussi)' },
-      { keys: 'Glisser', label: 'Sur une zone vide : sélection au rectangle' },
+      { keys: 'Glisser', label: 'Sur une zone vide : sélection au rectangle' },
       { keys: 'Ctrl+A', label: 'Tout sélectionner (sauf verrouillé ou masqué)' },
       { keys: 'Échap', label: 'Désélectionner' },
       { keys: 'Suppr', label: 'Supprimer la sélection' },
@@ -40,7 +40,7 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
     entries: [
       { keys: 'V', label: 'Outil Sélection' },
       { keys: 'S', label: 'Outil Slots' },
-      { keys: 'Flèches', label: 'Déplacer de 1 px (zones : une case)' },
+      { keys: 'Flèches', label: 'Déplacer de 1 px (zones : une case)' },
       { keys: 'Maj+Flèches', label: 'Déplacer de 18 px (une case)' },
       { keys: 'Ctrl+S', label: 'Enregistrer' },
     ],
@@ -70,7 +70,7 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
       { keys: 'Clic molette', label: 'Faire défiler la toile' },
       { keys: 'Alt+Glisser', label: 'Glisser sans aimantation' },
       { keys: 'Clic droit', label: 'Actions de l’élément visé (ou de la sélection)' },
-      { keys: 'Glisser', label: 'Un PNG depuis l’explorateur : nouvelle couche ou image' },
+      { keys: 'Glisser', label: 'Un PNG depuis l’explorateur : nouvelle couche ou image' },
     ],
   },
 ];

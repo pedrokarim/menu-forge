@@ -203,7 +203,7 @@ export function AssetInspector(props: AssetInspectorProps) {
         )}
         {group && (
           <p className="muted small group-note">
-            <Icon name="group" /> Membre du groupe « {groupLabel(group)} » (double-clic sur la toile pour le prendre seul).
+            <Icon name="group" /> Membre du groupe « {groupLabel(group)} » (double-clic sur la toile pour le prendre seul).
           </p>
         )}
         <ArrangeSection props={props} />
@@ -388,8 +388,8 @@ function AssetSettings({ asset, onChange }: { asset: AssetDefinition; onChange: 
         />
       )}
       <p className="muted small">
-        Identifiant : <code>{asset.id}</code> (renommer : bouton à côté du sélecteur d’asset). Sélectionne un élément sur la
-        toile ou dans la liste pour le modifier ; Maj ou Ctrl + clic, ou un rectangle, pour en prendre plusieurs.
+        Identifiant : <code>{asset.id}</code> (renommer : bouton à côté du sélecteur d’asset). Sélectionne un élément sur la
+        toile ou dans la liste pour le modifier ; Maj ou Ctrl + clic, ou un rectangle, pour en prendre plusieurs.
       </p>
     </section>
   );
@@ -462,7 +462,7 @@ function BoxInspector({ element, textures, resources, update, live, checkpoint }
           value={style.kind}
           options={[
             { value: 'procedural', label: 'Procédural', title: 'Dessiné par le studio (panneau, bouton, aplat…)' },
-            { value: 'slice', label: 'Nine-slice', title: 'Découpé dans une texture : coins copiés, bords répétés' },
+            { value: 'slice', label: 'Nine-slice', title: 'Découpé dans une texture : coins copiés, bords répétés' },
           ]}
           onChange={(kind) => {
             if (kind === style.kind) return;
@@ -597,7 +597,7 @@ function ImageInspector({ element, textures, resources, update, live, checkpoint
           }, 'texture')
         }
       />
-      <StaticField label="Zone source" hint="Trace la zone à récupérer (le « E » dans une plus grande image, par exemple).">
+      <StaticField label="Zone source" hint="Trace la zone à récupérer (le « E » dans une plus grande image, par exemple).">
         <RegionPicker
           texture={element.texture ? texture : null}
           region={element.source}
@@ -605,7 +605,7 @@ function ImageInspector({ element, textures, resources, update, live, checkpoint
           onRegionChange={setRegion}
         />
       </StaticField>
-      <Field label="Échelle" hint="Rendu au plus proche voisin : pixels nets, aucun lissage.">
+      <Field label="Échelle" hint="Rendu au plus proche voisin : pixels nets, aucun lissage.">
         <select
           value={element.scale ?? 1}
           onChange={(event) => {
@@ -649,7 +649,7 @@ function TextInspector({ element, update }: EditingProps<AssetTextElement>) {
 
   return (
     <>
-      <Field label="Texte" hint="Une ligne par ligne de texte ; codes « § » acceptés.">
+      <Field label="Texte" hint="Une ligne par ligne de texte ; codes « § » acceptés.">
         <textarea
           ref={areaRef}
           className="code"
@@ -662,7 +662,7 @@ function TextInspector({ element, update }: EditingProps<AssetTextElement>) {
           }}
         />
       </Field>
-      <StaticField label="Codes de format" hint="Clic : insère le code au curseur. Une couleur annule aussi le gras, « §r » revient au style de l’élément.">
+      <StaticField label="Codes de format" hint="Clic : insère le code au curseur. Une couleur annule aussi le gras, « §r » revient au style de l’élément.">
         <div className="asset-code-palette">
           {FORMAT_CODES.map((format) => (
             <button key={format.code} type="button" title={format.label} onClick={() => insertCode(`§${format.code}`)}>

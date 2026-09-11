@@ -7,7 +7,7 @@
  *   latine (disposition cyrillique, Alt Gr…), repli sur la touche physique
  *   (`event.code`).
  * - Chiffres : toujours la touche physique (`event.code`) : sur AZERTY,
- *   `Ctrl` + la touche du 1 produit « & », pas « 1 ».
+ *   `Ctrl` + la touche du 1 produit « & », pas « 1 ».
  */
 
 /** Lettre du raccourci, en minuscule (`a` à `z`), ou `null`. */

@@ -20,7 +20,7 @@ export type QuickAction = 'new-menu' | 'new-asset' | 'import-font' | 'open-works
 export type DocumentAction = 'rename' | 'duplicate' | 'trash';
 
 const QUICK_ACTIONS: ReadonlyArray<{ kind: QuickAction; icon: IconName; title: string; text: string; shortcut?: string }> = [
-  { kind: 'new-menu', icon: 'chest', title: 'Nouveau menu', text: 'Vierge ou à partir d’un gabarit : coffre, modale, liste paginée…' },
+  { kind: 'new-menu', icon: 'chest', title: 'Nouveau menu', text: 'Vierge ou à partir d’un gabarit : coffre, modale, liste paginée…' },
   { kind: 'new-asset', icon: 'image', title: 'Nouvel asset', text: 'Composition libre (boîtes, images, texte) exportée en PNG et en glyphe.' },
   { kind: 'import-font', icon: 'library', title: 'Importer un écran', text: 'Un menu entier, reconstruit depuis une police d’un pack branché.' },
   { kind: 'open-workspace', icon: 'folder', title: 'Ouvrir un espace', text: 'Changer de dossier de travail ou en ajouter un.', shortcut: 'Ctrl+O' },
@@ -111,13 +111,13 @@ export function HomeScreen({
   const act = (document: RecentDocument, action: DocumentAction) => {
     setDocumentNotice(null);
     void onDocumentAction(document, action).catch((error: unknown) =>
-      setDocumentNotice({ kind: 'error', text: `Action impossible sur « ${document.name} »${NBSP}: ${errorMessage(error)}` }),
+      setDocumentNotice({ kind: 'error', text: `Action impossible sur « ${document.name} »${NBSP}: ${errorMessage(error)}` }),
     );
   };
 
-  /** Actions d’un document récent (clic droit sur sa carte, ou bouton « … »). */
+  /** Actions d’un document récent (clic droit sur sa carte, ou bouton « … »). */
   const documentMenu = (document: RecentDocument): MenuEntry[] => [
-    { heading: `${document.type === 'menu' ? 'Menu' : 'Asset'} « ${document.name} »` },
+    { heading: `${document.type === 'menu' ? 'Menu' : 'Asset'} « ${document.name} »` },
     { label: 'Ouvrir', icon: 'open', onSelect: () => onOpenDocument(document) },
     { label: 'Renommer…', icon: 'pencil', onSelect: () => act(document, 'rename') },
     { label: 'Dupliquer', icon: 'copy', onSelect: () => act(document, 'duplicate') },
@@ -214,7 +214,7 @@ export function HomeScreen({
                 <button
                   type="button"
                   className="doc-card-more icon-only icon-sm"
-                  aria-label={`Actions de « ${document.name} »`}
+                  aria-label={`Actions de « ${document.name} »`}
                   onClick={(event) => openContextMenu(event, documentMenu(document))}
                 >
                   <Icon name="more" />

@@ -84,7 +84,7 @@ export function OutlinePanel(props: OutlinePanelProps) {
         <IconButton
           icon={hidden ? 'eye-off' : 'eye'}
           label={hidden ? 'Afficher sur la toile' : 'Masquer sur la toile'}
-          hint="Dans l’éditeur seulement : l’élément reste en jeu"
+          hint="Dans l’éditeur seulement : l’élément reste en jeu"
           variant="ghost"
           pressed={hidden}
           onClick={stop(() => props.onToggleFlag(target, 'hidden'))}
@@ -92,7 +92,7 @@ export function OutlinePanel(props: OutlinePanelProps) {
         <IconButton
           icon={locked ? 'lock' : 'unlock'}
           label={locked ? 'Déverrouiller' : 'Verrouiller'}
-          hint="Verrouillé : ne se sélectionne plus sur la toile"
+          hint="Verrouillé : ne se sélectionne plus sur la toile"
           variant="ghost"
           pressed={locked}
           onClick={stop(() => props.onToggleFlag(target, 'locked'))}
@@ -182,7 +182,7 @@ export function OutlinePanel(props: OutlinePanelProps) {
                 Générer
               </button>
             </Tooltip>
-            <Tooltip label="Importer un PNG" hint="Ajoute l’image comme nouvelle couche ; on peut aussi la glisser sur la toile">
+            <Tooltip label="Importer un PNG" hint="Ajoute l’image comme nouvelle couche ; on peut aussi la glisser sur la toile">
               <button type="button" className="sm" onClick={() => fileInput.current?.click()}>
                 <Icon name="upload" />
                 PNG
@@ -244,7 +244,7 @@ export function OutlinePanel(props: OutlinePanelProps) {
         <header className="section-header">
           <h3>Textes</h3>
           <div className="section-actions">
-            <Tooltip label="Ajouter un texte" hint="Variables acceptées : {viewer.name}, {page.number}…">
+            <Tooltip label="Ajouter un texte" hint="Variables acceptées : {viewer.name}, {page.number}…">
               <button type="button" className="sm" onClick={props.onAddText}>
                 <Icon name="plus" />
                 Texte
@@ -261,7 +261,7 @@ export function OutlinePanel(props: OutlinePanelProps) {
               <>
                 <span className="kind-dot text" />
                 <span className="outline-name">{text.id}</span>
-                <span className="muted">« {text.value} »</span>
+                <span className="muted">« {text.value} »</span>
               </>,
               evaluateCondition(text.visibleWhen, context),
               text.editor,

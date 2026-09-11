@@ -227,7 +227,7 @@ function ArrangeSection({ props, targets }: { props: InspectorProps; targets: Se
         />
         <FlagCheckbox
           label="Masqué sur la toile"
-          hint="Dans l’éditeur seulement : l’élément reste affiché en jeu"
+          hint="Dans l’éditeur seulement : l’élément reste affiché en jeu"
           flag="hidden"
           menu={props.menu}
           targets={targets}
@@ -292,7 +292,7 @@ export function Inspector(props: InspectorProps) {
         <div className="button-row">
           <Tooltip
             label="Rogner la texture"
-            hint={layer.generator ? 'Indisponible pour une texture générée' : 'Garder une partie : un sprite d’un atlas, une case…'}
+            hint={layer.generator ? 'Indisponible pour une texture générée' : 'Garder une partie : un sprite d’un atlas, une case…'}
           >
             <button type="button" className="sm" disabled={Boolean(layer.generator)} onClick={() => props.onCropLayer(layer.id)}>
               <Icon name="crop" />
@@ -338,7 +338,7 @@ export function Inspector(props: InspectorProps) {
           texte
         </InspectorHeader>
         <CommitField label="Identifiant" value={text.id} validate={validateId('text', text.id)} onCommit={rename('text', text.id)} />
-        <Field label="Contenu" hint="Variables : {viewer.name}, {page.number}, {page.count}, {state.nom}…">
+        <Field label="Contenu" hint="Variables : {viewer.name}, {page.number}, {page.count}, {state.nom}…">
           <input value={text.value} onChange={(event) => update((target) => (target.value = event.target.value))} />
         </Field>
         <div className="field-row">
@@ -603,7 +603,7 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
         onCommit={(state) => onChange((draft) => (draft.state = state))}
       />
       <p className="field-hint">
-        Sélectionne un élément sur la toile ou dans la liste pour le modifier ; Maj ou Ctrl + clic, ou un rectangle tracé
+        Sélectionne un élément sur la toile ou dans la liste pour le modifier ; Maj ou Ctrl + clic, ou un rectangle tracé
         sur une zone vide, pour en sélectionner plusieurs.
       </p>
       <details className="shortcuts">

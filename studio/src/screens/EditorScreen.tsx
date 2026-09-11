@@ -126,7 +126,7 @@ export interface EditorRequest {
 
 /** Préférences de l’éditeur, tirées des réglages. */
 export interface EditorPreferences {
-  /** Zoom à l’ouverture : 0 = « Ajuster ». */
+  /** Zoom à l’ouverture : 0 = « Ajuster ». */
   defaultZoom: number;
   /** Grille de pixels de l’éditeur d’assets. */
   showGrid: boolean;
@@ -176,7 +176,7 @@ export function EditorScreen({
   const [textureVersions, setTextureVersions] = useState<Record<string, number>>({});
   const [preview, setPreview] = useState<PreviewValues>(DEFAULT_PREVIEW);
   const [zoom, setZoom] = useState(() => preferences.defaultZoom || 3);
-  // Zoom « Ajuster » par défaut : le plus grand palier où tout le coffre tient dans la zone.
+  // Zoom « Ajuster » par défaut : le plus grand palier où tout le coffre tient dans la zone.
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(() => (preferences.defaultZoom === 0 ? 'fit' : 'manual'));
   // Espace lu et premier document ouvert : l’adresse peut dès lors piloter l’éditeur.
   const [ready, setReady] = useState(false);
@@ -302,10 +302,10 @@ export function EditorScreen({
     try {
       await saveMenu(menu);
       dispatch({ type: 'saved', json });
-      setStatus(`« ${menu.id} » enregistré`);
+      setStatus(`« ${menu.id} » enregistré`);
       void refreshWorkspace();
     } catch (error) {
-      setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
+      setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
     }
   }, [menu, refreshWorkspace]);
 
@@ -390,7 +390,7 @@ export function EditorScreen({
     try {
       await bakePlan(plan);
     } catch (error) {
-      setStatus(`Échec de la génération des textures : ${errorMessage(error)}`);
+      setStatus(`Échec de la génération des textures : ${errorMessage(error)}`);
       return;
     }
     change((draft) => insertElements(draft, plan));
@@ -452,10 +452,10 @@ export function EditorScreen({
       change((draft) => {
         draft.layers.push({ id, texture, x, y });
       });
-      setStatus(`Texture importée : textures/${texture} · couche « ${id} »`);
+      setStatus(`Texture importée : textures/${texture} · couche « ${id} »`);
       return { kind: 'layer', id } as const;
     } catch (error) {
-      setStatus(`Échec de l’import : ${errorMessage(error)}`);
+      setStatus(`Échec de l’import : ${errorMessage(error)}`);
       return null;
     }
   };
@@ -464,13 +464,13 @@ export function EditorScreen({
     if (content.payload?.kind === 'menu') {
       pasteElements(content.payload);
     } else if (content.payload?.kind === 'asset') {
-      setStatus('Le presse-papiers contient des éléments d’asset : colle-les dans un asset.');
+      setStatus('Le presse-papiers contient des éléments d’asset : colle-les dans un asset.');
     } else if (content.image && menu) {
       const center = { x: WINDOW_WIDTH / 2, y: windowHeight(menu.container.rows) / 2 };
       const added = await importImageAsLayer(content.image, pastedImageName(), center);
       if (added) select([added]);
     } else {
-      setStatus('Rien à coller : copie d’abord des éléments (Ctrl+C) ou une image PNG.');
+      setStatus('Rien à coller : copie d’abord des éléments (Ctrl+C) ou une image PNG.');
     }
   };
 
@@ -556,7 +556,7 @@ export function EditorScreen({
   const confirmDiscard = () =>
     !dirty ||
     !preferences.confirmDiscard ||
-    window.confirm('Des modifications ne sont pas enregistrées. Continuer quand même ?');
+    window.confirm('Des modifications ne sont pas enregistrées. Continuer quand même ?');
 
   /** Ouvre un menu de l’espace ; faux si l’utilisateur garde le menu en cours (ou si le menu est introuvable). */
   const openMenu = (id: string) => {
@@ -605,10 +605,10 @@ export function EditorScreen({
         draft.layers.push({ id, texture, x: 0, y: 0 });
       });
       select([{ kind: 'layer', id }]);
-      setStatus(`Texture importée : ${texture}`);
+      setStatus(`Texture importée : ${texture}`);
       void refreshWorkspace();
     } catch (error) {
-      setStatus(`Échec de l’import : ${errorMessage(error)}`);
+      setStatus(`Échec de l’import : ${errorMessage(error)}`);
     }
   };
 
@@ -651,7 +651,7 @@ export function EditorScreen({
     dispatch({ type: 'load', menu: created });
     setPreview(DEFAULT_PREVIEW);
     setDialog(null);
-    setStatus(`Menu « ${id} » créé`);
+    setStatus(`Menu « ${id} » créé`);
   };
 
   const handleLibraryLayer = async (source: LibrarySourceInfo, texture: LibraryTexture, top: number | null) => {
@@ -664,13 +664,13 @@ export function EditorScreen({
       draft.layers.push({ id, texture: imported, x: 0, y: top ?? 0 });
     });
     select([{ kind: 'layer', id }]);
-    setStatus(`Couche « ${id} » ajoutée depuis ${source.name}`);
+    setStatus(`Couche « ${id} » ajoutée depuis ${source.name}`);
     void refreshWorkspace();
   };
 
   const handleImportFont = async (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => {
     if (workspace?.menus.some((candidate) => candidate.id === menuId)) {
-      throw new Error(`Un menu « ${menuId} » existe déjà`);
+      throw new Error(`Un menu « ${menuId} » existe déjà`);
     }
     if (!confirmDiscard()) return;
     const { menu: created, warnings } = await buildMenuFromFont(source, index, fontId, menuId, fontId);
@@ -680,14 +680,14 @@ export function EditorScreen({
     dispatch({ type: 'load', menu: created });
     setPreview(DEFAULT_PREVIEW);
     setLeftTab('outline');
-    const notes = warnings.length > 0 ? ` · ${warnings.length} avertissement(s), dont : ${warnings[0]}` : '';
-    setStatus(`Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
+    const notes = warnings.length > 0 ? ` · ${warnings.length} avertissement(s), dont : ${warnings[0]}` : '';
+    setStatus(`Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
   };
 
   const confirmLeaveAsset = () =>
     !assetDirty ||
     !preferences.confirmDiscard ||
-    window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
+    window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
 
   /** Change de mode ; faux si l’utilisateur reste sur l’asset en cours. */
   const switchMode = (next: EditorMode) => {
@@ -854,7 +854,7 @@ export function EditorScreen({
     followRename(type, id, summary.id, summary.name, snapshot, updated);
     setDialog(null);
     const references = updated.length > 0 ? ` · ${plural(updated.length, 'menu')} mis à jour` : '';
-    setStatus(id === summary.id ? `« ${summary.name} » renommé` : `« ${id} » renommé en « ${summary.id} »${references}`);
+    setStatus(id === summary.id ? `« ${summary.name} » renommé` : `« ${id} » renommé en « ${summary.id} »${references}`);
   };
 
   const duplicateDocumentNow = async (type: DocumentType) => {
@@ -872,9 +872,9 @@ export function EditorScreen({
         setAssetId(summary.id);
       }
       const note = unsaved ? ' (copie de la version enregistrée)' : '';
-      setStatus(`« ${summary.id} » créé, copie de « ${source.id} »${note}`);
+      setStatus(`« ${summary.id} » créé, copie de « ${source.id} »${note}`);
     } catch (error) {
-      setStatus(`Échec de la duplication : ${errorMessage(error)}`);
+      setStatus(`Échec de la duplication : ${errorMessage(error)}`);
     }
   };
 
@@ -887,9 +887,9 @@ export function EditorScreen({
       if (!trashed) return;
       const snapshot = await refreshWorkspace();
       openFallback(type, snapshot);
-      setStatus(`« ${source.id} » mis à la corbeille : ${trashed.trashed}`);
+      setStatus(`« ${source.id} » mis à la corbeille : ${trashed.trashed}`);
     } catch (error) {
-      setStatus(`Échec de la mise à la corbeille : ${errorMessage(error)}`);
+      setStatus(`Échec de la mise à la corbeille : ${errorMessage(error)}`);
     }
   };
 
@@ -898,7 +898,7 @@ export function EditorScreen({
     const onDisk = type === 'menu' ? menuIsOnDisk : currentAsset !== null;
     const noun = type === 'menu' ? 'Menu' : 'Asset';
     return [
-      { heading: source ? `${noun} « ${source.name} »` : noun },
+      { heading: source ? `${noun} « ${source.name} »` : noun },
       { label: 'Renommer…', icon: 'pencil', disabled: !onDisk, onSelect: () => startRename(type) },
       { label: 'Dupliquer', icon: 'copy', disabled: !onDisk, onSelect: () => void duplicateDocumentNow(type) },
       { separator: true },
@@ -917,7 +917,7 @@ export function EditorScreen({
     await saveAsset(asset);
     await uploadTexture(texture, png);
     bumpTextures([texture]);
-    setStatus(`Asset « ${asset.id} » enregistré et exporté dans textures/${texture}`);
+    setStatus(`Asset « ${asset.id} » enregistré et exporté dans textures/${texture}`);
     void refreshWorkspace();
   };
 
@@ -928,7 +928,7 @@ export function EditorScreen({
     setAssetDirty(false);
     setAssetId(id);
     setDialog(null);
-    setStatus(`Asset « ${id} » créé`);
+    setStatus(`Asset « ${id} » créé`);
   };
 
   const handleLibraryToAsset = async (source: LibrarySourceInfo, texture: LibraryTexture) => {
@@ -936,7 +936,7 @@ export function EditorScreen({
     bumpTextures([imported]);
     await refreshWorkspace();
     setInsertRequest({ texture: imported, nonce: Date.now() });
-    setStatus(`Image « ${imported} » ajoutée à l’asset`);
+    setStatus(`Image « ${imported} » ajoutée à l’asset`);
   };
 
   /** Découpe `region` dans une image et l’enregistre sous textures/cropped/ ; renvoie son chemin. */
@@ -958,7 +958,7 @@ export function EditorScreen({
       draft.layers.push({ id, texture: path, x: 0, y: 0 });
     });
     select([{ kind: 'layer', id }]);
-    setStatus(`Couche « ${id} » ajoutée : ${region.width} × ${region.height} px rognés depuis ${source.name}`);
+    setStatus(`Couche « ${id} » ajoutée : ${region.width} × ${region.height} px rognés depuis ${source.name}`);
     void refreshWorkspace();
   };
 
@@ -968,7 +968,7 @@ export function EditorScreen({
     bumpTextures([imported]);
     await refreshWorkspace();
     setInsertRequest({ texture: imported, source: region, nonce: Date.now() });
-    setStatus(`Zone ${region.width} × ${region.height} de « ${imported} » ajoutée à l’asset`);
+    setStatus(`Zone ${region.width} × ${region.height} de « ${imported} » ajoutée à l’asset`);
   };
 
   /** Rogne la texture d’une couche ; la couche se décale pour que la partie gardée reste en place. */
@@ -983,7 +983,7 @@ export function EditorScreen({
       target.x += region.x;
       target.y += region.y;
     });
-    setStatus(`Couche « ${layerId} » rognée à ${region.width} × ${region.height} px`);
+    setStatus(`Couche « ${layerId} » rognée à ${region.width} × ${region.height} px`);
     void refreshWorkspace();
   };
 
@@ -996,7 +996,7 @@ export function EditorScreen({
     change((draft) => {
       draft.layers.push({ id, texture: path, x: layer.x + region.x, y: layer.y + region.y });
     });
-    setStatus(`Couche « ${id} » extraite de « ${layerId} »`);
+    setStatus(`Couche « ${id} » extraite de « ${layerId} »`);
     void refreshWorkspace();
   };
 
@@ -1080,7 +1080,7 @@ export function EditorScreen({
     if (target.kind === 'layer') {
       const layer = menu?.layers.find((candidate) => candidate.id === target.id);
       return [
-        { heading: `Couche « ${target.id} »` },
+        { heading: `Couche « ${target.id} »` },
         ...clipboardEntries(targets),
         {
           label: 'Rogner…',
@@ -1107,7 +1107,7 @@ export function EditorScreen({
       ];
     }
     return [
-      { heading: `${target.kind === 'text' ? 'Texte' : 'Slot'} « ${target.id} »` },
+      { heading: `${target.kind === 'text' ? 'Texte' : 'Slot'} « ${target.id} »` },
       ...clipboardEntries(targets),
       { separator: true },
       ...flagEntries(targets),
@@ -1118,7 +1118,7 @@ export function EditorScreen({
 
   /** Clic droit sur une zone vide de la toile. */
   const canvasMenu = (): MenuEntry[] => [
-    { heading: menu ? `Menu « ${menu.name} »` : 'Toile' },
+    { heading: menu ? `Menu « ${menu.name} »` : 'Toile' },
     {
       label: 'Coller',
       icon: 'clipboard',
@@ -1139,12 +1139,12 @@ export function EditorScreen({
   const openCanvasMenu = (target: Selection | null, event: ReactMouseEvent) =>
     openContextMenu(event, target ? elementMenu(target) : canvasMenu());
 
-  // Taille de la zone de la toile, suivie en continu pour le zoom « Ajuster ».
+  // Taille de la zone de la toile, suivie en continu pour le zoom « Ajuster ».
   const observeStage = useCallback((node: HTMLDivElement | null) => {
     stageNode.current = node;
     if (!node) return;
     const observer = new ResizeObserver(([entry]) => {
-      // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
+      // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
       if (entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
       setStageSize({ width: Math.floor(entry.contentRect.width), height: Math.floor(entry.contentRect.height) });
     });
@@ -1399,7 +1399,7 @@ export function EditorScreen({
         <section className="stage-area">
           <div className="stage-toolbar" role="toolbar" aria-label="Outils de la toile">
             <div className="segmented" role="group" aria-label="Outil">
-              <Tooltip label="Sélection" hint="Choisir et déplacer ; Maj+clic ou rectangle pour en prendre plusieurs" shortcut="V">
+              <Tooltip label="Sélection" hint="Choisir et déplacer ; Maj+clic ou rectangle pour en prendre plusieurs" shortcut="V">
                 <button
                   type="button"
                   className={tool === 'select' ? 'active' : ''}
@@ -1677,7 +1677,7 @@ export function EditorScreen({
       )}
       {dialog?.kind === 'crop-layer' && cropLayer && (
         <CropDialog
-          title={`Rogner la couche « ${cropLayer.id} »`}
+          title={`Rogner la couche « ${cropLayer.id} »`}
           url={textureUrl(cropLayer.texture, textureVersions[cropLayer.texture] ?? 0)}
           primary={{ label: 'Rogner la couche', run: (region) => handleCropLayer(cropLayer.id, region) }}
           secondary={{ label: 'Extraire en nouvelle couche', run: (region) => handleExtractLayer(cropLayer.id, region) }}

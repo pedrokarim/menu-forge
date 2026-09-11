@@ -22,7 +22,7 @@ export interface ClipboardHandlers {
 
 /**
  * Vrai si du texte est sélectionné dans la page : Ctrl+C doit alors copier ce
- * texte, pas la sélection du studio. Une sélection « accidentelle » dans les
+ * texte, pas la sélection du studio. Une sélection « accidentelle » dans les
  * listes, la toile ou les barres d’outils (Maj+clic) ne compte pas.
  */
 function hasTextSelection(): boolean {

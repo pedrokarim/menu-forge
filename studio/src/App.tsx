@@ -195,7 +195,7 @@ export default function App() {
     const discardAllowed = () =>
       !openAndDirty(document) ||
       !preferences.confirmDiscard ||
-      window.confirm(`« ${document.name} » a des modifications non enregistrées dans l’éditeur. Continuer quand même${NBSP}?`);
+      window.confirm(`« ${document.name} » a des modifications non enregistrées dans l’éditeur. Continuer quand même${NBSP}?`);
     if (action === 'rename') {
       // Un menu renommé garde ses modifications en cours ; un asset ouvert est relu du disque.
       if (document.type === 'asset' && !discardAllowed()) return;
