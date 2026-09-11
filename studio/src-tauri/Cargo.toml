@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 description = "Coquille Tauri du studio menu-forge : lance le backend local et affiche l’interface."
+repository = "https://github.com/pedrokarim/menu-forge"
+homepage = "https://pedrokarim.github.io/menu-forge/"
 
 [build-dependencies]
 tauri-build = { version = "2.6", features = [] }

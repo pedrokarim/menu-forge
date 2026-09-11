@@ -9,5 +9,5 @@ Pour travailler directement dans un autre dossier (par exemple les ressources
 d’un plugin), lancer le studio avec la variable `MENU_FORGE_WORKSPACE` :
 
 ```bash
-MENU_FORGE_WORKSPACE=../../enderium-core/core/src/main/resources/menu-forge npm run dev
+MENU_FORGE_WORKSPACE=/chemin/vers/mon-plugin/src/main/resources/menu-forge npm run dev
 ```

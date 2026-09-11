@@ -2,6 +2,13 @@
   "name": "studio",
   "private": true,
   "version": "0.0.0",
+  "description": "Studio menu-forge : éditeur local d’inventaires Minecraft custom (interface React, backend Rust, coquille Tauri).",
+  "homepage": "https://pedrokarim.github.io/menu-forge/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pedrokarim/menu-forge.git",
+    "directory": "studio"
+  },
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-rust.mjs",
