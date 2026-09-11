@@ -703,12 +703,12 @@ shot('ai-settings', 'Paramètres, section IA : onze fournisseurs, aucun activé'
   await wait(400);
 });
 
-shot('ai-texture', '« Générer une texture » : sortie du modèle et texture contrainte', async (page) => {
+shot('ai-texture', '« Générer une texture par IA » : sortie du modèle et texture contrainte', async (page) => {
   await configureAi(page, 'automatic1111', { enabled: true, endpoint: fakeEndpoint });
   await open(page, '#/editeur/pixels/shop_tab_icon');
   await page.locator('canvas.pixel-canvas').waitFor({ timeout: 30000 });
   await assertNoRealKeys(page);
-  await page.getByRole('button', { name: 'Générer une texture…' }).first().click();
+  await page.getByRole('button', { name: 'Générer une texture par IA…' }).first().click();
   const modal = page.locator('.modal').first();
   await modal.waitFor();
   await field(modal, 'Fournisseur').selectOption('automatic1111');
@@ -722,11 +722,11 @@ shot('ai-texture', '« Générer une texture » : sortie du modèle et texture c
   return modal;
 });
 
-shot('ai-interface', '« Générer une interface » : essai refusé, corrigé, validé', async (page) => {
+shot('ai-interface', '« Générer une interface par IA » : essai refusé, corrigé, validé', async (page) => {
   await configureAi(page, 'ollama', { enabled: true, endpoint: fakeEndpoint });
   await open(page, '#/accueil');
   await assertNoRealKeys(page);
-  await page.getByRole('button', { name: 'Générer une interface…', exact: true }).click();
+  await page.getByRole('button', { name: 'Générer une interface par IA…', exact: true }).click();
   const modal = page.locator('.modal').first();
   await modal.waitFor({ timeout: 30000 });
   await field(modal, 'Fournisseur').selectOption('ollama');
