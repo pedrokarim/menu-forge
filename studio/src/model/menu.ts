@@ -81,9 +81,37 @@ export interface ItemSpec {
   ref?: string;
 }
 
-export interface Action {
-  type: string;
-  [param: string]: unknown;
+/** Action au clic (cf. docs/format.md § Actions). */
+export type Action =
+  | { type: 'open'; menu: string; state?: Record<string, StateValue> }
+  | { type: 'back' }
+  | { type: 'close' }
+  | { type: 'setState'; state: string; value: StateValue }
+  | { type: 'nextPage'; list: string }
+  | { type: 'prevPage'; list: string }
+  | { type: 'sound'; sound: string; volume?: number; pitch?: number }
+  | { type: 'command'; command: string; as?: 'player' | 'console' }
+  | { type: 'custom'; id: string; args?: Record<string, unknown> };
+
+export type ActionType = Action['type'];
+
+/**
+ * Instance d’un composant (cf. docs/format.md § Composants) : les couches,
+ * textes et slots du menu `component`, décalés et préfixés.
+ */
+export interface Include {
+  /** Identifiant du menu composant (`component: true`). */
+  component: string;
+  /** Préfixe ajouté aux identifiants des éléments de l’instance (défaut : aucun). */
+  prefix?: string;
+  /** Décalage en cases : les zones de slots bougent d’autant, couches et textes de 18 px par case. */
+  col?: number;
+  row?: number;
+  /** Décalage supplémentaire en pixels, pour les couches et les textes seulement. */
+  x?: number;
+  y?: number;
+  /** Condition ajoutée à tous les éléments de l’instance. */
+  visibleWhen?: Condition;
 }
 
 export interface Slot {
@@ -101,7 +129,7 @@ export interface Slot {
 export type StateDefinition =
   | { type: 'enum'; values: string[]; default: string }
   | { type: 'bool'; default: boolean }
-  | { type: 'int'; default: number; min?: number; max?: number }
+  | { type: 'int'; default?: number; min?: number; max?: number }
   | { type: 'page'; list: string };
 
 export interface MenuDefinition {
@@ -110,7 +138,11 @@ export interface MenuDefinition {
   name: string;
   /** Gabarit partiel destiné à être hérité via `extends`. */
   template?: boolean;
+  /** Composant réutilisable, destiné à être inclus via `includes` (jamais ouvert seul en jeu). */
+  component?: boolean;
   extends?: string[];
+  /** Instances de composants, sous les éléments propres du menu. */
+  includes?: Include[];
   container: { type: 'chest'; rows: number };
   state?: Record<string, StateDefinition>;
   layers: Layer[];

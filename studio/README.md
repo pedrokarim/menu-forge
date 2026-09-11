@@ -154,9 +154,12 @@ visible sous les couches.
 ## Tests
 
 ```sh
+npm test                   # génération du pack, schéma du format, parité avec la lib
 cd backend && cargo test   # backend Rust
-npm test                   # génération du pack : PNG, zip, parité avec la lib
 ```
 
-`npm test` exécute `tests/*.test.ts` avec Node (types retirés à la volée,
-`tests/resolve-ts.mjs` résout les imports sans extension).
+`npm test` lance `tests/*.test.ts` et `tests/*.test.mjs` avec le lanceur de tests de Node, sans
+dépendance : Node efface les types à la volée (`tests/resolve-ts.mjs` résout les imports sans
+extension), valide [`../docs/menu.schema.json`](../docs/menu.schema.json) sur les gabarits et
+exemples du dépôt, vérifie la génération du pack (PNG, zip) et joue les fixtures de parité
+partagées avec la lib (`../lib/menu-forge-core/src/test/resources/parity`).

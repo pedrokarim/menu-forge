@@ -68,6 +68,8 @@ Positions de slots : **colonne / ligne** de la grille du coffre.
 | `id` | chaîne `[a-z0-9_]` | Identifiant unique, sert aussi de nom de police |
 | `name` | chaîne | Nom lisible (outil, logs) |
 | `extends` | liste d’ids | Gabarits dont on hérite (§ Gabarits) |
+| `component` | booléen | Composant réutilisable, inclus par d’autres menus (§ Composants) |
+| `includes` | liste | Instances de composants (§ Composants) |
 | `container` | objet | `type: "chest"`, `rows` de 1 à 6 |
 | `state` | objet | Variables d’état du menu (§ État) |
 | `layers` | liste | Images du titre, de bas en haut (§ Couches) |
@@ -180,6 +182,11 @@ demande à la lib un item sans rendu (le bouton est dessiné par une couche).
 | `int` | `default`, `min`, `max` optionnels |
 | `page` | Page courante de la liste `list` ; expose `page.number`, `page.count`, `page.hasPrev`, `page.hasNext` |
 
+Sans `default`, un état `int` part de `min`, sinon de 0 ; une valeur donnée
+(action `setState`, état initial d’un `open`) est ramenée dans les bornes.
+Le studio édite ces variables sans JSON (liste de valeurs, case, bornes) et
+renomme partout où le menu les cite.
+
 L’état vit **par joueur et par ouverture**. Changer l’état recompose le titre et
 les slots. Minecraft ne permettant pas de changer le titre d’un inventaire
 ouvert, la lib rouvre le même coffre : le curseur du joueur ne bouge pas.
@@ -232,8 +239,73 @@ gabarit).
 Gabarits prévus : `navigation` (barre d’onglets flottante), `modal` (voile +
 panneau + croix), `paginated-list`, `confirm`, `shop`.
 
+## Composants
+
+Un composant est un morceau de menu dessiné une fois (barre d’onglets,
+pagination, bouton retour…) et réutilisé dans plusieurs menus. C’est un
+fichier du même format avec `"component": true` ; comme un gabarit, il n’a pas
+de police propre et ne s’ouvre jamais seul. Un menu en pose des **instances**
+avec la clé `includes` :
+
+```json
+"includes": [
+  { "component": "pager", "prefix": "pager_", "row": -1, "visibleWhen": { "state": "tab", "is": "shop" } },
+  { "component": "back_button", "col": 8 }
+]
+```
+
+| Clé | Rôle |
+|---|---|
+| `component` | Identifiant du menu composant (obligatoire) |
+| `prefix` | Préfixe ajouté aux identifiants des éléments de l’instance (`[a-z0-9_]*`, aucun par défaut) |
+| `col`, `row` | Décalage en cases (0 par défaut) : les zones de slots bougent d’autant, les couches et les textes de 18 px par case |
+| `x`, `y` | Décalage supplémentaire en pixels, pour les couches et les textes seulement (0 par défaut) |
+| `visibleWhen` | Condition ajoutée à celle de chaque élément de l’instance (les deux doivent être vraies) |
+
+Résolution, identique dans le studio (`resolve.ts`) et dans la lib
+(`TemplateResolver`) :
+
+1. chaque composant est d’abord résolu (ses propres gabarits et composants
+   compris) ;
+2. ses couches, textes et slots sont copiés dans l’ordre des instances,
+   décalés, préfixés et soumis à la condition d’instance ;
+3. ils passent **avant** les éléments propres du menu : un élément du menu qui
+   reprend l’identifiant d’un élément d’instance (`pager_next`) le remplace à
+   sa position – c’est ainsi qu’on surcharge une instance ;
+4. l’état du composant est fusionné clé par clé, celui du menu gagne ; les
+   noms d’état ne sont pas préfixés : un composant peut piloter l’état `tab`
+   du menu qui l’inclut ;
+5. les gabarits (`extends`) s’appliquent ensuite comme décrit plus haut :
+   éléments des gabarits, puis ceux du menu (instances comprises).
+
+Sont refusés : un composant introuvable, un cycle (gabarits et composants
+confondus), deux instances qui produisent le même identifiant (il faut un
+préfixe), une zone de slots décalée hors de la grille.
+
+Rien n’est recopié dans le menu : les instances se résolvent à la lecture et
+suivent donc chaque modification du composant. Le studio crée un composant
+depuis une sélection (le menu en garde une instance, au même endroit) et sait
+détacher une instance (ses éléments deviennent propres au menu). La parité
+studio / lib est vérifiée par les fixtures de
+`lib/menu-forge-core/src/test/resources/parity`, jouées par la lib
+(`ParityFixturesTest`) et par le studio (`studio/tests/parity.test.mjs`).
+
+## Schéma JSON
+
+[`menu.schema.json`](menu.schema.json) (JSON Schema 2020-12) décrit le format
+tel que le studio l’écrit : il refuse les clés inconnues, que la lib se
+contente d’ignorer, et laisse à la lib ce qui croise plusieurs fichiers
+(gabarits, composants, états cités par les conditions et les actions), vérifié
+après résolution par `MenuValidator`. Un menu peut le citer avec
+`"$schema": "../docs/menu.schema.json"` (ou l’adresse publiée).
+
+Les tests du studio (`npm test`) valident contre lui les gabarits fournis, les
+menus de test de la lib, les fixtures de parité et l’exemple complet ci-dessus,
+refusent des documents mal formés (avec le chemin de la clé fautive) et
+vérifient qu’il liste les mêmes actions, conditions et états que les types du
+studio.
+
 ## Évolutions prévues
 
-- Schéma JSON (`docs/menu.schema.json`) généré depuis les types du studio.
 - Types de conteneurs autres que le coffre (`hopper`, `dispenser`…).
 - Animations (couches alternées par tick).

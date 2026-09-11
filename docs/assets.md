@@ -9,6 +9,9 @@ une composition figée, exportée en **un PNG**.
 Les assets vivent dans l’espace de travail : `assets/<id>.asset.json`, et leur
 export dans `textures/assets/<id>.png`.
 
+Schéma JSON du format : [`asset.schema.json`](asset.schema.json), vérifié par
+les tests du studio (`npm test`) sur l’exemple ci-dessous.
+
 ## Exemple : l’encart d’aide du menu pause
 
 ```json

@@ -9,6 +9,8 @@ export interface MenuReference {
   inherits: boolean;
   /** Nombre d’actions `open` qui ouvrent le menu visé. */
   opens: number;
+  /** Nombre d’instances du menu visé, quand c’est un composant (`includes`). */
+  includes: number;
 }
 
 function openActions(menu: MenuDefinition, target: string): number {
@@ -28,8 +30,9 @@ export function menuReferences(menus: readonly MenuDefinition[], target: string)
       name: menu.name,
       inherits: (menu.extends ?? []).includes(target),
       opens: openActions(menu, target),
+      includes: (menu.includes ?? []).filter((include) => include.component === target).length,
     }))
-    .filter((reference) => reference.inherits || reference.opens > 0);
+    .filter((reference) => reference.inherits || reference.opens > 0 || reference.includes > 0);
 }
 
 /** Recette : remplace les références à `from` par `to` ; vrai si quelque chose a changé. */
@@ -47,6 +50,13 @@ export function rewriteMenuReferences(draft: MenuDefinition, from: string, to: s
       }
     }
   }
+  // Instances d’un composant renommé : elles suivent le nouvel identifiant.
+  for (const include of draft.includes ?? []) {
+    if (include.component === from) {
+      include.component = to;
+      changed = true;
+    }
+  }
   return changed;
 }
 
@@ -55,5 +65,6 @@ export function describeReference(reference: MenuReference): string {
   const parts: string[] = [];
   if (reference.inherits) parts.push('en hérite');
   if (reference.opens > 0) parts.push(reference.opens > 1 ? `l’ouvre (${reference.opens} actions)` : 'l’ouvre');
+  if (reference.includes > 0) parts.push(reference.includes > 1 ? `l’inclut (${reference.includes} instances)` : 'l’inclut');
   return parts.join(' et ');
 }

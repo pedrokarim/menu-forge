@@ -59,7 +59,7 @@ JAVA_HOME="/c/Program Files/Java/jdk-21" ./gradlew build
 |---|---|
 | `model` | Records immuables du format : `MenuDefinition`, `Layer`, `TextElement`, `Slot`, `SlotArea`, `ItemSpec`, `Action`, `StateDefinition`, `Condition` |
 | `parse` | `MenuParser` (erreurs avec le chemin de la clé fautive, par exemple `$.layers[1].x`), `MenuValidator` (cohérence d’un menu résolu) |
-| `template` | `TemplateResolver` : héritage `extends`, remplacement par `id` à la position du gabarit, détection de cycle |
+| `template` | `TemplateResolver` : héritage `extends`, instances de composants `includes` (décalage, préfixe, condition d’instance), remplacement par `id` à la position du gabarit, détection de cycle |
 | `state` | `ConditionContext`, `StateSnapshot` (drapeaux et variables de page), `Pagination` |
 | `image` | `ImageMeasurer` (boîte des pixels d’alpha non nul), `TextureLibrary` |
 | `render` | `TitleComposer` (jetons du titre, même algorithme que le studio), `TitleRenderer` (composant JSON), `SpaceFont`, `FontLayout`, `CompiledMenu` |
@@ -135,6 +135,9 @@ titre vanilla), droit et centré.
 
 ### Comportement en jeu
 
+- Les gabarits (`template: true`) et les composants (`component: true`) sont
+  des pièces assemblées dans les menus : ils ne s’ouvrent pas seuls et n’ont
+  pas de police propre.
 - Chaque joueur a une **session** : une pile de menus (`open` empile, `back`
   dépile ou ferme), l’état du menu courant et sa pagination.
 - Le titre est un composant JSON désérialisé par le `GsonComponentSerializer`

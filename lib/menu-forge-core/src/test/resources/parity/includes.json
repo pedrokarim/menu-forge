@@ -1,0 +1,703 @@
+{
+  "description": "Composants (includes) : décalage en cases et en pixels, préfixe, condition d’instance, surcharge par id, état fusionné, composants imbriqués, erreurs.",
+  "cases": [
+    {
+      "name": "instance décalée, préfixée et conditionnée",
+      "resolve": "shop",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "pager",
+          "name": "Pagination",
+          "component": true,
+          "state": {
+            "page": {
+              "type": "page",
+              "list": "items"
+            }
+          },
+          "layers": [
+            {
+              "id": "prev_on",
+              "texture": "pager/prev_on.png",
+              "x": 25,
+              "y": 107,
+              "visibleWhen": {
+                "flag": "page.hasPrev"
+              }
+            },
+            {
+              "id": "next_on",
+              "texture": "pager/next_on.png",
+              "x": 133,
+              "y": 107,
+              "visibleWhen": {
+                "flag": "page.hasNext"
+              }
+            }
+          ],
+          "texts": [
+            {
+              "id": "label",
+              "x": 88,
+              "y": 111,
+              "align": "center",
+              "value": "{page.number}/{page.count}"
+            }
+          ],
+          "slots": [
+            {
+              "id": "prev",
+              "kind": "button",
+              "area": {
+                "col": 1,
+                "row": 5
+              },
+              "onClick": [
+                {
+                  "type": "prevPage",
+                  "list": "items"
+                }
+              ]
+            },
+            {
+              "id": "next",
+              "kind": "button",
+              "area": {
+                "col": 7,
+                "row": 5
+              },
+              "enabledWhen": {
+                "flag": "page.hasNext"
+              },
+              "onClick": [
+                {
+                  "type": "nextPage",
+                  "list": "items"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "shop",
+          "name": "Boutique",
+          "container": {
+            "type": "chest",
+            "rows": 6
+          },
+          "state": {
+            "tab": {
+              "type": "enum",
+              "values": [
+                "food",
+                "tools"
+              ],
+              "default": "food"
+            }
+          },
+          "includes": [
+            {
+              "component": "pager",
+              "prefix": "pager_",
+              "row": -1,
+              "x": 1,
+              "y": 2,
+              "visibleWhen": {
+                "state": "tab",
+                "is": "food"
+              }
+            }
+          ],
+          "layers": [
+            {
+              "id": "background",
+              "texture": "shop/background.png",
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "slots": [
+            {
+              "id": "grid",
+              "kind": "list",
+              "list": "items",
+              "area": {
+                "col": 1,
+                "row": 1,
+                "width": 7,
+                "height": 3
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "state": [
+          [
+            "page",
+            "page"
+          ],
+          [
+            "tab",
+            "enum"
+          ]
+        ],
+        "layers": [
+          {
+            "id": "pager_prev_on",
+            "texture": "pager/prev_on.png",
+            "x": 26,
+            "y": 91,
+            "visibleWhen": {
+              "all": [
+                {
+                  "state": "tab",
+                  "is": "food"
+                },
+                {
+                  "flag": "page.hasPrev"
+                }
+              ]
+            }
+          },
+          {
+            "id": "pager_next_on",
+            "texture": "pager/next_on.png",
+            "x": 134,
+            "y": 91,
+            "visibleWhen": {
+              "all": [
+                {
+                  "state": "tab",
+                  "is": "food"
+                },
+                {
+                  "flag": "page.hasNext"
+                }
+              ]
+            }
+          },
+          {
+            "id": "background",
+            "texture": "shop/background.png",
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "texts": [
+          {
+            "id": "pager_label",
+            "x": 89,
+            "y": 95,
+            "value": "{page.number}/{page.count}",
+            "visibleWhen": {
+              "state": "tab",
+              "is": "food"
+            }
+          }
+        ],
+        "slots": [
+          {
+            "id": "pager_prev",
+            "kind": "button",
+            "col": 1,
+            "row": 4,
+            "width": 1,
+            "height": 1,
+            "actions": [
+              "prevPage"
+            ],
+            "visibleWhen": {
+              "state": "tab",
+              "is": "food"
+            }
+          },
+          {
+            "id": "pager_next",
+            "kind": "button",
+            "col": 7,
+            "row": 4,
+            "width": 1,
+            "height": 1,
+            "actions": [
+              "nextPage"
+            ],
+            "visibleWhen": {
+              "state": "tab",
+              "is": "food"
+            },
+            "enabledWhen": {
+              "flag": "page.hasNext"
+            }
+          },
+          {
+            "id": "grid",
+            "kind": "list",
+            "col": 1,
+            "row": 1,
+            "width": 7,
+            "height": 3,
+            "actions": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "un élément du menu remplace celui de l’instance à sa place",
+      "resolve": "shop",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "back_button",
+          "name": "Retour",
+          "component": true,
+          "layers": [
+            {
+              "id": "back_bg",
+              "texture": "common/back_bg.png",
+              "x": 7,
+              "y": 17
+            },
+            {
+              "id": "back_icon",
+              "texture": "common/back_icon.png",
+              "x": 9,
+              "y": 19
+            }
+          ],
+          "slots": [
+            {
+              "id": "back",
+              "kind": "button",
+              "area": {
+                "col": 0,
+                "row": 0
+              },
+              "onClick": [
+                {
+                  "type": "back"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "shop",
+          "name": "Boutique",
+          "includes": [
+            {
+              "component": "back_button",
+              "col": 8
+            }
+          ],
+          "layers": [
+            {
+              "id": "background",
+              "texture": "shop/background.png",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "back_icon",
+              "texture": "shop/custom_back.png",
+              "x": 153,
+              "y": 19
+            }
+          ],
+          "slots": [
+            {
+              "id": "back",
+              "kind": "button",
+              "area": {
+                "col": 8,
+                "row": 0
+              },
+              "onClick": [
+                {
+                  "type": "close"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "state": [],
+        "layers": [
+          {
+            "id": "back_bg",
+            "texture": "common/back_bg.png",
+            "x": 151,
+            "y": 17
+          },
+          {
+            "id": "back_icon",
+            "texture": "shop/custom_back.png",
+            "x": 153,
+            "y": 19
+          },
+          {
+            "id": "background",
+            "texture": "shop/background.png",
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "texts": [],
+        "slots": [
+          {
+            "id": "back",
+            "kind": "button",
+            "col": 8,
+            "row": 0,
+            "width": 1,
+            "height": 1,
+            "actions": [
+              "close"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "gabarit, composants imbriqués et deux instances préfixées",
+      "resolve": "profile",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "frame",
+          "name": "Cadre",
+          "template": true,
+          "state": {
+            "tab": {
+              "type": "enum",
+              "values": [
+                "home",
+                "stats"
+              ],
+              "default": "home"
+            }
+          },
+          "layers": [
+            {
+              "id": "frame",
+              "texture": "frame.png",
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "tab_button",
+          "name": "Bouton d’onglet",
+          "component": true,
+          "layers": [
+            {
+              "id": "bg",
+              "texture": "tab.png",
+              "x": 7,
+              "y": 15
+            }
+          ],
+          "slots": [
+            {
+              "id": "button",
+              "kind": "button",
+              "area": {
+                "col": 0,
+                "row": 0
+              }
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "tab_bar",
+          "name": "Barre d’onglets",
+          "component": true,
+          "extends": [
+            "frame"
+          ],
+          "includes": [
+            {
+              "component": "tab_button",
+              "prefix": "home_"
+            },
+            {
+              "component": "tab_button",
+              "prefix": "stats_",
+              "col": 1,
+              "visibleWhen": {
+                "not": {
+                  "state": "tab",
+                  "is": "home"
+                }
+              }
+            }
+          ],
+          "texts": [
+            {
+              "id": "caption",
+              "x": 8,
+              "y": 6,
+              "value": "Onglets"
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "profile",
+          "name": "Profil",
+          "extends": [
+            "frame"
+          ],
+          "state": {
+            "tab": {
+              "type": "enum",
+              "values": [
+                "home",
+                "stats",
+                "badges"
+              ],
+              "default": "home"
+            }
+          },
+          "includes": [
+            {
+              "component": "tab_bar",
+              "prefix": "bar_",
+              "row": 1
+            }
+          ],
+          "layers": [
+            {
+              "id": "portrait",
+              "texture": "profile/portrait.png",
+              "x": 60,
+              "y": 40,
+              "visibleWhen": {
+                "state": "tab",
+                "in": [
+                  "home",
+                  "badges"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "state": [
+          [
+            "tab",
+            "enum"
+          ]
+        ],
+        "layers": [
+          {
+            "id": "frame",
+            "texture": "frame.png",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "id": "bar_frame",
+            "texture": "frame.png",
+            "x": 0,
+            "y": 18
+          },
+          {
+            "id": "bar_home_bg",
+            "texture": "tab.png",
+            "x": 7,
+            "y": 33
+          },
+          {
+            "id": "bar_stats_bg",
+            "texture": "tab.png",
+            "x": 25,
+            "y": 33,
+            "visibleWhen": {
+              "not": {
+                "state": "tab",
+                "is": "home"
+              }
+            }
+          },
+          {
+            "id": "portrait",
+            "texture": "profile/portrait.png",
+            "x": 60,
+            "y": 40,
+            "visibleWhen": {
+              "state": "tab",
+              "in": [
+                "home",
+                "badges"
+              ]
+            }
+          }
+        ],
+        "texts": [
+          {
+            "id": "bar_caption",
+            "x": 8,
+            "y": 24,
+            "value": "Onglets"
+          }
+        ],
+        "slots": [
+          {
+            "id": "bar_home_button",
+            "kind": "button",
+            "col": 0,
+            "row": 1,
+            "width": 1,
+            "height": 1,
+            "actions": []
+          },
+          {
+            "id": "bar_stats_button",
+            "kind": "button",
+            "col": 1,
+            "row": 1,
+            "width": 1,
+            "height": 1,
+            "actions": [],
+            "visibleWhen": {
+              "not": {
+                "state": "tab",
+                "is": "home"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "deux instances sans préfixe",
+      "resolve": "menu",
+      "error": "en double",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "piece",
+          "component": true,
+          "slots": [
+            {
+              "id": "s",
+              "kind": "button",
+              "area": {
+                "col": 0,
+                "row": 0
+              }
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "menu",
+          "includes": [
+            {
+              "component": "piece"
+            },
+            {
+              "component": "piece",
+              "col": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cycle entre composants",
+      "resolve": "menu",
+      "error": "cycle",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "a",
+          "component": true,
+          "includes": [
+            {
+              "component": "b",
+              "prefix": "b_"
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "b",
+          "component": true,
+          "includes": [
+            {
+              "component": "a",
+              "prefix": "a_"
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "menu",
+          "includes": [
+            {
+              "component": "a"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "composant introuvable",
+      "resolve": "menu",
+      "error": "introuvable",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "menu",
+          "includes": [
+            {
+              "component": "ghost"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zone décalée hors de la grille",
+      "resolve": "menu",
+      "error": "sort de la grille",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "piece",
+          "component": true,
+          "slots": [
+            {
+              "id": "s",
+              "kind": "button",
+              "area": {
+                "col": 0,
+                "row": 0
+              }
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "menu",
+          "includes": [
+            {
+              "component": "piece",
+              "row": -1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

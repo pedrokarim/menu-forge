@@ -1,3 +1,4 @@
+import { initialStateValue } from './actions';
 import type { ConditionContext } from './conditions';
 import type { MenuDefinition, StateValue } from './menu';
 
@@ -43,7 +44,7 @@ export function buildPreviewContext(menu: MenuDefinition, values: PreviewValues)
         state[name] = typeof chosen === 'boolean' ? chosen : definition.default;
         break;
       case 'int':
-        state[name] = typeof chosen === 'number' ? chosen : definition.default;
+        state[name] = typeof chosen === 'number' ? chosen : initialStateValue(definition);
         break;
       case 'page': {
         const count = Math.max(1, values.pageCounts[name] ?? DEFAULT_PAGE_COUNT);

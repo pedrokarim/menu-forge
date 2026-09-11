@@ -24,6 +24,8 @@ import java.util.Objects;
  * @param layers        couches du titre, de bas en haut
  * @param texts         textes dynamiques du titre
  * @param slots         zones de slots
+ * @param component     {@code true} pour un composant (inclus par d’autres menus, jamais ouvert seul)
+ * @param includes      instances de composants (clé JSON {@code includes}), vides après résolution
  */
 public record MenuDefinition(
   int formatVersion,
@@ -35,7 +37,9 @@ public record MenuDefinition(
   Map<String, StateDefinition> state,
   List<Layer> layers,
   List<TextElement> texts,
-  List<Slot> slots
+  List<Slot> slots,
+  boolean component,
+  List<Include> includes
 ) {
 
   /** Seule version du format prise en charge. */
@@ -49,6 +53,19 @@ public record MenuDefinition(
     layers = List.copyOf(layers == null ? List.of() : layers);
     texts = List.copyOf(texts == null ? List.of() : texts);
     slots = List.copyOf(slots == null ? List.of() : slots);
+    includes = List.copyOf(includes == null ? List.of() : includes);
+  }
+
+  /** Menu sans composant ni instance (forme d’avant les composants). */
+  public MenuDefinition(final int formatVersion, final String id, final String name, final boolean template,
+                        final List<String> parents, final ContainerSpec container, final Map<String, StateDefinition> state,
+                        final List<Layer> layers, final List<TextElement> texts, final List<Slot> slots) {
+    this(formatVersion, id, name, template, parents, container, state, layers, texts, slots, false, List.of());
+  }
+
+  /** Gabarit ou composant : une pièce à assembler, sans police propre et jamais ouverte seule. */
+  public boolean partial() {
+    return template || component;
   }
 
   /** Conteneur effectif : celui du menu, ou un coffre de 6 lignes par défaut. */

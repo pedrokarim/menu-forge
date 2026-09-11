@@ -184,6 +184,27 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
   générées par le studio ; le serveur de test le charge (29 fichiers ajoutés
   au pack d’Enderium).
 
+## Éditer un menu sans JSON (2026-09-11)
+
+- **Fait** : éditeurs visuels des actions (tous les types, réordonnables),
+  des conditions (arbre et / ou / pas, résumé lisible, accès JSON), des
+  variables d’état (renommage qui suit les références) et des items
+  (MiniMessage avec aperçu) ; mode « Essayer » (session simulée comme
+  celle de la lib, journal) ; **composants** dans le format (`component`,
+  `includes`), résolus à l’identique par le studio et la lib, créés depuis
+  une sélection, détachables ; **schémas JSON** des menus et des
+  assets ([`menu.schema.json`](menu.schema.json), [`asset.schema.json`](asset.schema.json)) ; bibliothèque, rognage et
+  éditeurs visuels chargés à la demande.
+- **Vérifié** : `npm test` (20 tests : schéma sur les gabarits, menus de test
+  et exemple du format, documents refusés, parité de la résolution),
+  `./gradlew build` (46 tests du noyau, dont 10 cas de parité partagés avec le
+  studio), deux scénarios de bout en bout (éditeurs, essai, composants,
+  1180 × 700 sans débordement), suites existantes relancées.
+- **Reste** : surcharger un seul champ d’un élément d’instance (aujourd’hui on
+  remplace l’élément entier, par identifiant) ; aperçu des items des slots
+  « liste » en mode essai (entrées simulées) ;
+  contraindre une IA qui génère des menus avec le schéma.
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et
@@ -192,7 +213,6 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
    écrans du prototype d’Enderium (succès, royaumes, maisons).
 3. **Studio** :
    - police pixel fidèle pour l’aperçu des textes ;
-   - éditeur visuel des états et des actions (sans passer par le JSON) ;
    - repères posés à la main (règles, guides) ;
    - restaurer un document depuis la corbeille.
 4. **Décider** du sort de `generic_54.png` (effet global sur tous les coffres).

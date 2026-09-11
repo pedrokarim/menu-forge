@@ -40,6 +40,9 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
     entries: [
       { keys: 'V', label: 'Outil Sélection' },
       { keys: 'S', label: 'Outil Slots' },
+      { keys: 'E', label: 'Essayer le menu (Échap pour revenir à l’édition)' },
+      { keys: 'Retour arrière', label: 'En essai : revenir au menu précédent' },
+      { keys: 'Alt+↑', label: 'Monter l’action ciblée (Alt+↓ : descendre)' },
       { keys: 'Flèches', label: 'Déplacer de 1 px (zones : une case)' },
       { keys: 'Maj+Flèches', label: 'Déplacer de 18 px (une case)' },
       { keys: 'Ctrl+S', label: 'Enregistrer' },

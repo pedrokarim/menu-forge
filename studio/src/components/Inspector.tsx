@@ -1,12 +1,11 @@
+import { Suspense, lazy } from 'react';
 import type { ReactNode } from 'react';
 import type { AlignMode, AlignReference, DistributeAxis } from '../model/arrange';
 import { MAX_ROWS } from '../model/geometry';
 import type { Rect } from '../model/geometry';
 import type {
-  Action,
   Condition,
   EditorFlag,
-  ItemSpec,
   Layer,
   MenuDefinition,
   Slot,
@@ -22,9 +21,18 @@ import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
 import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
 import { Tooltip } from '../ui/Tooltip';
+import type { ActionContext } from '../model/actions';
 import { AlignBar } from './AlignBar';
-import { CommitField, Field, JsonField, NumberField } from './fields';
+import { CommitField, Field, NumberField } from './fields';
 import { SLOT_COLORS } from './slotColors';
+import './visual/visual.css';
+
+// Éditeurs visuels chargés au premier affichage de l’inspecteur : leur code n’alourdit pas le démarrage du studio.
+const ActionListEditor = lazy(() => import('./visual/ActionListEditor').then((module) => ({ default: module.ActionListEditor })));
+const ConditionEditor = lazy(() => import('./visual/ConditionEditor').then((module) => ({ default: module.ConditionEditor })));
+const IncludesEditor = lazy(() => import('./visual/IncludesEditor').then((module) => ({ default: module.IncludesEditor })));
+const ItemEditor = lazy(() => import('./visual/ItemEditor').then((module) => ({ default: module.ItemEditor })));
+const StateEditor = lazy(() => import('./visual/StateEditor').then((module) => ({ default: module.StateEditor })));
 
 type Recipe = (draft: MenuDefinition) => void;
 
@@ -51,6 +59,20 @@ interface InspectorProps {
   onAlignReferenceChange: (reference: AlignReference) => void;
   onAlign: (mode: AlignMode) => void;
   onDistribute: (axis: DistributeAxis) => void;
+  /** Ce que l’éditeur d’actions connaît : états résolus et menus de l’espace. */
+  actionContext: ActionContext;
+  /** Drapeaux connus (autres menus, aperçu), proposés dans les conditions. */
+  flags: string[];
+  /** Variables de l’aperçu, pour l’infobulle des items. */
+  variables: Record<string, string>;
+  /** Sources des slots « liste » et listes paginées. */
+  lists: string[];
+  /** Composants de l’espace (menus `component: true`), à inclure. */
+  components: Array<Pick<MenuDefinition, 'id' | 'name'>>;
+  /** Ouvre un autre menu de l’espace dans l’éditeur. */
+  onOpenMenu: (id: string) => void;
+  /** Détache une instance de composant : ses éléments deviennent propres au menu. */
+  onDetachInclude: (index: number) => void;
 }
 
 const SLOT_KIND_LABELS: Record<SlotKind, string> = {
@@ -68,18 +90,6 @@ const SLOT_KIND_NAMES: Record<SlotKind, string> = {
   decoration: 'décoration',
 };
 
-const ACTION_PRESETS: Array<{ label: string; action: Action }> = [
-  { label: 'Ouvrir un menu', action: { type: 'open', menu: 'autre_menu' } },
-  { label: 'Retour', action: { type: 'back' } },
-  { label: 'Fermer', action: { type: 'close' } },
-  { label: 'Changer l’état', action: { type: 'setState', state: 'tab', value: '' } },
-  { label: 'Page suivante', action: { type: 'nextPage', list: 'items' } },
-  { label: 'Page précédente', action: { type: 'prevPage', list: 'items' } },
-  { label: 'Jouer un son', action: { type: 'sound', sound: 'minecraft:ui.button.click' } },
-  { label: 'Commande', action: { type: 'command', command: 'say {viewer.name}', as: 'player' } },
-  { label: 'Action serveur', action: { type: 'custom', id: 'mon_action' } },
-];
-
 const KIND_WORDS: Record<ElementKind, [string, string]> = {
   layer: ['couche', 'couches'],
   text: ['texte', 'textes'],
@@ -92,25 +102,6 @@ function collectionOf(draft: MenuDefinition, kind: ElementKind): Array<{ id: str
   return (draft.slots ??= []);
 }
 
-/** Options de conditions prêtes à l’emploi, déduites des états du menu. */
-function conditionOptions(states: Record<string, StateDefinition>): Array<{ label: string; condition: Condition }> {
-  const options: Array<{ label: string; condition: Condition }> = [];
-  for (const [name, definition] of Object.entries(states)) {
-    if (definition.type === 'enum') {
-      for (const value of definition.values) options.push({ label: `${name} = ${value}`, condition: { state: name, is: value } });
-    } else if (definition.type === 'bool') {
-      options.push({ label: `${name} vrai`, condition: { state: name, is: true } });
-      options.push({ label: `${name} faux`, condition: { state: name, is: false } });
-    } else if (definition.type === 'page') {
-      options.push({ label: `${name} : page précédente`, condition: { flag: `${name}.hasPrev` } });
-      options.push({ label: `${name} : pas de page précédente`, condition: { not: { flag: `${name}.hasPrev` } } });
-      options.push({ label: `${name} : page suivante`, condition: { flag: `${name}.hasNext` } });
-      options.push({ label: `${name} : pas de page suivante`, condition: { not: { flag: `${name}.hasNext` } } });
-    }
-  }
-  return options;
-}
-
 /** En-tête de l’inspecteur : titre et pastille du type d’élément. */
 function InspectorHeader({ children }: { children: ReactNode }) {
   return (
@@ -121,44 +112,25 @@ function InspectorHeader({ children }: { children: ReactNode }) {
   );
 }
 
+/** Condition d’un élément, dans son cadre : éditeur visuel (arbre, résumé, accès JSON). */
 function ConditionField({
   label,
   value,
   states,
+  flags,
+  hint,
   onCommit,
 }: {
   label: string;
   value: Condition | undefined;
   states: Record<string, StateDefinition>;
+  flags: string[];
+  hint?: string;
   onCommit: (condition: Condition | undefined) => void;
 }) {
-  const options = conditionOptions(states);
-  const serialized = JSON.stringify(value);
-  const index = options.findIndex((option) => JSON.stringify(option.condition) === serialized);
-  const selected = value === undefined ? 'always' : index >= 0 ? String(index) : 'custom';
   return (
     <div className="field-group">
-      <Field label={label}>
-        <select
-          value={selected}
-          onChange={(event) => {
-            const choice = event.target.value;
-            if (choice === 'always') onCommit(undefined);
-            else if (choice !== 'custom') onCommit(options[Number(choice)].condition);
-          }}
-        >
-          <option value="always">Toujours</option>
-          {options.map((option, optionIndex) => (
-            <option key={option.label} value={optionIndex}>
-              {option.label}
-            </option>
-          ))}
-          <option value="custom" disabled>
-            Personnalisée (JSON ci-dessous)
-          </option>
-        </select>
-      </Field>
-      <JsonField<Condition> label="Condition (JSON)" value={value} onCommit={onCommit} rows={2} />
+      <ConditionEditor label={label} value={value} states={states} flags={flags} hint={hint} onCommit={onCommit} />
     </div>
   );
 }
@@ -238,7 +210,25 @@ function ArrangeSection({ props, targets }: { props: InspectorProps; targets: Se
   );
 }
 
+/** Inspecteur de la sélection (ou du menu) ; ses éditeurs visuels arrivent à la demande. */
 export function Inspector(props: InspectorProps) {
+  return (
+    <Suspense
+      fallback={
+        <section className="panel-section inspector">
+          <p className="muted small loading-line">
+            <Icon name="loader" />
+            Chargement de l’inspecteur…
+          </p>
+        </section>
+      }
+    >
+      <InspectorContent {...props} />
+    </Suspense>
+  );
+}
+
+function InspectorContent(props: InspectorProps) {
   const { menu, selection } = props;
   const own = selection.filter((target) => findElement(menu, target) !== undefined);
 
@@ -317,6 +307,7 @@ export function Inspector(props: InspectorProps) {
           label="Visible si"
           value={layer.visibleWhen}
           states={props.states}
+          flags={props.flags}
           onCommit={(condition) => update((target) => (target.visibleWhen = condition))}
         />
       </section>
@@ -369,6 +360,7 @@ export function Inspector(props: InspectorProps) {
           label="Visible si"
           value={text.visibleWhen}
           states={props.states}
+          flags={props.flags}
           onCommit={(condition) => update((target) => (target.visibleWhen = condition))}
         />
       </section>
@@ -381,11 +373,6 @@ export function Inspector(props: InspectorProps) {
     props.onChange((draft) => {
       const target = draft.slots?.find((candidate) => candidate.id === slot.id);
       if (target) recipe(target);
-    });
-  const updateItem = (recipe: (item: ItemSpec) => void) =>
-    update((target) => {
-      target.item ??= {};
-      recipe(target.item);
     });
   return (
     <section className="panel-section inspector">
@@ -413,75 +400,63 @@ export function Inspector(props: InspectorProps) {
       </div>
       <ArrangeSection props={props} targets={own} />
       {slot.kind === 'list' ? (
-        <Field label="Source de données" hint="Nom de la liste fournie par le serveur">
-          <input className="mono" value={slot.list ?? ''} onChange={(event) => update((target) => (target.list = event.target.value))} />
+        <Field label="Source de données" hint="Nom de la liste fournie par le serveur (ListProvider)">
+          <input
+            className="mono"
+            list="inspector-list-sources"
+            value={slot.list ?? ''}
+            onChange={(event) => update((target) => (target.list = event.target.value))}
+          />
+          <datalist id="inspector-list-sources">
+            {props.lists.map((list) => (
+              <option key={list} value={list} />
+            ))}
+          </datalist>
         </Field>
       ) : (
-        <>
-          <Field label="Nom affiché (MiniMessage)">
-            <input value={slot.item?.name ?? ''} onChange={(event) => updateItem((item) => (item.name = event.target.value))} />
-          </Field>
-          <Field label="Description (une ligne par entrée)">
-            <textarea
-              rows={3}
-              value={(slot.item?.lore ?? []).join('\n')}
-              onChange={(event) =>
-                updateItem((item) => (item.lore = event.target.value ? event.target.value.split('\n') : undefined))
-              }
-            />
-          </Field>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={slot.item?.invisible ?? false}
-              onChange={(event) => updateItem((item) => (item.invisible = event.target.checked || undefined))}
-            />
-            Item invisible (le bouton est dessiné par une couche)
-          </label>
-          {!slot.item?.invisible && (
-            <Field label="Matériau">
-              <input
-                className="mono"
-                value={slot.item?.material ?? ''}
-                placeholder="PLAYER_HEAD, DIAMOND…"
-                onChange={(event) => updateItem((item) => (item.material = event.target.value || undefined))}
-              />
-            </Field>
-          )}
-        </>
+        <div className="field-group">
+          <ItemEditor
+            item={slot.item}
+            variables={props.variables}
+            onChange={(item) =>
+              update((target) => {
+                if (item) target.item = item;
+                else delete target.item;
+              })
+            }
+          />
+        </div>
       )}
-      <Field label="Ajouter une action au clic">
-        <select
-          value=""
-          onChange={(event) => {
-            const preset = ACTION_PRESETS[Number(event.target.value)];
-            if (preset) update((target) => (target.onClick = [...(target.onClick ?? []), structuredClone(preset.action)]));
-          }}
-        >
-          <option value="">Choisir…</option>
-          {ACTION_PRESETS.map((preset, index) => (
-            <option key={preset.label} value={index}>
-              {preset.label}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <JsonField<Action[]>
-        label="Actions au clic (JSON)"
-        value={slot.onClick}
-        rows={4}
-        onCommit={(actions) => update((target) => (target.onClick = actions))}
-      />
+      {(slot.kind !== 'decoration' || (slot.onClick?.length ?? 0) > 0) && (
+        <div className="field-group">
+          <ActionListEditor
+            actions={slot.onClick}
+            context={props.actionContext}
+            menuId={menu.id}
+            onOpenMenu={props.onOpenMenu}
+            onChange={(actions) =>
+              update((target) => {
+                if (actions) target.onClick = actions;
+                else delete target.onClick;
+              })
+            }
+          />
+        </div>
+      )}
       <ConditionField
         label="Visible si"
+        hint="sinon le slot est vide"
         value={slot.visibleWhen}
         states={props.states}
+        flags={props.flags}
         onCommit={(condition) => update((target) => (target.visibleWhen = condition))}
       />
       <ConditionField
         label="Actif si"
+        hint="sinon il est affiché mais ne réagit pas"
         value={slot.enabledWhen}
         states={props.states}
+        flags={props.flags}
         onCommit={(condition) => update((target) => (target.enabledWhen = condition))}
       />
     </section>
@@ -527,6 +502,7 @@ function SelectionInspector({ props, targets }: { props: InspectorProps; targets
         label={sameCondition ? 'Visible si (tous)' : 'Visible si (valeurs différentes)'}
         value={common}
         states={props.states}
+        flags={props.flags}
         onCommit={(condition) =>
           props.onChange((draft) => {
             for (const target of targets) {
@@ -560,7 +536,8 @@ function SelectionInspector({ props, targets }: { props: InspectorProps; targets
   );
 }
 
-function MenuProperties({ menu, onChange }: InspectorProps) {
+function MenuProperties(props: InspectorProps) {
+  const { menu, onChange } = props;
   return (
     <section className="panel-section inspector">
       <InspectorHeader>
@@ -585,6 +562,14 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
         />
         Gabarit partiel (hérité par d’autres menus)
       </label>
+      <label className="checkbox" title="Inclus dans d’autres menus (Composants inclus) ; ne s’ouvre pas seul en jeu">
+        <input
+          type="checkbox"
+          checked={menu.component ?? false}
+          onChange={(event) => onChange((draft) => (draft.component = event.target.checked || undefined))}
+        />
+        Composant réutilisable
+      </label>
       <CommitField
         label="Hérite de (ids séparés par des virgules)"
         value={(menu.extends ?? []).join(', ')}
@@ -595,13 +580,26 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
           })
         }
       />
-      <JsonField<Record<string, StateDefinition>>
-        label="Variables d’état (JSON)"
-        value={menu.state}
-        rows={6}
-        placeholder={'{ "tab": { "type": "enum", "values": ["a", "b"], "default": "a" } }'}
-        onCommit={(state) => onChange((draft) => (draft.state = state))}
-      />
+      <div className="field-group">
+        <StateEditor menu={menu} resolvedStates={props.states} lists={props.lists} onChange={onChange} />
+      </div>
+      <div className="field-group">
+        <IncludesEditor
+          includes={menu.includes}
+          components={props.components}
+          menuId={menu.id}
+          states={props.states}
+          flags={props.flags}
+          onOpenComponent={props.onOpenMenu}
+          onDetach={props.onDetachInclude}
+          onChange={(includes) =>
+            onChange((draft) => {
+              if (includes) draft.includes = includes;
+              else delete draft.includes;
+            })
+          }
+        />
+      </div>
       <p className="field-hint">
         Sélectionne un élément sur la toile ou dans la liste pour le modifier ; Maj ou Ctrl + clic, ou un rectangle tracé
         sur une zone vide, pour en sélectionner plusieurs.
@@ -623,6 +621,10 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
             <kbd>S</kbd>
           </dt>
           <dd>Outil Slots</dd>
+          <dt>
+            <kbd>E</kbd>
+          </dt>
+          <dd>Essayer le menu (Échap pour revenir)</dd>
           <dt>
             <ShortcutKeys shortcut="Maj+Clic" />
           </dt>

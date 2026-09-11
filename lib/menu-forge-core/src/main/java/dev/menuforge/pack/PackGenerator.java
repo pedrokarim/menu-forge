@@ -74,7 +74,7 @@ public final class PackGenerator {
 
   /**
    * Génère le pack de plusieurs menus résolus. Les gabarits ({@code template: true})
-   * sont ignorés : ils n’ont pas de police propre.
+   * et les composants ({@code component: true}) sont ignorés : ils n’ont pas de police propre.
    *
    * @throws dev.menuforge.MenuForgeException si une texture est introuvable ou illisible
    */
@@ -82,7 +82,7 @@ public final class PackGenerator {
     final Map<String, byte[]> files = new TreeMap<>();
     final Set<Integer> textAscents = new TreeSet<>();
     for (final MenuDefinition menu : menus) {
-      if (menu.template()) {
+      if (menu.partial()) {
         continue;
       }
       generateMenu(menu, textures, files);

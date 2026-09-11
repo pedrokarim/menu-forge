@@ -9,6 +9,7 @@ import com.google.gson.JsonPrimitive;
 import dev.menuforge.model.Action;
 import dev.menuforge.model.Condition;
 import dev.menuforge.model.ContainerSpec;
+import dev.menuforge.model.Include;
 import dev.menuforge.model.ItemSpec;
 import dev.menuforge.model.Layer;
 import dev.menuforge.model.MenuDefinition;
@@ -110,13 +111,37 @@ public final class MenuParser {
       }
       final String name = optionalString(root, "name", path, id);
       final boolean template = optionalBoolean(root, "template", path, false);
+      final boolean component = optionalBoolean(root, "component", path, false);
       final List<String> parents = stringList(root, "extends", path);
+      final List<Include> includes = list(root, "includes", path, this::include);
       final ContainerSpec container = root.has("container") ? container(root.get("container"), path + ".container") : null;
       final Map<String, StateDefinition> state = root.has("state") ? state(root.get("state"), path + ".state") : Map.of();
       final List<Layer> layers = list(root, "layers", path, this::layer);
       final List<TextElement> texts = list(root, "texts", path, this::text);
       final List<Slot> slots = list(root, "slots", path, this::slot);
-      return new MenuDefinition(formatVersion, id, name, template, parents, container, state, layers, texts, slots);
+      return new MenuDefinition(formatVersion, id, name, template, parents, container, state, layers, texts, slots,
+        component, includes);
+    }
+
+    private Include include(final JsonElement element, final String path) {
+      final JsonObject object = object(element, path);
+      final String component = requiredString(object, "component", path);
+      if (!MENU_ID.matcher(component).matches()) {
+        throw error(path + ".component", "identifiant de composant invalide « " + component + " » (attendu : [a-z0-9_]+)");
+      }
+      final String prefix = optionalString(object, "prefix", path, "");
+      if (!prefix.isEmpty() && !MENU_ID.matcher(prefix).matches()) {
+        throw error(path + ".prefix", "préfixe invalide « " + prefix + " » (attendu : [a-z0-9_]*)");
+      }
+      return new Include(
+        component,
+        prefix,
+        optionalInt(object, "col", path, 0),
+        optionalInt(object, "row", path, 0),
+        optionalInt(object, "x", path, 0),
+        optionalInt(object, "y", path, 0),
+        optionalCondition(object, "visibleWhen", path)
+      );
     }
 
     private ContainerSpec container(final JsonElement element, final String path) {
