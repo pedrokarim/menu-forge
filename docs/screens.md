@@ -41,6 +41,9 @@ avant de les construire.
   clic = ouvrir dans l’éditeur ; clic droit ou bouton « … » : Ouvrir,
   Renommer…, Dupliquer, Mettre à la corbeille (le fichier va dans `.trash/`
   de l’espace, rien n’est supprimé).
+- **Générer une interface…** (en tête des actions rapides) : décrite à une
+  IA, validée, ouverte dans l’éditeur sans être enregistrée (voir
+  [`ai.md`](ai.md)).
 - **Espaces récents** (3 à 5), clic = basculer.
 - États vides utiles : « Aucun document : commence par un gabarit ».
 - Données : `GET /documents/recent`, `GET /workspaces`.
@@ -146,6 +149,16 @@ l’éditeur de pixels » (menu contextuel d’une vignette de bibliothèque ou
 couche) crée une image depuis une texture ; celle d’un pack n’est jamais
 modifiée (copie). Format, outils et raccourcis : [`pixels.md`](pixels.md).
 
+**Génération par IA.** « Générer une interface… » (bouton à côté de
+« Nouveau », menu contextuel de la toile, dialogue « Nouveau menu ») :
+description, fournisseur de texte, taille du coffre ; la réponse est validée
+par le schéma et les règles de la lib, corrigée en quelques essais au plus,
+puis le menu s’ouvre **non enregistré**. « Générer une texture… » (barre de
+l’éditeur de pixels, bibliothèque) : description, fournisseur d’images,
+taille, palette ; l’image est ramenée sur la grille des pixels, en palette
+imposée, avec une vraie transparence, puis ouverte dans l’éditeur de pixels.
+Fournisseurs, confidentialité et contraintes : [`ai.md`](ai.md).
+
 La fenêtre descend à 1180 × 700 : en dessous, rail d’écrans et trois colonnes
 ne laissent plus à la toile la place de ses outils.
 
@@ -165,6 +178,11 @@ ne laissent plus à la toile la place de ses outils.
 - **Éditeur** : zoom par défaut, grille, aimantation, confirmations.
 - **Export vers le plugin** : dossier des ressources d’enderium-core,
   namespace, `pack_format` (32 = 1.20.5/1.20.6, 34 = 1.21, 46 = 1.21.4).
+- **IA** : une fiche par fournisseur (OpenAI, Google Gemini, Anthropic,
+  Mistral, Stability AI, fal, Replicate, ComfyUI, Automatic1111, Ollama,
+  Codex CLI) : activer, clé d’API rangée dans le trousseau du système
+  (l’écran n’affiche que « configurée »), modèles, adresse locale, test de
+  connexion. Chargée à la demande. Voir [`ai.md`](ai.md).
 - **Avancé** : chemin du fichier de réglages, vider les caches d’index.
 - Données : `GET /settings`, `PUT /settings`, `GET /app`.
 

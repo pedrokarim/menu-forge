@@ -18,7 +18,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 
-export type QuickAction = 'new-menu' | 'generate-menu' | 'new-asset' | 'new-pixel' | 'import-font' | 'open-workspace';
+export type QuickAction = 'new-menu' | 'generate-menu' | 'new-asset' | 'new-pixel' | 'import-font' | 'open-workspace' | 'ai-interface';
 /** Gestion d’un document récent depuis l’accueil. */
 export type DocumentAction = 'rename' | 'duplicate' | 'trash';
 
@@ -192,9 +192,17 @@ export function HomeScreen({
       </div>
 
       <section className="screen-section" aria-labelledby="home-actions">
-        <h2 id="home-actions" className="screen-section-title">
-          Actions rapides
-        </h2>
+        <div className="screen-section-head">
+          <h2 id="home-actions" className="screen-section-title">
+            Actions rapides
+          </h2>
+          <Tooltip label="Générer une interface" hint="Décrite en quelques mots à une IA, validée, à relire avant enregistrement">
+            <button type="button" onClick={() => onQuickAction('ai-interface')}>
+              <Icon name="sparkles" />
+              Générer une interface…
+            </button>
+          </Tooltip>
+        </div>
         <div className="quick-actions">
           {QUICK_ACTIONS.map((action) => (
             <button key={action.kind} type="button" className="quick-action" onClick={() => onQuickAction(action.kind)}>

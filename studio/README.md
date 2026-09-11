@@ -96,6 +96,7 @@ Routes de l’application :
 | `POST /api/libraries` | `{ id, name, root, ownership }` : `root` absolu, contenant `assets/` |
 | `DELETE /api/libraries/:id` | débranche le pack (rien n’est supprimé sur le disque) |
 | `POST /api/libraries/:id/reindex` | reconstruit l’index sans cache ; renvoie `{ id, textures, fonts }` |
+| `GET /api/ai/providers`, `PUT /api/ai/providers/:id`, `PUT\|DELETE /api/ai/keys/:id`, `POST /api/ai/test/:id`, `POST /api/ai/image`, `POST /api/ai/text`, `POST /api/ai/cancel` | génération par IA (fournisseurs, clés dans le trousseau du système, textures, interfaces, annulation) : voir [`../docs/ai.md`](../docs/ai.md) ; `studio-api --ephemeral-secrets` garde les clés en mémoire (tests) |
 
 Forme des réglages :
 

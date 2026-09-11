@@ -19,6 +19,8 @@ interface NewMenuDialogProps {
   generate?: boolean;
   onCancel: () => void;
   onCreate: (input: NewMenuInput) => Promise<void>;
+  /** Propose de décrire le menu à une IA plutôt que de partir d’un gabarit. */
+  onGenerateWithAi?: () => void;
 }
 
 /** Générateur d’interfaces (styles, aperçu), chargé à sa première ouverture. */
@@ -26,8 +28,8 @@ const InterfaceGeneratorDialog = lazy(() =>
   import('./InterfaceGeneratorDialog').then((module) => ({ default: module.InterfaceGeneratorDialog })),
 );
 
-/** Création d’un menu, vierge, à partir d’un gabarit fourni ou généré. */
-export function NewMenuDialog({ templates, existingIds, generate = false, onCancel, onCreate }: NewMenuDialogProps) {
+/** Création d’un menu, vierge, à partir d’un gabarit fourni ou généré, ou par IA. */
+export function NewMenuDialog({ templates, existingIds, generate = false, onCancel, onCreate, onGenerateWithAi }: NewMenuDialogProps) {
   const [generating, setGenerating] = useState(generate);
   const [name, setName] = useState('Mon menu');
   // Identifiant proposé toujours libre : le dialogue ne s’ouvre jamais sur une erreur.
@@ -95,6 +97,12 @@ export function NewMenuDialog({ templates, existingIds, generate = false, onCanc
       footer={
         <>
           {error && <FieldError>{error}</FieldError>}
+          {onGenerateWithAi && (
+            <button type="button" className="ghost" onClick={onGenerateWithAi}>
+              <Icon name="sparkles" />
+              Générer par IA…
+            </button>
+          )}
           <button type="button" onClick={onCancel}>
             Annuler
           </button>

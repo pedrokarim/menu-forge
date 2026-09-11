@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { fetchPresence } from '../lib/appApi';
 import type { AppInfo, DiscordSettings, LibraryCounts, PresenceStatus, SettingsPatch, StudioSettings, WorkspaceSummary } from '../lib/appApi';
@@ -7,6 +7,9 @@ import { isTauri, pickFolder, revealInExplorer } from '../lib/native';
 import { Notice, ScreenFrame } from '../shell/ScreenFrame';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
+
+/** Section « IA » (fournisseurs, clés, modèles), chargée à la demande : son code n’alourdit pas le démarrage. */
+const AiSettingsSection = lazy(() => import('../ai/AiSettingsSection').then((module) => ({ default: module.AiSettingsSection })));
 
 /** Zooms proposés à l’ouverture (0 = « Ajuster »). */
 const ZOOM_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8];
@@ -338,6 +341,10 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
           </SettingRow>
         </div>
       </section>
+
+      <Suspense fallback={<p className="muted">Chargement de la section IA…</p>}>
+        <AiSettingsSection />
+      </Suspense>
 
       <section className="screen-section" aria-labelledby="settings-advanced">
         <h2 id="settings-advanced" className="screen-section-title">

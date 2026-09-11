@@ -30,6 +30,9 @@ Options (chacune a sa variable d’environnement) :
   --cache <dir>       MENU_FORGE_CACHE        caches (<studio>/.cache)
   --studio-dir <dir>  MENU_FORGE_STUDIO_DIR   dossier studio/ servant de base aux valeurs par défaut
   --no-discord        MENU_FORGE_NO_DISCORD   sans Rich Presence Discord, jamais de connexion (tests : jamais le vrai profil)
+  --ephemeral-secrets MENU_FORGE_EPHEMERAL_SECRETS
+                                              clés d’API d’IA en mémoire seulement, jamais dans le trousseau
+                                              du système (tests automatiques)
 ";
 
 struct Options {
@@ -41,6 +44,7 @@ struct Options {
     templates: Option<String>,
     cache: Option<String>,
     no_discord: bool,
+    ephemeral_secrets: bool,
 }
 
 fn parse_options() -> Result<Options, String> {
@@ -55,6 +59,7 @@ fn parse_options() -> Result<Options, String> {
     let mut templates = env("MENU_FORGE_TEMPLATES");
     let mut cache = env("MENU_FORGE_CACHE");
     let mut no_discord = env("MENU_FORGE_NO_DISCORD").is_some();
+    let mut ephemeral_secrets = env("MENU_FORGE_EPHEMERAL_SECRETS").is_some();
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -64,6 +69,10 @@ fn parse_options() -> Result<Options, String> {
         }
         if arg == "--no-discord" {
             no_discord = true;
+            continue;
+        }
+        if arg == "--ephemeral-secrets" {
+            ephemeral_secrets = true;
             continue;
         }
         let (name, inline) = match arg.split_once('=') {
@@ -89,7 +98,7 @@ fn parse_options() -> Result<Options, String> {
         Some(port) => port.parse().map_err(|_| format!("port invalide : {port}"))?,
         None => DEFAULT_PORT,
     };
-    Ok(Options { port, studio_dir, settings, workspace, libraries, templates, cache, no_discord })
+    Ok(Options { port, studio_dir, settings, workspace, libraries, templates, cache, no_discord, ephemeral_secrets })
 }
 
 fn build_config(options: &Options) -> BackendConfig {
@@ -161,7 +170,12 @@ fn main() {
             std::process::exit(2);
         }
     };
-    let backend = Arc::new(Backend::new(build_config(&options)));
+    let backend = Backend::new(build_config(&options));
+    let backend = Arc::new(if options.ephemeral_secrets {
+        backend.with_secret_store(Arc::new(studio_backend::ai::secrets::MemoryStore::default()))
+    } else {
+        backend
+    });
     #[cfg(windows)]
     console::stop_presence_on_exit(Arc::clone(&backend));
     let handle = match server::serve(Arc::clone(&backend), options.port, None) {
@@ -175,6 +189,9 @@ fn main() {
     println!("  menu-forge : API sur {}/api", handle.origin());
     println!("  menu-forge : réglages {}", backend.settings_path());
     println!("  menu-forge : espace de travail {}", backend.workspace_root());
+    if options.ephemeral_secrets {
+        println!("  menu-forge : clés d’IA en mémoire seulement (--ephemeral-secrets)");
+    }
     for library in backend.libraries() {
         println!("  menu-forge : bibliothèque « {} » ({})", library.name, library.root);
     }

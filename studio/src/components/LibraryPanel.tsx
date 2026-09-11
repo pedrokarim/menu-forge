@@ -20,6 +20,8 @@ interface LibraryPanelProps {
   canAddLayer: boolean;
   /** Ouvre une copie de la texture dans l’éditeur de pixels (le pack n’est jamais modifié). */
   onOpenInPixels?: (source: LibrarySourceInfo, texture: LibraryTexture) => void;
+  /** Génère une texture par IA ; `texture` : celle dont on reprend la taille et la palette (`null` : aucune). */
+  onGenerateTexture?: (source: LibrarySourceInfo | null, texture: LibraryTexture | null) => void;
   /** Libellé de l’ajout dans le menu contextuel (« Ajouter comme couche », « Insérer dans l’asset »). */
   addLabel?: string;
 }
@@ -64,6 +66,7 @@ export function LibraryPanel({
   canAddLayer,
   addLabel = 'Ajouter comme couche',
   onOpenInPixels,
+  onGenerateTexture,
 }: LibraryPanelProps) {
   const [cropping, setCropping] = useState(false);
   const [sources, setSources] = useState<LibrarySourceInfo[] | null>(null);
@@ -175,6 +178,9 @@ export function LibraryPanel({
       ...(onOpenInPixels && source
         ? [{ label: 'Ouvrir dans l’éditeur de pixels', icon: 'pencil' as const, onSelect: () => onOpenInPixels(source, texture) }]
         : []),
+      ...(onGenerateTexture && source
+        ? [{ label: 'Générer une texture de même taille et palette…', icon: 'sparkles' as const, onSelect: () => onGenerateTexture(source, texture) }]
+        : []),
       ...(fonts.length > 0 ? [{ separator: true as const }] : []),
       ...fonts.map((usage) => ({
         label: `Importer le menu « ${usage.font} »`,
@@ -210,11 +216,22 @@ export function LibraryPanel({
       <section className="panel-section">
         <header className="section-header">
           <h3>Bibliothèque</h3>
-          {source && (
-            <span className={`badge ${source.ownership === 'own' ? 'badge-own' : 'badge-third'}`}>
-              {source.ownership === 'own' ? 'maison' : 'tiers · local'}
-            </span>
-          )}
+          <span className="section-actions">
+            {source && (
+              <span className={`badge ${source.ownership === 'own' ? 'badge-own' : 'badge-third'}`}>
+                {source.ownership === 'own' ? 'maison' : 'tiers · local'}
+              </span>
+            )}
+            {onGenerateTexture && (
+              <IconButton
+                icon="sparkles"
+                label="Générer une texture par IA…"
+                hint="Ramenée sur la grille et la palette, puis ouverte dans l’éditeur de pixels"
+                variant="ghost"
+                onClick={() => onGenerateTexture(null, null)}
+              />
+            )}
+          </span>
         </header>
         <select value={sourceId} onChange={(event) => changeSource(event.target.value)} aria-label="Pack">
           {(sources ?? []).map((candidate) => (
