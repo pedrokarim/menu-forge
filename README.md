@@ -45,8 +45,8 @@ a son `ascent` et son avance, et un pixel de travers décale tout ce qui suit.
 Menu Forge automatise toute la chaîne :
 
 1. **Studio** (`studio/`) : on dessine le menu sur une toile calée sur la grille
-   des slots, à partir de gabarits ; on place les couches, les textes
-   dynamiques, les zones cliquables et leurs actions.
+   des slots, à partir de gabarits ou du générateur d’interfaces ; on place
+   les couches, les textes dynamiques, les zones cliquables et leurs actions.
 2. **Format** (`docs/format.md`) : le studio exporte un fichier `*.menu.json` et
    ses PNG, lisibles et versionnables.
 3. **Lib** (`lib/`) : côté serveur Paper, elle lit ces fichiers, génère les
@@ -64,6 +64,9 @@ Menu Forge automatise toute la chaîne :
   rognables (sprites d’atlas).
 - Textes dynamiques avec variables (`{viewer.name}`, `{page.number}`…) et
   alignement à gauche, au centre ou à droite, mesurés avec les avances du jeu.
+- **Police pixel de Menu Forge**, dessinée pour le projet : sans pack vanilla
+  branché, les textes s’affichent avec les mêmes avances qu’en jeu (le pack
+  vanilla reste nécessaire pour exporter un asset avec la police du jeu).
 - Zones de slots dessinées sur la grille : bouton, liste paginée, dépôt,
   décoration ; actions au clic (ouvrir, retour, état, page, son, commande,
   action custom).
@@ -73,6 +76,12 @@ Menu Forge automatise toute la chaîne :
   lib : ce que vous voyez est ce que le joueur verra.
 - Gabarits (coffre classique, modale, liste paginée, barre d’onglets) et
   héritage (`extends`).
+- **Générateur d’interfaces** : boutique, grille, modale de confirmation,
+  liste paginée ou barre d’onglets, complète en quelques champs (lignes,
+  boutons, disposition, accent), dans trois familles de styles – Deepslate
+  (biseauté), mc-rs (sombre, arrondi) et « sombre à accent » (plat) – avec un
+  aperçu en direct où onglets et pages se cliquent ; le menu créé se retouche
+  ensuite comme un autre.
 - **Mode libre** : un éditeur d’assets (encarts, bulles de touche, badges…)
   exportés en PNG et en glyphe, prêts à glisser dans un texte.
 - **Éditeur de pixels** (mode « Pixels ») : crayon, gomme, pot de peinture,
@@ -102,6 +111,18 @@ Menu Forge automatise toute la chaîne :
   ([`docs/menu.schema.json`](docs/menu.schema.json),
   [`docs/asset.schema.json`](docs/asset.schema.json)) pour valider un fichier
   écrit à la main ou généré.
+- **Génération par IA** (facultative) : une texture ou une interface décrite
+  en quelques mots, avec onze fournisseurs, en ligne (OpenAI, Google Gemini,
+  Anthropic, Mistral, Stability AI, fal, Replicate), sur ce poste (ComfyUI,
+  Automatic1111, Ollama) ou en ligne de commande (Codex CLI). Aucun n’est
+  contacté tant qu’il n’est pas activé dans les Paramètres ; les clés d’API
+  vont dans le trousseau du système, jamais dans les réglages ; les services
+  en ligne facturent chaque génération. Le résultat est contraint : texture
+  ramenée sur la grille des pixels et une palette imposée, menu validé par le
+  schéma et les règles de la lib, erreurs renvoyées au modèle (5 essais au
+  plus), puis ouvert dans l’éditeur pour relecture. Vérifié avec des
+  fournisseurs simulés, pas encore avec de vraies clés : voir
+  [`docs/ai.md`](docs/ai.md).
 - Bibliothèques de packs branchées en local (lecture seule, jamais publiées),
   annuler / rétablir, raccourcis clavier partout, aide-mémoire `?`.
 - Style « Deepslate » : ardoise, biseaux de 2 px, or pour la sélection,
@@ -128,6 +149,12 @@ Menu Forge automatise toute la chaîne :
 
 | | |
 |---|---|
+| ![Générateur d’interfaces : une barre d’onglets en style « sombre à accent », avec son aperçu](site/assets/screens/interface-generator.png) | ![Une boutique créée par le générateur, en style mc-rs, ouverte dans l’éditeur](site/assets/screens/generated-menu.png) |
+| **Générateur d’interfaces** : cinq types, trois familles de styles, aperçu cliquable. | **Menu généré** : couches, textes et slots ordinaires, à retoucher. |
+| ![« Générer une texture » : l’image du modèle et la texture ramenée sur 16 × 16 et la palette Menu Forge](site/assets/screens/ai-texture.png) | ![« Générer une interface » : un premier essai refusé, corrigé au second](site/assets/screens/ai-interface.png) |
+| **Texture par IA** : grille de pixels, palette imposée, fond détouré. | **Interface par IA** : validée par le schéma, erreurs renvoyées au modèle. |
+| ![Paramètres, section IA : onze fournisseurs, tous désactivés, la fiche OpenAI dépliée sans clé](site/assets/screens/ai-settings.png) | ![Générateur de textures : un panneau biseauté et ses cellules de slots](site/assets/screens/texture-generator.png) |
+| **IA, Paramètres** : rien ne part sans activation, clés dans le trousseau. | **Textures générées** : panneaux, boutons, cellules, sans rien dessiner. |
 | ![Éditeur de pixels : une texture d’onglet en calques](site/assets/screens/pixel-editor.png) | ![Mode « Essayer » : clics simulés et journal](site/assets/screens/try-mode.png) |
 | **Éditeur de pixels** : calques, symétrie, palette, zoom jusqu’à ×64. | **Essayer** : les actions s’exécutent comme en jeu, le journal les suit. |
 | ![Éditeurs visuels des actions et des conditions d’un slot](site/assets/screens/visual-editors.png) | ![Sélection multiple et barre d’alignement](site/assets/screens/multi-select.png) |
@@ -142,6 +169,8 @@ Menu Forge automatise toute la chaîne :
 Toutes les captures sont produites par un script, sur un espace de
 démonstration fait **uniquement** de textures générées ou dessinées par le studio : voir
 [`site/README.md`](site/README.md).
+Les captures de la génération par IA passent par des fournisseurs simulés sur
+le poste : aucun service n’est appelé, aucune clé n’est utilisée.
 
 ## Comment ça marche
 
@@ -261,6 +290,8 @@ que la lib (parité vérifiée octet pour octet par une fixture partagée) et
 - [`docs/assets.md`](docs/assets.md) : le format `*.asset.json` du mode libre.
 - [`docs/pixels.md`](docs/pixels.md) : le format `*.pixel.json` de l’éditeur de
   pixels, ses outils et ses raccourcis.
+- [`docs/ai.md`](docs/ai.md) : la génération par IA (fournisseurs, clés, ce
+  qui est envoyé, coûts, contraintes, limites).
 - [`docs/menu.schema.json`](docs/menu.schema.json) et
   [`docs/asset.schema.json`](docs/asset.schema.json) : les schémas JSON des
   deux formats.
@@ -272,18 +303,21 @@ que la lib (parité vérifiée octet pour octet par une fixture partagée) et
 ## Feuille de route
 
 Détail vivant dans [`docs/roadmap.md`](docs/roadmap.md).
-Arrivés récemment : l’éditeur de pixels, les gestes d’édition, les éditeurs
+Arrivés récemment : le générateur d’interfaces et ses trois familles de
+styles, la génération par IA multi-fournisseurs et la police pixel de Menu
+Forge ; avant eux : l’éditeur de pixels, les gestes d’édition, les éditeurs
 visuels et le mode « Essayer », les composants, l’export vers le plugin et le
 pack ZIP, les schémas JSON. Prochaines étapes :
 
 - valider en jeu, avec un client, l’écran `/profile` d’Enderium, puis migrer
   ses autres écrans (succès, royaumes, maisons) ;
-- studio : police pixel fidèle pour l’aperçu des textes, repères posés à la
-  main, restaurer un document depuis la corbeille ;
+- studio : repères posés à la main, restaurer un document depuis la corbeille ;
 - composants : surcharger un seul champ d’un élément d’instance ; aperçu des
   slots « liste » en mode « Essayer » ;
 - éditeur de pixels : animations et planches de sprites, palettes
   enregistrées, dégradés ;
+- IA : essayer chaque fournisseur avec une vraie clé (identifiants des modèles
+  par défaut, transparence réelle des images, refus de contenu, délais) ;
 - décider du sort de la texture globale du coffre (`generic_54.png`).
 
 ## Contribuer

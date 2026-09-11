@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NumberField } from '../components/fields';
+import type { PreviewFontSource } from '../lib/previewFont';
 import { Icon } from '../ui/Icon';
 import { Tooltip } from '../ui/Tooltip';
 import { drawScaled } from './canvasUtils';
@@ -13,14 +14,15 @@ interface ExportPanelProps {
   dirty: boolean;
   saving: boolean;
   missingTextures: readonly string[];
-  fontError: string | null;
+  /** Police qui dessine les textes de l’aperçu et de l’export ; `null` pendant le chargement. */
+  fontSource: PreviewFontSource | null;
   onSave: () => void;
   onAscentChange: (ascent: number) => void;
 }
 
 /** Colonne d’export : enregistrement, `ascent`, aperçus ×1 et ×2, extraits prêts à copier. */
 export function ExportPanel(props: ExportPanelProps) {
-  const { asset, exportCanvas, dirty, saving, missingTextures, fontError } = props;
+  const { asset, exportCanvas, dirty, saving, missingTextures, fontSource } = props;
   const scale1Ref = useRef<HTMLCanvasElement>(null);
   const scale2Ref = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -76,10 +78,11 @@ export function ExportPanel(props: ExportPanelProps) {
           <span>Texture(s) introuvable(s), absente(s) de l’export : {missingTextures.join(', ')}</span>
         </p>
       )}
-      {fontError && (
-        <p className="warning">
-          <Icon name="warning" />
-          <span>Police du jeu indisponible (bibliothèque vanilla) : le texte est rendu de façon approximative.</span>
+      {fontSource === 'menu-forge' && (
+        <p className="field-hint">
+          Textes dessinés avec la police pixel de Menu Forge (aucune bibliothèque «&nbsp;vanilla&nbsp;» branchée)&nbsp;:
+          mêmes avances qu’en jeu, lettres dessinées par le projet. Branchez le pack vanilla pour exporter avec la
+          police du jeu.
         </p>
       )}
 

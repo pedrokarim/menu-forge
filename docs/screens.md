@@ -32,7 +32,8 @@ avant de les construire.
 ### Accueil (`#/accueil`)
 
 - En-tête : logo pixel de Menu Forge, nom de l’espace actif.
-- **Actions rapides** (grandes cases façon inventaire) : Nouveau menu, Nouvel
+- **Actions rapides** (grandes cases façon inventaire) : Nouveau menu, Générer une
+  interface, Nouvel
   asset, Nouvelle image, Importer un écran depuis une police, Ouvrir un espace
   de travail.
 - **Documents récents** de l’espace actif : menus, assets et images de pixels triés par date,
@@ -40,6 +41,9 @@ avant de les construire.
   clic = ouvrir dans l’éditeur ; clic droit ou bouton « … » : Ouvrir,
   Renommer…, Dupliquer, Mettre à la corbeille (le fichier va dans `.trash/`
   de l’espace, rien n’est supprimé).
+- **Générer une interface…** (en tête des actions rapides) : décrite à une
+  IA, validée, ouverte dans l’éditeur sans être enregistrée (voir
+  [`ai.md`](ai.md)).
 - **Espaces récents** (3 à 5), clic = basculer.
 - États vides utiles : « Aucun document : commence par un gabarit ».
 - Données : `GET /documents/recent`, `GET /workspaces`.
@@ -112,6 +116,29 @@ détache une instance. Les éléments d’instance sont listés avec la pastille
 « composant » et ne se modifient que dans leur composant (format :
 [`format.md`](format.md) § Composants).
 
+**Générer une interface.** « Nouveau menu » propose « Générer une
+interface… », aussi action rapide de l’accueil. On choisit un type – boutique
+(grille d’articles paginée et barre d’actions), grille simple, modale de
+confirmation, liste paginée, barre d’onglets –, le nombre de lignes du coffre,
+le nombre et la disposition des boutons (à gauche, centrés, à droite,
+répartis), la famille de styles (Deepslate, mc-rs ou sombre à accent) et une couleur d’accent ;
+l’aperçu suit en direct, et un clic sur un onglet ou une flèche y change
+l’état. Le menu créé est complet : couches aux textures générées (fond et
+cases, boutons, variantes allumées ou actives), zones de slots et leurs
+actions (`setState` pour les onglets, `nextPage` / `prevPage` pour les pages,
+`back`, `close`, actions du serveur), textes et variables d’état. Il se
+retouche ensuite à la main comme n’importe quel menu ; « Modifier la texture
+générée… » rouvre chaque couche dans le générateur de textures.
+
+**Générateur de textures.** « Générer une texture… » dessine une couche au
+pixel près, dans un style Deepslate (biseauté façon vanilla), mc-rs
+(panneaux sombres et arrondis, boutons plats à trois états, boutons en relief,
+bandes, cases, grille de chargement) ou sombre à accent (fenêtre plate à cadre
+fin, cases creusées, onglets et boutons plats, bouton fermer, store rayé,
+lignes de liste, cartouches, barres de progression), avec aperçu et paramètres propres à la
+famille (rayon, bordure, accent, état, ombre, progression). Format : [`format.md`](format.md)
+§ Couches.
+
 **Éditeur de pixels** (`#/editeur/pixels/<id>`, troisième mode après Menus et
 Assets). Pour dessiner une texture au pixel près : couleurs à gauche (principale
 et secondaire, palette, récentes, couleurs du document), outils et toile au
@@ -121,6 +148,16 @@ le document `pixels/<id>.pixel.json` (calques) et un PNG aplati dans
 l’éditeur de pixels » (menu contextuel d’une vignette de bibliothèque ou d’une
 couche) crée une image depuis une texture ; celle d’un pack n’est jamais
 modifiée (copie). Format, outils et raccourcis : [`pixels.md`](pixels.md).
+
+**Génération par IA.** « Générer une interface… » (bouton à côté de
+« Nouveau », menu contextuel de la toile, dialogue « Nouveau menu ») :
+description, fournisseur de texte, taille du coffre ; la réponse est validée
+par le schéma et les règles de la lib, corrigée en quelques essais au plus,
+puis le menu s’ouvre **non enregistré**. « Générer une texture… » (barre de
+l’éditeur de pixels, bibliothèque) : description, fournisseur d’images,
+taille, palette ; l’image est ramenée sur la grille des pixels, en palette
+imposée, avec une vraie transparence, puis ouverte dans l’éditeur de pixels.
+Fournisseurs, confidentialité et contraintes : [`ai.md`](ai.md).
 
 La fenêtre descend à 1180 × 700 : en dessous, rail d’écrans et trois colonnes
 ne laissent plus à la toile la place de ses outils.
@@ -141,6 +178,11 @@ ne laissent plus à la toile la place de ses outils.
 - **Éditeur** : zoom par défaut, grille, aimantation, confirmations.
 - **Export vers le plugin** : dossier des ressources d’enderium-core,
   namespace, `pack_format` (32 = 1.20.5/1.20.6, 34 = 1.21, 46 = 1.21.4).
+- **IA** : une fiche par fournisseur (OpenAI, Google Gemini, Anthropic,
+  Mistral, Stability AI, fal, Replicate, ComfyUI, Automatic1111, Ollama,
+  Codex CLI) : activer, clé d’API rangée dans le trousseau du système
+  (l’écran n’affiche que « configurée »), modèles, adresse locale, test de
+  connexion. Chargée à la demande. Voir [`ai.md`](ai.md).
 - **Avancé** : chemin du fichier de réglages, vider les caches d’index.
 - Données : `GET /settings`, `PUT /settings`, `GET /app`.
 

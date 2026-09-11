@@ -46,7 +46,7 @@ shifts everything that follows.
 Menu Forge automates the whole chain:
 
 1. **Studio** (`studio/`): draw the menu on a canvas snapped to the slot grid,
-   starting from templates; place layers, dynamic texts, clickable areas and
+   starting from templates or the interface generator; place layers, dynamic texts, clickable areas and
    their actions.
 2. **Format** (`docs/format.md`): the studio exports a `*.menu.json` file and
    its PNGs—readable and easy to version.
@@ -65,6 +65,9 @@ Menu Forge automates the whole chain:
   (atlas sprites).
 - Dynamic texts with variables (`{viewer.name}`, `{page.number}`…), aligned
   left, center or right, measured with the game's own advances.
+- **Menu Forge's pixel font**, drawn for the project: without a vanilla pack
+  plugged in, texts are shown with the same advances as in game (the vanilla
+  pack is still needed to export an asset with the game's font).
 - Slot areas drawn on the grid: button, paginated list, input, decoration;
   click actions (open, back, set state, page, sound, command, custom action).
 - State variables, visibility and enabled conditions, preview of every state.
@@ -72,6 +75,11 @@ Menu Forge automates the whole chain:
   library: what you see is what players get.
 - Templates (classic chest, modal, paginated list, tab bar) and inheritance
   (`extends`).
+- **Interface generator**: a shop, a grid, a confirmation modal, a paginated
+  list or a tab bar, complete in a few fields (rows, buttons, layout, accent),
+  in three style families—Deepslate (beveled), mc-rs (dark, rounded) and
+  "dark with accent" (flat)—with a live preview where tabs and pages can be
+  clicked; the created menu is then edited like any other.
 - **Free mode**: an asset editor (callouts, key hints, badges…) exported as PNG
   and as a glyph, ready to drop into any text.
 - **Pixel editor** ("Pixels" mode): pencil, eraser, paint bucket, eyedropper,
@@ -98,6 +106,18 @@ Menu Forge automates the whole chain:
   ([`docs/menu.schema.json`](docs/menu.schema.json),
   [`docs/asset.schema.json`](docs/asset.schema.json)) to validate a
   hand-written or generated file.
+- **AI generation** (optional): a texture or a whole interface described in a
+  few words, with eleven providers—online (OpenAI, Google Gemini, Anthropic,
+  Mistral, Stability AI, fal, Replicate), on your machine (ComfyUI,
+  Automatic1111, Ollama) or through a command line (Codex CLI). None is
+  contacted until you enable it in Settings; API keys go to the system
+  keychain, never to the settings file; online services bill each
+  generation. The output is constrained: textures are snapped to the pixel
+  grid and a fixed palette, menus are validated against the schema and the
+  library's rules, errors are sent back to the model (5 attempts at most),
+  and the result opens in the editor for review. Verified with simulated
+  providers, not yet with real keys: see [`docs/ai.md`](docs/ai.md) (in
+  French).
 - Local resource-pack libraries (read-only, never published), undo / redo,
   keyboard shortcuts everywhere, `?` cheat sheet.
 - "Deepslate" style: slate, 2 px bevels, gold for selection, purple game-like
@@ -123,6 +143,12 @@ Menu Forge automates the whole chain:
 
 | | |
 |---|---|
+| ![Interface generator: a tab bar in the "dark with accent" style, with its preview](site/assets/screens/interface-generator.png) | ![A shop created by the generator, in the mc-rs style, open in the editor](site/assets/screens/generated-menu.png) |
+| **Interface generator**: five kinds, three style families, clickable preview. | **Generated menu**: ordinary layers, texts and slots, ready to edit. |
+| !["Generate a texture": the model's image and the texture snapped to 16 × 16 and the Menu Forge palette](site/assets/screens/ai-texture.png) | !["Generate an interface": a first attempt rejected, fixed on the second](site/assets/screens/ai-interface.png) |
+| **AI texture**: pixel grid, fixed palette, background removed. | **AI interface**: validated against the schema, errors sent back to the model. |
+| ![Settings, AI section: eleven providers, all disabled, the OpenAI card expanded with no key](site/assets/screens/ai-settings.png) | ![Texture generator: a beveled panel and its slot cells](site/assets/screens/texture-generator.png) |
+| **AI settings**: nothing is sent until enabled, keys in the keychain. | **Generated textures**: panels, buttons, cells, nothing to draw. |
 | ![Pixel editor: a tab texture drawn in layers](site/assets/screens/pixel-editor.png) | !["Try" mode: simulated clicks and log](site/assets/screens/try-mode.png) |
 | **Pixel editor**: layers, symmetry, palette, zoom up to ×64. | **Try**: actions run as in game, the log follows them. |
 | ![Visual editors for a slot's actions and conditions](site/assets/screens/visual-editors.png) | ![Multi-selection and the align bar](site/assets/screens/multi-select.png) |
@@ -138,7 +164,8 @@ The studio's interface is in French.
 
 Every screenshot is produced by a script, on a demo workspace made **only** of
 textures generated or drawn by the studio: see [`site/README.md`](site/README.md) (in
-French).
+French). The AI generation screenshots use simulated providers on the
+machine: no service is called, no key is used.
 
 ## How it works
 
@@ -258,6 +285,8 @@ The documentation is written in French.
 - [`docs/assets.md`](docs/assets.md): the free-mode `*.asset.json` format.
 - [`docs/pixels.md`](docs/pixels.md): the pixel editor's `*.pixel.json` format,
   its tools and shortcuts.
+- [`docs/ai.md`](docs/ai.md): AI generation (providers, keys, what is sent,
+  costs, constraints, limits).
 - [`docs/menu.schema.json`](docs/menu.schema.json) and
   [`docs/asset.schema.json`](docs/asset.schema.json): the JSON schemas of both
   formats.
@@ -269,17 +298,21 @@ The documentation is written in French.
 ## Roadmap
 
 Living details in [`docs/roadmap.md`](docs/roadmap.md).
-Recently landed: the pixel editor, editing gestures, visual editors and "Try"
+Recently landed: the interface generator and its three style families,
+multi-provider AI generation and Menu Forge's pixel font; before them, the
+pixel editor, editing gestures, visual editors and "Try"
 mode, components, export to the plugin and the ZIP pack, JSON schemas. Next
 steps:
 
 - validate Enderium's `/profile` screen in game with a client, then migrate
   its other screens (achievements, realms, houses);
-- studio: faithful pixel font for text previews, hand-placed guides, restore
+- studio: hand-placed guides, restore
   a document from the trash;
 - components: override a single field of an instance element; preview
   "list" slots in "Try" mode;
 - pixel editor: animations and sprite sheets, saved palettes, gradients;
+- AI: try each provider with a real key (default model identifiers, actual
+  image transparency, content refusals, response times);
 - decide what to do with the global chest texture (`generic_54.png`).
 
 ## Contributing

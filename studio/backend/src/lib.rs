@@ -23,6 +23,7 @@
 //! assert_eq!(response.status, 200);
 //! ```
 
+pub mod ai;
 pub mod app;
 mod error;
 pub mod export;
@@ -233,6 +234,9 @@ pub struct Backend {
     /// Rich Presence Discord : son fil s’arrête (et efface l’activité) avec le
     /// backend, ou avant par [`Backend::stop_presence`].
     presence: presence::Presence,
+    /// IA : magasin des clés (trousseau du système par défaut) et générations
+    /// en cours ; aucune requête ne part vers un fournisseur au démarrage.
+    ai: ai::AiService,
 }
 
 impl Backend {
@@ -263,6 +267,7 @@ impl Backend {
             settings_read_only,
             state: RwLock::new(runtime),
             presence,
+            ai: ai::AiService::new(Arc::new(ai::secrets::SystemStore)),
         }
     }
 
@@ -287,10 +292,15 @@ impl Backend {
             (Settings::first_launch(&config.default_workspace, imported()), false, true)
         };
         let (settings, first_launch) = match settings::load(settings_path, &defaults) {
-            settings::Loaded::Existing { settings, ignored_discord } => {
+            settings::Loaded::Existing { settings, ignored_discord, ignored_ai } => {
                 if let Some(reason) = ignored_discord {
                     eprintln!(
                         "[menu-forge] section « discord » des réglages invalide ({reason}) : ignorée, présence Discord aux valeurs par défaut"
+                    );
+                }
+                if let Some(reason) = ignored_ai {
+                    eprintln!(
+                        "[menu-forge] section « ai » des réglages invalide ({reason}) : ignorée, fournisseurs d’IA désactivés"
                     );
                 }
                 return (settings, false, false);
@@ -380,6 +390,9 @@ impl Backend {
         let pathname = paths::url_pathname(&request.path);
         let method = request.method.as_str();
         if let Some(response) = self.route_app(request, &pathname, method)? {
+            return Ok(response);
+        }
+        if let Some(response) = self.route_ai(request, &pathname, method)? {
             return Ok(response);
         }
         // Instantané de l’état : un changement d’espace pendant la requête

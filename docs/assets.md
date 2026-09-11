@@ -73,7 +73,7 @@ identifiant du groupe de l’élément).
 `width`, `height`, et un `style` :
 
 - `{ "kind": "procedural", "preset": "panel" | "button" | "cell" | "flat" | "veil", "color": "#…", "border"?: "#…" }`
-  – mêmes styles que le générateur de textures des menus (`border` remplace la
+  – mêmes styles Deepslate que le générateur de textures des menus (`border` remplace la
   couleur de bordure calculée) ;
 - `{ "kind": "slice", "texture": "…", "source"?: { x, y, width, height }, "insets": { top, right, bottom, left } }`
   – **nine-slice** : la zone `source` de la texture (toute l’image par défaut)
@@ -91,8 +91,9 @@ facteurs admis : 0.125, 0.25, 0.5, 1, 2, 3, 4 – rendu au plus proche voisin).
 `text` (plusieurs lignes séparées par `\n`, codes `§` acceptés), `color`
 (défaut `#ffffff`), `shadow` (défaut `false`), `bold` (défaut `false`),
 `lineHeight` (défaut 10 : 9 px de ligne + 1), `align` (`left`, `center`,
-`right`, par rapport à `x`). Rendu avec la **vraie police du jeu** (bibliothèque
-`vanilla`), mêmes largeurs et mêmes accents qu’en jeu.
+`right`, par rapport à `x`). Rendu avec la **vraie police du jeu** quand la
+bibliothèque `vanilla` est branchée, sinon avec la police pixel de Menu Forge,
+qui garde les avances du jeu (voir [`rendering.md`](rendering.md)).
 
 ## Groupes
 

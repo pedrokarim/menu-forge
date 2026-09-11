@@ -31,7 +31,8 @@ travail de démonstration (`scripts/demo-workspace.mjs`) fait uniquement de
 textures générées ou dessinées par le code du studio (générateur, rendu des
 assets, encodeur de l’éditeur de pixels) et du logo du projet, avec des réglages sans
 aucune bibliothèque (`"libraries": []`). Aucun asset tiers ne peut donc
-apparaître à l’écran. Il lance le backend (`studio-api --no-discord`) et Vite
+apparaître à l’écran, et les textes du jeu sont dessinés avec la police pixel
+de Menu Forge (voir [`../docs/rendering.md`](../docs/rendering.md)). Il lance le backend (`studio-api --no-discord`) et Vite
 sur des ports dédiés (5221 et 5222), pilote l’interface avec Playwright, masque
 les chemins de la machine, puis écrit les PNG dans `assets/screens/`.
 
@@ -59,6 +60,17 @@ travail, affiché comme les ressources d’enderium-core : la capture `export` 
 | `asset-editor` | Éditeur d’assets : l’encart d’aide et son export |
 | `shortcuts` | Aide-mémoire des raccourcis |
 | `settings` | Paramètres (export vers le plugin compris) |
+| `interface-generator` | Générateur d’interfaces : barre d’onglets en style « sombre à accent », aperçu en direct |
+| `generated-menu` | Une boutique créée par le générateur (style mc-rs), ouverte dans l’éditeur |
+| `ai-settings` | Paramètres, section IA : les onze fournisseurs, aucun activé, fiche OpenAI dépliée sans clé (fenêtre de 1180 px de haut) |
+| `ai-texture` | « Générer une texture » : sortie du faux Automatic1111 et texture ramenée sur 16 × 16 et la palette Menu Forge |
+| `ai-interface` | « Générer une interface » : réponse du faux Ollama refusée au premier essai, corrigée au second |
+
+Les trois captures `ai-*` ne contactent **aucun** service : `capture.mjs` lance
+un faux Automatic1111 et un faux Ollama sur `127.0.0.1` (port libre), qui
+renvoient l’émeraude et le menu décrits dans `DEMO_AI` (`demo-workspace.mjs`).
+Le backend lit le vrai trousseau du système sans jamais y écrire, et la
+capture est refusée si une clé d’API y est déjà rangée.
 
 Prérequis : les dépendances du studio installées (`npm install` dans
 `studio/`), Rust (le backend est compilé s’il manque) et, pour réduire le poids

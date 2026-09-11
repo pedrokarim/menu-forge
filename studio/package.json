@@ -18,6 +18,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "node --import ./tests/resolve-ts.mjs --test \"tests/*.test.ts\" \"tests/*.test.mjs\"",
+    "e2e": "node e2e/run.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

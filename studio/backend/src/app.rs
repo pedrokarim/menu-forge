@@ -155,7 +155,7 @@ impl Backend {
     /// Enregistre `next` sur disque puis le retient ; rien ne change si
     /// l’écriture échoue. Réglages en lecture seule : retenus en mémoire
     /// seulement, le fichier illisible n’est jamais écrasé.
-    fn commit(&self, state: &mut Runtime, next: Settings) -> Result<(), HttpError> {
+    pub(crate) fn commit(&self, state: &mut Runtime, next: Settings) -> Result<(), HttpError> {
         if self.settings_read_only {
             eprintln!("[menu-forge] réglages appliqués en mémoire seulement ({} laissé intact)", self.settings_path);
         } else {

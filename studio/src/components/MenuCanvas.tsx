@@ -19,12 +19,13 @@ import { alignmentGuides, gridSnapLines, snapRect, snapThreshold, withRects } fr
 import type { SnapGuide, SnapLines } from '../canvas/snapping';
 import { labelFont } from '../canvas/theme';
 import { CANVAS_MARGINS, isEditableTarget, scrollParentOf, stepZoom } from '../canvas/viewport';
+import type { MinecraftFont } from '../lib/minecraftFont';
+import { usePreviewFont } from '../lib/previewFont';
 import { isAdditiveClick } from '../lib/shortcuts';
 import { alphaAt } from '../lib/textures';
 import type { TextureMap } from '../lib/textures';
 import { intersects, rectBetween, unionRect } from '../model/arrange';
 import { evaluateCondition } from '../model/conditions';
-import { TEXT_HEIGHT, charAdvance } from '../model/fontMetrics';
 import { drawPanelStyle } from '../model/generator';
 import {
   GRID_COLUMNS,
@@ -228,18 +229,13 @@ function drawWindow(ctx: CanvasRenderingContext2D, rows: number, mode: Backgroun
   ctx.restore();
 }
 
-/** Texte au pas de la police vanilla : chaque caractère occupe son avance réelle. */
-function drawText(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color: string) {
-  ctx.save();
-  ctx.fillStyle = color;
-  ctx.font = `${TEXT_HEIGHT}px ui-monospace, Consolas, monospace`;
-  ctx.textBaseline = 'top';
-  let cursor = x;
-  for (const char of value) {
-    ctx.fillText(char, cursor, y, charAdvance(char));
-    cursor += charAdvance(char);
-  }
-  ctx.restore();
+/**
+ * Texte d’un menu, sans ombre comme le titre d’un coffre : police du jeu si le
+ * pack vanilla est branché, sinon police pixel de Menu Forge. Les deux avancent
+ * comme `fontMetrics.ts`, donc comme le rectangle calculé par `textRect`.
+ */
+function drawText(ctx: CanvasRenderingContext2D, font: MinecraftFont | null, value: string, x: number, y: number, color: string) {
+  font?.draw(ctx, value, x, y, { color });
 }
 
 function drawMissing(ctx: CanvasRenderingContext2D, x: number, y: number, missing: boolean) {
@@ -252,6 +248,7 @@ function drawMissing(ctx: CanvasRenderingContext2D, x: number, y: number, missin
 export function MenuCanvas(props: MenuCanvasProps) {
   const { menu, inherited, context, textures, zoom, tool, background, showSlots, selection } = props;
   const snapping = props.snapping ?? true;
+  const previewFont = usePreviewFont();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // L’interaction vit dans une référence (lue par les gestionnaires, toujours à jour)
   // et dans l’état (pour redessiner).
@@ -766,7 +763,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
     for (const text of shown.texts ?? []) {
       if (hasEditorFlag(text, 'hidden') || !evaluateCondition(text.visibleWhen, context)) continue;
       const rect = textRect(text, context);
-      drawText(ctx, interpolate(text.value, context.variables), rect.x, rect.y, text.color ?? '#404040');
+      drawText(ctx, previewFont?.font ?? null, interpolate(text.value, context.variables), rect.x, rect.y, text.color ?? '#404040');
     }
 
     // 2. Les surimpressions, en pixels écran.

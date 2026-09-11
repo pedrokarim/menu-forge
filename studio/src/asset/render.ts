@@ -1,6 +1,6 @@
 import { textureUrl } from '../lib/api';
-import { loadMinecraftFont } from '../lib/minecraftFont';
 import type { MinecraftFont } from '../lib/minecraftFont';
+import { loadPreviewFont } from '../lib/previewFont';
 import { loadTexture } from '../lib/textures';
 import type { LoadedTexture } from '../lib/textures';
 import { charAdvance } from '../model/fontMetrics';
@@ -31,7 +31,7 @@ export interface RenderOptions {
 export interface RenderDeps extends RenderOptions {
   /** Version de chaque texture, pour forcer le rechargement après une écriture. */
   textureVersions?: Record<string, number>;
-  /** Police déjà chargée ; sinon la police `vanilla` est chargée (texte approximatif en cas d’échec). */
+  /** Police déjà chargée ; sinon celle des aperçus (police du jeu, ou police pixel de Menu Forge). */
   font?: MinecraftFont | null;
 }
 
@@ -71,7 +71,8 @@ export async function loadAssetResources(
   font?: MinecraftFont | null,
 ): Promise<RenderResources> {
   const paths = assetTexturePaths(asset);
-  const fontPromise = font !== undefined ? Promise.resolve(font) : loadMinecraftFont().catch(() => null);
+  const fontPromise =
+    font !== undefined ? Promise.resolve(font) : loadPreviewFont().then((preview) => preview.font, () => null);
   const [resolvedFont, loaded] = await Promise.all([
     fontPromise,
     Promise.all(paths.map((path) => loadAssetTexture(path, versions[path] ?? 0))),
@@ -88,7 +89,7 @@ export interface TextLine {
   width: number;
 }
 
-/** Retire les codes « § » (repli quand la police du jeu est indisponible). */
+/** Retire les codes « § » (mesure sans police, pendant son chargement). */
 function stripFormatting(text: string): string {
   return text.replace(/§./gu, '');
 }
@@ -123,23 +124,9 @@ function drawText(ctx: CanvasRenderingContext2D, element: AssetTextElement, font
   const color = element.color ?? '#ffffff';
   const shadow = element.shadow ?? false;
   const bold = element.bold ?? false;
-  for (const line of lines) {
-    if (font) {
-      font.drawFormatted(ctx, line.text, line.x, line.y, { color, shadow, bold });
-      continue;
-    }
-    // Repli : police système au pas des avances vanilla (rendu approximatif).
-    ctx.save();
-    ctx.font = `${GLYPH_HEIGHT}px ui-monospace, Consolas, monospace`;
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = color;
-    let cursor = line.x;
-    for (const char of stripFormatting(line.text)) {
-      ctx.fillText(char, cursor, line.y, charAdvance(char));
-      cursor += charAdvance(char) + (bold ? 1 : 0);
-    }
-    ctx.restore();
-  }
+  // Sans police (encore en chargement), rien n’est dessiné : la place est déjà réservée.
+  if (!font) return;
+  for (const line of lines) font.drawFormatted(ctx, line.text, line.x, line.y, { color, shadow, bold });
 }
 
 /* Box */

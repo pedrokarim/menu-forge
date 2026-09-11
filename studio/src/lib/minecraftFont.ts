@@ -37,7 +37,7 @@ const DEFAULT_COLOR = '#FFFFFF';
 const FONT_OPTIONS: Record<string, boolean> = { uniform: false, jp: false };
 
 /** Planche de glyphes, avec ses versions teintées (une par couleur). */
-interface Sheet {
+export interface Sheet {
   source: CanvasImageSource;
   width: number;
   height: number;
@@ -45,7 +45,7 @@ interface Sheet {
 }
 
 /** Glyphe résolu ; `sheet` nul pour un glyphe d’espacement (rien à dessiner). */
-interface Glyph {
+export interface Glyph {
   advance: number;
   sheet: Sheet | null;
   sx: number;
@@ -271,7 +271,8 @@ function parseFormatted(text: string, color: string, bold: boolean): Run[] {
   return runs;
 }
 
-function createFont(glyphs: Map<number, Glyph>): MinecraftFont {
+/** Police prête à dessiner, à partir d’une table de glyphes (partagée avec la police pixel de Menu Forge). */
+export function createFont(glyphs: Map<number, Glyph>): MinecraftFont {
   const missing = missingGlyph();
   const glyphOf = (char: string): Glyph => glyphs.get(char.codePointAt(0) ?? 0) ?? missing;
 
