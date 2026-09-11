@@ -70,7 +70,7 @@ export function WorkspacesScreen({ pill, list, welcome, confirmRemoval, onOpen, 
     <ScreenFrame title="Espaces de travail" icon="folder" pill={pill}>
       {welcome && active && (
         <div className="card welcome-card">
-          <h2 className="screen-section-title">Bienvenue dans menu-forge</h2>
+          <h2 className="screen-section-title">Bienvenue dans Menu Forge</h2>
           <p className="screen-lead">
             Un espace de travail par défaut est prêt, avec ses dossiers <code>menus/</code>, <code>assets/</code> et{' '}
             <code>textures/</code>. Garde-le ou ouvre le dossier de ton choix.

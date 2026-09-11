@@ -1,4 +1,4 @@
-"""Génère le logo de menu-forge à partir de sa définition en pixels.
+"""Génère le logo de Menu Forge à partir de sa définition en pixels.
 
 Le logo : une case d’inventaire dorée posée sur une enclume – le menu qu’on
 forge. Une seule définition (les sprites ci-dessous), trois sorties dans
@@ -100,7 +100,7 @@ def write_svg(grid: list[list[str | None]], path: Path) -> None:
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {SIZE} {SIZE}" width="{SIZE * 8}" height="{SIZE * 8}" '
         'shape-rendering="crispEdges">\n'
-        "<title>menu-forge</title>\n" + "\n".join(rects) + "\n</svg>\n"
+        "<title>Menu Forge</title>\n" + "\n".join(rects) + "\n</svg>\n"
     )
     path.write_text(svg, encoding="utf-8")
 

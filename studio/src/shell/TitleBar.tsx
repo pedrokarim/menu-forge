@@ -58,7 +58,7 @@ export function TitleBar({ context, confirmClose }: TitleBarProps) {
 
   useEffect(() => {
     void getCurrentWindow()
-      .setTitle(`menu-forge · ${context}`)
+      .setTitle(`Menu Forge · ${context}`)
       .catch(() => undefined);
   }, [context]);
 
@@ -67,7 +67,7 @@ export function TitleBar({ context, confirmClose }: TitleBarProps) {
     <header className="titlebar" data-tauri-drag-region>
       <img className="titlebar-logo" src="/brand/logo.svg" alt="" width={16} height={16} data-tauri-drag-region />
       <span className="titlebar-name" data-tauri-drag-region>
-        menu-forge
+        Menu Forge
       </span>
       <span className="titlebar-context" data-tauri-drag-region>
         {context}

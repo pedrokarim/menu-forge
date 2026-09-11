@@ -25,7 +25,7 @@
 //!   l’appli et `studio-api`, aucune pour les tests) ;
 //! - avant de se connecter, prend un verrou exclusif sur un fichier commun à
 //!   toutes les instances ([`LOCK_FILE_NAME`] dans le dossier temporaire) : un
-//!   seul processus menu-forge pilote Discord. Le verrou est gardé tant que la
+//!   seul processus Menu Forge pilote Discord. Le verrou est gardé tant que la
 //!   connexion est ouverte, relâché à la déconnexion, et libéré par le système
 //!   si le processus meurt ; sans lui, le fil ne se connecte pas et réessaie
 //!   toutes les 15 s ([`RETRY_INTERVAL`]) ;
@@ -75,19 +75,19 @@ pub const IO_TIMEOUT: Duration = Duration::from_secs(5);
 /// Fichier de verrou commun à toutes les instances, dans le dossier temporaire.
 pub const LOCK_FILE_NAME: &str = "menu-forge-discord.lock";
 /// Erreur affichée quand une autre instance tient déjà le verrou.
-pub const LOCKED_BY_OTHER: &str = "Une autre instance de menu-forge affiche déjà la présence Discord";
+pub const LOCKED_BY_OTHER: &str = "Une autre instance de Menu Forge affiche déjà la présence Discord";
 /// Erreur affichée quand Discord ne répond pas dans le délai.
 pub const NO_ANSWER: &str = "Discord ne répond pas";
 /// Texte affiché quand le document ne doit pas l’être et que l’interface
 /// n’a pas fourni de texte générique.
 pub const GENERIC_DETAILS: &str = "Crée des menus";
-/// Application Discord officielle « menu-forge » (identifiant public, pas un secret),
+/// Application Discord officielle « Menu Forge » (identifiant public, pas un secret),
 /// utilisée tant que `discord.clientId` n’est pas défini.
 pub const DEFAULT_CLIENT_ID: &str = "1370756359037124698";
 /// Clé de la grande image, à déclarer dans le portail développeur Discord.
 pub const LARGE_IMAGE: &str = "logo";
 /// Texte au survol de la grande image.
-pub const LARGE_TEXT: &str = "menu-forge";
+pub const LARGE_TEXT: &str = "Menu Forge";
 /// Clés admises pour la petite image (médaillon), à déclarer elles aussi dans
 /// le portail développeur. Images : `public/brand/discord/` (script
 /// `scripts/discord_assets.py`).
@@ -905,7 +905,7 @@ mod tests {
                 "details": "Édite le menu « Profil »",
                 "state": "Espace « enderium »",
                 "timestamps": { "start": 42 },
-                "assets": { "large_image": "logo", "large_text": "menu-forge", "small_image": "menu", "small_text": "Menu" },
+                "assets": { "large_image": "logo", "large_text": "Menu Forge", "small_image": "menu", "small_text": "Menu" },
             })
         );
         // Document masqué : texte générique, espace de travail masqué lui aussi, petite image conservée.
@@ -915,7 +915,7 @@ mod tests {
             json!({
                 "details": "Édite un menu",
                 "timestamps": { "start": 42 },
-                "assets": { "large_image": "logo", "large_text": "menu-forge", "small_image": "menu", "small_text": "Menu" },
+                "assets": { "large_image": "logo", "large_text": "Menu Forge", "small_image": "menu", "small_text": "Menu" },
             })
         );
         let no_generic = Activity { generic_details: None, ..activity.clone() };
@@ -927,7 +927,7 @@ mod tests {
         let text_only = Activity { small_image: None, ..activity };
         assert_eq!(
             activity_payload(&settings, &text_only, 42)["assets"],
-            json!({ "large_image": "logo", "large_text": "menu-forge" })
+            json!({ "large_image": "logo", "large_text": "Menu Forge" })
         );
     }
 

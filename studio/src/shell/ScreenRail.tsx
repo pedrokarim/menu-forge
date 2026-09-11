@@ -24,7 +24,7 @@ interface ScreenRailProps {
 export function ScreenRail({ current, onSelect, onShowShortcuts }: ScreenRailProps) {
   return (
     <nav className="rail" aria-label="Écrans">
-      <img className="rail-logo" src="/brand/logo.svg" alt="menu-forge" width={32} height={32} />
+      <img className="rail-logo" src="/brand/logo.svg" alt="Menu Forge" width={32} height={32} />
       {RAIL_ITEMS.map((item) => (
         <Tooltip key={item.screen} label={item.label} shortcut={item.shortcut} placement="right">
           <button

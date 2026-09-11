@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "menu-forge",
+  "productName": "Menu Forge",
   "version": "0.1.0",
   "identifier": "eu.enderium.menuforge",
   "build": {

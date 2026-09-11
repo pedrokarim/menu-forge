@@ -202,9 +202,9 @@
 <body>
 <main>
   <header class="masthead">
-    <img src="logo.png" alt="Logo de menu-forge" width="64" height="64">
+    <img src="logo.png" alt="Logo de Menu Forge" width="64" height="64">
     <div>
-      <h1>Rich Presence Discord de menu-forge</h1>
+      <h1>Rich Presence Discord de Menu Forge</h1>
       <p class="lead">
         Maquette de ce que Discord affiche quand le studio est ouvert, puis les huit images à
         téléverser dans le portail développeur, chacune avec sa clé exacte.
@@ -235,7 +235,7 @@
         <div class="sent"><pre id="sent-activity"></pre></div>
         <p class="note">
           La grande image est toujours <code class="inline">logo</code>. Survol de la grande
-          image&nbsp;: «&nbsp;menu-forge&nbsp;»&nbsp;; survol du médaillon&nbsp;: le texte
+          image&nbsp;: «&nbsp;Menu Forge&nbsp;»&nbsp;; survol du médaillon&nbsp;: le texte
           <code class="inline">smallText</code>. Le temps écoulé part du démarrage du studio.
         </p>
       </div>
@@ -267,7 +267,7 @@
           Ouvrir le portail développeur Discord,
           <a href="https://discord.com/developers/applications">discord.com/developers/applications</a>,
           puis <span class="ui-label">New Application</span>. La nommer exactement
-          <strong>menu-forge</strong>&nbsp;: c’est ce nom qui s’affiche après «&nbsp;Joue à&nbsp;».
+          <strong>Menu Forge</strong>&nbsp;: c’est ce nom qui s’affiche après «&nbsp;Joue à&nbsp;».
         </li>
         <li>
           Onglet <span class="ui-label">General Information</span>&nbsp;: copier
@@ -357,8 +357,8 @@
     const art = element('div', 'art');
     const large = element('img', 'large');
     large.src = 'logo.png';
-    large.alt = 'menu-forge';
-    large.title = 'menu-forge';
+    large.alt = 'Menu Forge';
+    large.title = 'Menu Forge';
     const small = element('img', 'small');
     small.src = example.smallImage + '.png';
     small.alt = example.smallText;
@@ -366,7 +366,7 @@
     art.append(large, small);
     const text = element('div', 'activity-text');
     text.append(
-      element('div', 'app-name', 'menu-forge'),
+      element('div', 'app-name', 'Menu Forge'),
       element('div', '', example.details),
       element('div', '', WORKSPACE),
     );
@@ -390,7 +390,7 @@
       details: example.details,
       state: WORKSPACE,
       timestamps: { start: Math.floor(startOf(example) / 1000) },
-      assets: { large_image: 'logo', large_text: 'menu-forge', small_image: example.smallImage, small_text: example.smallText },
+      assets: { large_image: 'logo', large_text: 'Menu Forge', small_image: example.smallImage, small_text: example.smallText },
     };
     return [body, activity];
   }

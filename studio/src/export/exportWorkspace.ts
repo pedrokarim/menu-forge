@@ -123,7 +123,7 @@ export async function exportPackZip(snapshot: WorkspaceSnapshot): Promise<PackEx
   const menus = menusForExport(snapshot);
   const files = await generatePack(menus, loadWorkspaceTexture, settings.namespace);
   const entries = [
-    { path: 'pack.mcmeta', data: packMeta(settings.packFormat, 'Menus menu-forge (pack de test)') },
+    { path: 'pack.mcmeta', data: packMeta(settings.packFormat, 'Menus de Menu Forge (pack de test)') },
     ...[...files].map(([path, data]) => ({ path, data })),
   ];
   const zip = await createZip(entries);

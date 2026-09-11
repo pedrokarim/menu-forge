@@ -1,7 +1,7 @@
-"""Génère les images de la Rich Presence Discord de menu-forge.
+"""Génère les images de la Rich Presence Discord de Menu Forge.
 
 Discord n’affiche que des images téléversées dans le portail développeur
-(application menu-forge → Rich Presence → Art Assets), chacune sous une clé.
+(application Menu Forge → Rich Presence → Art Assets), chacune sous une clé.
 Ce script produit ces images dans `public/brand/discord/`, en pixel art net
 (chaque pixel logique est un carré plein : aucun lissage, jamais de flou) :
 
@@ -24,7 +24,7 @@ Ce script produit ces images dans `public/brand/discord/`, en pixel art net
 
 - `cover.png` (1024 × 576, 16:9) : l’image de couverture (portail : Rich
   Presence → Image d’invitation), sans clé : le logo, le mot-symbole
-  « menu-forge » dessiné en pixels et la rangée des sept médaillons.
+  « Menu Forge » dessiné en pixels et la rangée des sept médaillons.
 
 La clé Discord de chaque image est le nom du fichier sans extension ; le
 backend n’accepte que ces clés (`SMALL_IMAGES` dans `backend/src/presence.rs`).
@@ -305,8 +305,11 @@ BADGE_PREVIEW = 64
 BADGE_GAP = 4
 
 # Police pixel du mot-symbole : 5 × 8 cases, ligne de base à la 7e rangée,
-# jambage du « g » sur la 8e. Avance : 6 cases.
+# jambage du « g » sur la 8e. Avance : 6 cases. Les capitales sont en or.
 WORDMARK_FONT = {
+    "M": ["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#", "....."],
+    "F": ["#####", "#....", "#....", "####.", "#....", "#....", "#....", "....."],
+    " ": [".....", ".....", ".....", ".....", ".....", ".....", ".....", "....."],
     "m": [".....", ".....", "##.#.", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "....."],
     "e": [".....", ".....", ".###.", "#...#", "#####", "#....", ".###.", "....."],
     "n": [".....", ".....", "#.##.", "##..#", "#...#", "#...#", "#...#", "....."],
@@ -317,7 +320,7 @@ WORDMARK_FONT = {
     "r": [".....", ".....", "#.##.", "##..#", "#....", "#....", "#....", "....."],
     "g": [".....", ".....", ".####", "#...#", "#...#", ".####", "....#", "####."],
 }
-WORDMARK = "menu-forge"
+WORDMARK = "Menu Forge"
 
 
 def cover() -> Image.Image:
@@ -325,7 +328,7 @@ def cover() -> Image.Image:
     left, top = WORDMARK_AT
     cells: list[tuple[int, int, Color]] = []
     for index, char in enumerate(WORDMARK):
-        color = GOLD if char == "-" else TEXT
+        color = GOLD if char.isupper() else TEXT
         for y, line in enumerate(WORDMARK_FONT[char]):
             for x, mark in enumerate(line):
                 if mark == "#":

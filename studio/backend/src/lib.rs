@@ -1,4 +1,4 @@
-//! Backend local du studio menu-forge.
+//! Backend local du studio Menu Forge.
 //!
 //! Portage en Rust de l’ancien serveur TypeScript (plugin Vite, retiré
 //! depuis), avec un comportement identique pour les routes historiques :

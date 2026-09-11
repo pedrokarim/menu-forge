@@ -17,7 +17,7 @@ use studio_backend::{load_library_sources, paths, presence, server, Backend, Bac
 const DEFAULT_PORT: u16 = 5174;
 
 const USAGE: &str = "\
-studio-api : backend local du studio menu-forge (HTTP, 127.0.0.1 uniquement)
+studio-api : backend local du studio Menu Forge (HTTP, 127.0.0.1 uniquement)
 
 Options (chacune a sa variable d’environnement) :
   --port <n>          MENU_FORGE_API_PORT     port d’écoute (5174 ; 0 = port libre)
@@ -112,7 +112,7 @@ fn build_config(options: &Options) -> BackendConfig {
     if options.no_discord {
         config.presence = false;
     } else {
-        // Application officielle menu-forge tant qu’aucune autre n’est réglée.
+        // Application officielle Menu Forge tant qu’aucune autre n’est réglée.
         config.discord_client_id = Some(presence::DEFAULT_CLIENT_ID.to_owned());
     }
     config

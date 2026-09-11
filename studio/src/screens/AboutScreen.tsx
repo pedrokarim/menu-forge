@@ -20,7 +20,7 @@ export function AboutScreen({ pill, app }: { pill: ReactNode; app: AppInfo | nul
       <div className="about-hero">
         <img src="/brand/logo.svg" alt="" width={96} height={96} />
         <div>
-          <p className="about-name">menu-forge</p>
+          <p className="about-name">Menu Forge</p>
           <p className="muted">Studio d’inventaires Minecraft à base de glyphes de police.</p>
         </div>
       </div>
@@ -80,7 +80,7 @@ export function AboutScreen({ pill, app }: { pill: ReactNode; app: AppInfo | nul
       </section>
 
       <p className="legal">
-        menu-forge n’est ni affilié à Mojang ni approuvé par Mojang&nbsp;; Minecraft est une marque de Mojang AB. Les assets de
+        Menu Forge n’est ni affilié à Mojang ni approuvé par Mojang&nbsp;; Minecraft est une marque de Mojang AB. Les assets de
         packs tiers affichés dans la bibliothèque restent la propriété de leurs auteurs.
       </p>
     </ScreenFrame>

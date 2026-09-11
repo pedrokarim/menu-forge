@@ -1,4 +1,4 @@
-//! Coquille Tauri du studio menu-forge.
+//! Coquille Tauri du studio Menu Forge.
 //!
 //! Au démarrage, l’appli lance le backend (`studio-backend`) **dans son propre
 //! processus**, en HTTP sur 127.0.0.1, et ce même serveur sert aussi
@@ -92,7 +92,7 @@ fn setup(app: &mut tauri::App) -> Result<(), BoxError> {
         cache_dir: path_text(&cache_dir),
         workspace_override: None,
         libraries_override: None,
-        // Rich Presence : l’application officielle menu-forge tant qu’aucune autre n’est réglée.
+        // Rich Presence : l’application officielle Menu Forge tant qu’aucune autre n’est réglée.
         discord_client_id: Some(studio_backend::presence::DEFAULT_CLIENT_ID.to_owned()),
         presence: true,
     };
@@ -151,7 +151,7 @@ fn open_windows(app: &AppHandle, origin: &Url) -> Result<(), BoxError> {
 
     let splash_origin = origin.clone();
     WebviewWindowBuilder::new(app, "splash", WebviewUrl::External(origin.join("splash.html")?))
-        .title("menu-forge")
+        .title("Menu Forge")
         .inner_size(320.0, 440.0)
         .resizable(false)
         .maximizable(false)
@@ -168,7 +168,7 @@ fn open_windows(app: &AppHandle, origin: &Url) -> Result<(), BoxError> {
     let main_origin = origin.clone();
     let on_load = Arc::clone(&revealed);
     WebviewWindowBuilder::new(app, "main", WebviewUrl::External(origin.clone()))
-        .title("menu-forge · studio")
+        .title("Menu Forge · studio")
         .inner_size(1440.0, 900.0)
         // Rail d’écrans + trois colonnes de l’éditeur : en dessous, la toile n’a plus la place de ses outils.
         .min_inner_size(1180.0, 700.0)
@@ -224,7 +224,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| setup(app))
         .build(tauri::generate_context!())
-        .expect("impossible de démarrer menu-forge");
+        .expect("impossible de démarrer Menu Forge");
     app.run(|handle, event| {
         if let RunEvent::Exit = event {
             let Some(state) = handle.try_state::<ApiServer>() else { return };

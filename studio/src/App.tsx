@@ -303,7 +303,7 @@ export default function App() {
   // Titre (barre de titre, onglet, barre des tâches) : l’écran, ou le document ouvert dans l’éditeur.
   const titleContext = screen === 'editor' && openDocument ? openDocument.name : SCREEN_TITLES[screen];
   useEffect(() => {
-    document.title = `menu-forge · ${titleContext}`;
+    document.title = `Menu Forge · ${titleContext}`;
   }, [titleContext]);
 
   // Rich Presence Discord : l’activité suit l’écran et le document (le backend la transmet à Discord).

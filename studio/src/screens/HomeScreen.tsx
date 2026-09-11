@@ -165,7 +165,7 @@ export function HomeScreen({
       <div className="home-hero">
         <img src="/brand/logo.svg" alt="" width={64} height={64} />
         <div>
-          <p className="home-title">menu-forge</p>
+          <p className="home-title">Menu Forge</p>
           <p className="muted">
             Studio d’inventaires Minecraft à base de glyphes · espace <strong>{workspace?.name ?? '…'}</strong>
           </p>
