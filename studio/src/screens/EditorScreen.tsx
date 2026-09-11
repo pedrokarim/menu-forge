@@ -12,7 +12,6 @@ import type { BackgroundMode, CanvasTool } from '../components/MenuCanvas';
 import { NewMenuDialog } from '../components/NewMenuDialog';
 import type { NewMenuInput } from '../components/NewMenuDialog';
 import { RenameDocumentDialog } from '../components/DocumentDialogs';
-import { AssetEditor } from '../asset/AssetEditor';
 import { createEmptyAsset } from '../asset/model';
 import type { AssetDefinition, Region } from '../asset/model';
 import { CropDialog } from '../components/CropDialog';
@@ -99,6 +98,8 @@ type Recipe = (draft: MenuDefinition) => void;
 
 /** Éditeur de pixels, chargé à sa première ouverture : son code n’alourdit pas le démarrage du studio. */
 const PixelEditor = lazy(() => import('../pixel/PixelEditor').then((module) => ({ default: module.PixelEditor })));
+/** Éditeur d’assets, chargé de même à sa première ouverture. */
+const AssetEditor = lazy(() => import('../asset/AssetEditor').then((module) => ({ default: module.AssetEditor })));
 
 const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8];
 
@@ -1785,31 +1786,42 @@ export function EditorScreen({
       ) : mode === 'assets' ? (
         <main className="asset-host">
           {currentAsset ? (
-            <AssetEditor
-              key={currentAsset.id}
-              initial={currentAsset}
-              textures={workspace?.textures ?? []}
-              textureVersions={textureVersions}
-              insertRequest={insertRequest}
-              active={active}
-              defaultShowGrid={preferences.showGrid}
-              defaultZoom={preferences.defaultZoom}
-              librarySlot={
-                <LibraryPanel
-                  key={librariesVersion}
-                  addLabel="Insérer dans l’asset"
-                  canAddLayer
-                  onAddLayer={handleLibraryToAsset}
-                  onAddRegion={handleLibraryRegionToAsset}
-                  onImportFont={handleImportFontFromAssets}
-                  onOpenInPixels={openLibraryInPixels}
-                />
+            <Suspense
+              fallback={
+                <section className="stage">
+                  <p className="muted loading-line empty-state">
+                    <Icon name="loader" />
+                    Chargement de l’éditeur d’assets…
+                  </p>
+                </section>
               }
-              onSave={handleSaveAsset}
-              onDirtyChange={setAssetDirty}
-              saveRequest={assetSaveRequest}
-              onImportImage={importTexture}
-            />
+            >
+              <AssetEditor
+                key={currentAsset.id}
+                initial={currentAsset}
+                textures={workspace?.textures ?? []}
+                textureVersions={textureVersions}
+                insertRequest={insertRequest}
+                active={active}
+                defaultShowGrid={preferences.showGrid}
+                defaultZoom={preferences.defaultZoom}
+                librarySlot={
+                  <LibraryPanel
+                    key={librariesVersion}
+                    addLabel="Insérer dans l’asset"
+                    canAddLayer
+                    onAddLayer={handleLibraryToAsset}
+                    onAddRegion={handleLibraryRegionToAsset}
+                    onImportFont={handleImportFontFromAssets}
+                    onOpenInPixels={openLibraryInPixels}
+                  />
+                }
+                onSave={handleSaveAsset}
+                onDirtyChange={setAssetDirty}
+                saveRequest={assetSaveRequest}
+                onImportImage={importTexture}
+              />
+            </Suspense>
           ) : (
             <section className="stage">
               <div className="empty-state">
