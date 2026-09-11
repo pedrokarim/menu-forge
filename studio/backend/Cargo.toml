@@ -27,6 +27,14 @@ icu_collator = "2"
 # Rich Presence Discord : client IPC en Rust pur (canal nommé `discord-ipc-0`
 # sous Windows, socket Unix ailleurs), sans dépendance native.
 discord-rich-presence = "1.1"
+# IA : appels HTTP aux fournisseurs (bloquants, comme les fils de `tiny_http` ;
+# TLS rustls en Rust pur, sans OpenSSL ni runtime asynchrone).
+ureq = { version = "2.12", default-features = false, features = ["tls"] }
+# IA : clés d’API dans le trousseau du système (Gestionnaire d’identifiants
+# Windows, trousseau macOS, keyutils Linux), jamais dans les réglages.
+keyring = { version = "3.6", features = ["windows-native", "apple-native", "linux-native"] }
+# IA : images des fournisseurs, reçues et renvoyées à l’interface en base64.
+base64 = "0.22"
 
 [profile.release]
 lto = "thin"

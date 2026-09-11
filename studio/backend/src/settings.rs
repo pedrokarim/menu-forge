@@ -31,6 +31,11 @@
 //! sans section `discord`, ou dont la section `discord` est invalide, se relit
 //! avec ces valeurs par défaut (le reste des réglages est conservé).
 //!
+//! `ai` : réglages non secrets des fournisseurs d’IA (voir
+//! [`crate::ai::config`]), écrite seulement si un fournisseur a été réglé.
+//! Les clés d’API n’y sont **jamais** : elles vivent dans le trousseau du
+//! système. Une section `ai` invalide est ignorée seule, comme `discord`.
+//!
 //! Un fichier présent mais illisible, ou invalide et impossible à mettre de
 //! côté, n’est jamais écrasé : le backend fonctionne alors avec les valeurs
 //! par défaut en mémoire, sans rien écrire (`GET /app` : `settingsReadOnly`).
@@ -43,6 +48,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{Map, Value};
 
+use crate::ai::config::AiSettings;
 use crate::js::{parse_lossy, stringify_pretty};
 use crate::libraries::{is_valid_library_id, LibrarySource, Ownership};
 use crate::paths;
@@ -121,6 +127,8 @@ pub struct Settings {
     pub ui: UiSettings,
     pub export: ExportSettings,
     pub discord: DiscordSettings,
+    /// Fournisseurs d’IA (sans clé).
+    pub ai: AiSettings,
 }
 
 impl Settings {
@@ -142,6 +150,7 @@ impl Settings {
                 pack_format: DEFAULT_PACK_FORMAT,
             },
             discord: DiscordSettings::default(),
+            ai: AiSettings::default(),
         }
     }
 
@@ -196,6 +205,9 @@ impl Settings {
         discord.insert("clientId".into(), self.discord.client_id.clone().map(Value::String).unwrap_or(Value::Null));
         discord.insert("showDocument".into(), Value::Bool(self.discord.show_document));
         root.insert("discord".into(), Value::Object(discord));
+        if !self.ai.is_empty() {
+            root.insert("ai".into(), self.ai.to_value());
+        }
         Value::Object(root)
     }
 
@@ -390,7 +402,7 @@ pub fn parse_library(value: &Value, key: &str, check_root: bool) -> Result<Libra
 /// quel ne devient pas invalide parce qu’un disque est débranché).
 pub fn apply_patch(base: &Settings, patch: &Value, check_paths: bool) -> Result<Settings, String> {
     let patch = patch.as_object().ok_or("Les réglages doivent être un objet JSON")?;
-    unknown_keys(patch, &["version", "activeWorkspace", "workspaces", "libraries", "ui", "export", "discord"], "")?;
+    unknown_keys(patch, &["version", "activeWorkspace", "workspaces", "libraries", "ui", "export", "discord", "ai"], "")?;
     let mut next = base.clone();
 
     if let Some(version) = patch.get("version") {
@@ -530,6 +542,10 @@ pub fn apply_patch(base: &Settings, patch: &Value, check_paths: bool) -> Result<
             next.discord.show_document = boolean(flag, "discord.showDocument")?;
         }
     }
+
+    if let Some(value) = patch.get("ai") {
+        next.ai = crate::ai::config::apply_patch(&next.ai, value)?;
+    }
     Ok(next)
 }
 
@@ -537,10 +553,10 @@ pub fn apply_patch(base: &Settings, patch: &Value, check_paths: bool) -> Result<
 
 /// Résultat de la lecture du fichier de réglages.
 pub enum Loaded {
-    /// Fichier lu et valide ; `ignored_discord` : la section `discord` était
-    /// invalide (raison) et a été remplacée par les valeurs par défaut, le
-    /// reste des réglages étant conservé.
-    Existing { settings: Settings, ignored_discord: Option<String> },
+    /// Fichier lu et valide ; `ignored_discord` (`ignored_ai`) : la section
+    /// `discord` (`ai`) était invalide (raison) et a été remplacée par les
+    /// valeurs par défaut, le reste des réglages étant conservé.
+    Existing { settings: Settings, ignored_discord: Option<String>, ignored_ai: Option<String> },
     /// Pas de fichier : premier lancement.
     Missing,
     /// Fichier présent mais illisible (droits, verrou, dossier…) : à laisser intact.
@@ -564,15 +580,21 @@ pub fn load(path: &str, defaults: &Settings) -> Loaded {
     let reason = match parse_lossy(&bytes) {
         None => "JSON invalide".to_owned(),
         Some(value) => match apply_patch(&patch_base, &value, false) {
-            Ok(settings) => return Loaded::Existing { settings, ignored_discord: None },
+            Ok(settings) => return Loaded::Existing { settings, ignored_discord: None, ignored_ai: None },
             Err(reason) => {
-                let mut without_discord = value;
-                let retried = without_discord
-                    .as_object_mut()
-                    .and_then(|map| map.remove("discord"))
-                    .and_then(|_| apply_patch(&patch_base, &without_discord, false).ok());
-                if let Some(settings) = retried {
-                    return Loaded::Existing { settings, ignored_discord: Some(reason) };
+                // Sections facultatives (Discord, IA) : une section invalide
+                // est ignorée seule, le reste des réglages est conservé.
+                let candidates: [&[&str]; 3] = [&["discord"], &["ai"], &["discord", "ai"]];
+                for dropped in candidates {
+                    let mut without = value.clone();
+                    let Some(map) = without.as_object_mut() else { break };
+                    if !dropped.iter().all(|key| map.remove(*key).is_some()) {
+                        continue;
+                    }
+                    if let Ok(settings) = apply_patch(&patch_base, &without, false) {
+                        let ignored = |key: &str| dropped.contains(&key).then(|| reason.clone());
+                        return Loaded::Existing { settings, ignored_discord: ignored("discord"), ignored_ai: ignored("ai") };
+                    }
                 }
                 reason
             }
