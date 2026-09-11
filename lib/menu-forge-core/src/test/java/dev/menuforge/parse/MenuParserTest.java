@@ -80,6 +80,24 @@ class MenuParserTest {
   }
 
   @Test
+  void ignoresTheStudioEditorFlags() {
+    // « editor » (verrouillé, masqué dans l’éditeur) est une métadonnée du studio :
+    // l’élément reste lu, exporté et affiché en jeu.
+    final MenuDefinition menu = TestMenus.parse("""
+      { "formatVersion": 1, "id": "flags",
+        "layers": [{ "id": "bg", "texture": "bg.png", "x": 0, "y": 2, "editor": { "locked": true, "hidden": true } }],
+        "texts": [{ "id": "t", "x": 8, "y": 6, "value": "Titre", "editor": { "hidden": true } }],
+        "slots": [{ "id": "s", "kind": "button", "area": { "col": 3, "row": 1 }, "editor": { "locked": true } }] }
+      """);
+    assertEquals(1, menu.layers().size());
+    assertEquals("bg.png", menu.layers().get(0).texture());
+    assertEquals(2, menu.layers().get(0).y());
+    assertEquals("Titre", menu.texts().get(0).value());
+    assertEquals(SlotKind.BUTTON, menu.slots().get(0).kind());
+    assertEquals(List.of(12), menu.slots().get(0).area().slotIndices());
+  }
+
+  @Test
   void parsesEveryActionAndConditionType() {
     final MenuDefinition menu = TestMenus.parse("""
       {
