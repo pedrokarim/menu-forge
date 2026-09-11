@@ -224,7 +224,7 @@ export default function App() {
       return;
     }
     setEditorRequest({ kind: action, nonce: Date.now() });
-    const mode: EditorMode = action === 'new-asset' ? 'assets' : 'menus';
+    const mode: EditorMode = action === 'new-asset' ? 'assets' : action === 'new-pixel' ? 'pixels' : 'menus';
     navigate({ screen: 'editor', mode, id: editorRoute.mode === mode ? editorRoute.id : null });
   };
 
@@ -320,7 +320,11 @@ export default function App() {
             workspaces={workspaces?.workspaces ?? []}
             onQuickAction={quickAction}
             onOpenDocument={(document) =>
-              navigate({ screen: 'editor', mode: document.type === 'menu' ? 'menus' : 'assets', id: document.id })
+              navigate({
+                screen: 'editor',
+                mode: document.type === 'menu' ? 'menus' : document.type === 'asset' ? 'assets' : 'pixels',
+                id: document.id,
+              })
             }
             onSwitchWorkspace={switchWorkspace}
           />

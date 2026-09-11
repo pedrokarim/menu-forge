@@ -47,6 +47,23 @@ import { Trash } from 'pixelarticons/react/Trash';
 import { Undo } from 'pixelarticons/react/Undo';
 import { Upload } from 'pixelarticons/react/Upload';
 import { WarningDiamond } from 'pixelarticons/react/WarningDiamond';
+import { ArrowsHorizontal } from 'pixelarticons/react/ArrowsHorizontal';
+import { Circle } from 'pixelarticons/react/Circle';
+import { Clipboard } from 'pixelarticons/react/Clipboard';
+import { ColorsSwatch } from 'pixelarticons/react/ColorsSwatch';
+import { Eraser } from 'pixelarticons/react/Eraser';
+import { Flatten } from 'pixelarticons/react/Flatten';
+import { FlipHorizontal2 } from 'pixelarticons/react/FlipHorizontal2';
+import { FlipVertical2 } from 'pixelarticons/react/FlipVertical2';
+import { ImageNew } from 'pixelarticons/react/ImageNew';
+import { Lasso } from 'pixelarticons/react/Lasso';
+import { Pipette } from 'pixelarticons/react/Pipette';
+import { Scale } from 'pixelarticons/react/Scale';
+import { Scissors } from 'pixelarticons/react/Scissors';
+import { SquareDashedCursor } from 'pixelarticons/react/SquareDashedCursor';
+import { Wand } from 'pixelarticons/react/Wand';
+import { ZoomIn } from 'pixelarticons/react/ZoomIn';
+import { ZoomOut } from 'pixelarticons/react/ZoomOut';
 
 type IconComponent = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
@@ -162,6 +179,49 @@ const Chest = pixelIcon([
   [10, 8, 4, 6],
 ]);
 
+/** Pot de peinture (éditeur de pixels) : anse, seau et coulure. */
+const Bucket = pixelIcon([
+  [6, 2, 8, 2],
+  [4, 4, 2, 4],
+  [14, 4, 2, 4],
+  [2, 8, 16, 2],
+  [4, 10, 2, 8],
+  [14, 10, 2, 8],
+  [6, 18, 8, 2],
+  [18, 10, 2, 2],
+  [20, 12, 2, 6],
+]);
+
+/** Ligne : un segment au pixel près, extrémités marquées. */
+const Line = pixelIcon([
+  [3, 17, 4, 4],
+  [7, 15, 2, 2],
+  [9, 13, 2, 2],
+  [11, 11, 2, 2],
+  [13, 9, 2, 2],
+  [15, 7, 2, 2],
+  [17, 3, 4, 4],
+]);
+
+/** Calques : trois feuilles empilées. */
+const Layers = pixelIcon([
+  [4, 4, 16, 2],
+  [2, 6, 2, 4],
+  [20, 6, 2, 4],
+  [4, 10, 16, 2],
+  [2, 12, 2, 2],
+  [20, 12, 2, 2],
+  [4, 14, 16, 2],
+  [2, 16, 2, 2],
+  [20, 16, 2, 2],
+  [4, 18, 16, 2],
+]);
+
+/** Pivoter d’un quart de tour (sens horaire) : flèche circulaire de pixelarticons. */
+const RotateClockwise: IconComponent = (props) => <Reload {...props} />;
+/** Pivoter d’un quart de tour (sens antihoraire) : la même, en miroir. */
+const RotateCounterClockwise: IconComponent = (props) => <Reload {...props} style={{ transform: 'scaleX(-1)' }} />;
+
 const ICONS = {
   alert: SquareAlert,
   'align-center': TextAlignCenter,
@@ -220,6 +280,29 @@ const ICONS = {
   warning: WarningDiamond,
   'window-maximize': WindowMaximize,
   'window-restore': WindowRestore,
+  // Éditeur de pixels
+  bucket: Bucket,
+  cut: Scissors,
+  ellipse: Circle,
+  eraser: Eraser,
+  eyedropper: Pipette,
+  'flip-h': FlipHorizontal2,
+  'flip-v': FlipVertical2,
+  'image-new': ImageNew,
+  lasso: Lasso,
+  layers: Layers,
+  line: Line,
+  marquee: SquareDashedCursor,
+  merge: Flatten,
+  palette: ColorsSwatch,
+  paste: Clipboard,
+  resize: Scale,
+  'rotate-ccw': RotateCounterClockwise,
+  'rotate-cw': RotateClockwise,
+  swap: ArrowsHorizontal,
+  wand: Wand,
+  'zoom-in': ZoomIn,
+  'zoom-out': ZoomOut,
 } satisfies Record<string, IconComponent>;
 
 export type IconName = keyof typeof ICONS;

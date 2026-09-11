@@ -1,0 +1,418 @@
+/* Éditeur de pixels : couleurs à gauche, outils et toile au centre, calques
+   et document à droite. Mêmes jetons Deepslate que le reste du studio. */
+
+.pixel-editor {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr) 300px;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Sous 1280 px : colonnes plus étroites pour laisser la place à la toile. */
+@media (max-width: 1279px) {
+  .pixel-editor {
+    grid-template-columns: 232px minmax(0, 1fr) 268px;
+  }
+}
+
+.pixel-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  container: pixel-main / inline-size;
+}
+
+.pixel-loading {
+  margin: auto;
+}
+
+/* Barre des réglages de l’outil : elle passe à la ligne plutôt que de déborder. */
+.pixel-options {
+  min-width: 0;
+}
+
+.pixel-tool-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 400 14px/1 var(--font-display);
+  color: var(--ds-ink-strong);
+  white-space: nowrap;
+}
+
+.pixel-sizes button {
+  min-width: 44px;
+  padding-inline: 8px;
+  font-size: 12px;
+}
+
+.pixel-tolerance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ds-muted);
+}
+
+.pixel-tolerance .mini-input,
+.pixel-range .mini-input {
+  width: 58px;
+  min-height: var(--control-h-sm);
+  padding: 1px 6px;
+  font-size: 12px;
+}
+
+.pixel-zoom {
+  width: 96px;
+}
+
+/* Colonne étroite (fenêtre minimale) : les libellés des réglages s’effacent. */
+@container pixel-main (max-width: 640px) {
+  .pixel-tool-name {
+    display: none;
+  }
+
+  .pixel-options .tb-sep {
+    display: none;
+  }
+}
+
+/* Palette d’outils verticale et toile */
+
+.pixel-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.pixel-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 6px;
+  overflow-y: auto;
+  background-color: var(--ds-panel);
+  border-right: 2px solid var(--ds-edge-soft);
+}
+
+.pixel-tool {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.pixel-tool:where(:active:not(:disabled)) {
+  padding: 1px 0 0 1px;
+}
+
+.pixel-tool.active {
+  z-index: 1;
+  color: var(--ds-gold);
+  background: var(--ds-panel-sunken);
+  box-shadow: var(--bevel-pressed);
+}
+
+.pixel-tools-sep {
+  flex: none;
+  height: 2px;
+  margin: 4px 2px;
+  background: var(--ds-divider);
+  box-shadow: 0 1px 0 #3d3e47;
+}
+
+/* Rappel des deux couleurs, décalées comme dans les logiciels de dessin. */
+.pixel-tool-colors {
+  position: relative;
+}
+
+.pixel-mini-well {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  box-shadow: 0 0 0 2px var(--ds-edge);
+}
+
+.pixel-mini-well.primary {
+  top: 6px;
+  left: 6px;
+}
+
+.pixel-mini-well.secondary {
+  top: 12px;
+  left: 13px;
+}
+
+.pixel-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--ds-stage);
+}
+
+.pixel-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.pixel-readout {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 16px);
+  padding: 3px 8px;
+  overflow: hidden;
+  font: 11px var(--font-mono);
+  color: var(--ds-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  background: rgba(11, 11, 14, 0.78);
+  box-shadow: inset 0 0 0 1px #24252c;
+}
+
+.pixel-readout > span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pixel-readout-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin: 0 6px 0 8px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.asset-status.is-error {
+  color: #ffb4b4;
+}
+
+/* Couleurs */
+
+/* Damier clair derrière les couleurs translucides. */
+.pixel-chip {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: #c6c6c6;
+  background-image: conic-gradient(#8b8b8b 0 25%, #c6c6c6 0 50%, #8b8b8b 0 75%, #c6c6c6 0);
+  background-size: 8px 8px;
+}
+
+.pixel-chip > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pixel-color-pair {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-rows: 64px;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.pixel-color-well {
+  grid-row: 1;
+  grid-column: 1;
+  width: 42px;
+  min-height: 42px;
+  height: 42px;
+  padding: 3px;
+}
+
+.pixel-color-well.primary {
+  z-index: 2;
+  align-self: start;
+  justify-self: start;
+}
+
+.pixel-color-well.secondary {
+  z-index: 1;
+  align-self: end;
+  justify-self: end;
+}
+
+.pixel-color-well.active {
+  box-shadow: 0 0 0 2px var(--ds-gold), var(--bevel-raised);
+}
+
+.pixel-color-well:where(:active:not(:disabled)) {
+  padding: 4px 2px 2px 4px;
+}
+
+.pixel-color-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  min-width: 0;
+}
+
+.pixel-color-fields .color-input input:last-child {
+  min-width: 0;
+}
+
+.pixel-range {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.pixel-range-value {
+  min-width: 40px;
+  font: 11px var(--font-mono);
+  color: var(--ds-muted);
+  text-align: right;
+}
+
+/* Curseur Deepslate : rainure creusée, poignée en relief. */
+.pixel-range input[type='range'] {
+  width: 100%;
+  min-width: 0;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+}
+
+.pixel-range input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--ds-field);
+  box-shadow: var(--bevel-sunken);
+}
+
+.pixel-range input[type='range']::-webkit-slider-thumb {
+  width: 12px;
+  height: 16px;
+  margin-top: -5px;
+  background: var(--ds-btn);
+  border: 0;
+  border-radius: 0;
+  box-shadow: 0 0 0 2px var(--ds-edge), var(--bevel-raised);
+  appearance: none;
+}
+
+.pixel-range input[type='range']:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+.pixel-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  font: 400 13px/1.2 var(--font-display);
+  color: var(--ds-muted);
+}
+
+.pixel-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
+  gap: 3px;
+}
+
+.pixel-swatch {
+  width: 100%;
+  min-height: 22px;
+  height: 22px;
+  padding: 2px;
+}
+
+.pixel-swatch:where(:active:not(:disabled)) {
+  padding: 3px 1px 1px 3px;
+}
+
+/* Calques */
+
+.pixel-layer {
+  gap: 6px;
+  padding-left: 2px;
+}
+
+.pixel-layer-thumb {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+  background-color: #c6c6c6;
+  background-image: conic-gradient(#8b8b8b 0 25%, #c6c6c6 0 50%, #8b8b8b 0 75%, #c6c6c6 0);
+  background-size: 8px 8px;
+  box-shadow: 0 0 0 1px var(--ds-edge);
+}
+
+.pixel-layer-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 24px !important;
+  padding: 1px 6px !important;
+}
+
+.pixel-layer-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* Document */
+
+.pixel-document-size {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font: 12px var(--font-mono);
+  color: var(--ds-ink);
+}
+
+.pixel-source {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  overflow-wrap: anywhere;
+}
+
+.pixel-source .icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Ancrage du dialogue de taille : grille 3 × 3. */
+.pixel-anchor {
+  display: grid;
+  grid-template-columns: repeat(3, 30px);
+  gap: 2px;
+}
+
+.pixel-anchor button {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.pixel-anchor button.active {
+  background: var(--ds-panel-sunken);
+  box-shadow: var(--bevel-pressed);
+}
+
+.pixel-anchor-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  background: var(--ds-gold);
+  box-shadow: 0 0 0 2px var(--ds-edge);
+}

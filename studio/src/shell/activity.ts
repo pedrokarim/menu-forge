@@ -1,4 +1,5 @@
 import type { PresenceActivity, PresenceImage } from '../lib/appApi';
+import { NBSP } from '../lib/format';
 import type { PlainScreen, ScreenId } from './router';
 
 /** Nom de chaque écran (barre de titre, onglet du navigateur). */
@@ -13,7 +14,7 @@ export const SCREEN_TITLES: Record<ScreenId, string> = {
 
 /** Document ouvert dans l’éditeur. */
 export interface OpenDocument {
-  kind: 'menu' | 'asset';
+  kind: 'menu' | 'asset' | 'pixel';
   name: string;
 }
 
@@ -38,6 +39,16 @@ export function describeActivity(screen: ScreenId, document: OpenDocument | null
     return { details, state, smallImage: image, smallText: SCREEN_TITLES[screen] };
   }
   if (!document) return { details: 'Dans l’éditeur', state, smallImage: 'menu', smallText: 'Éditeur' };
+  // Éditeur de pixels : la petite image des assets (une image, elle aussi) ; pas de nouvelle clé Discord.
+  if (document.kind === 'pixel') {
+    return {
+      details: `Dessine l’image «${NBSP}${document.name}${NBSP}»`,
+      genericDetails: 'Dessine une image',
+      state,
+      smallImage: 'asset',
+      smallText: 'Image',
+    };
+  }
   return document.kind === 'menu'
     ? {
         details: `Édite le menu « ${document.name} »`,

@@ -12,11 +12,17 @@ import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { ShortcutKeys } from '../ui/Keys';
 
-export type QuickAction = 'new-menu' | 'new-asset' | 'import-font' | 'open-workspace';
+export type QuickAction = 'new-menu' | 'new-asset' | 'new-pixel' | 'import-font' | 'open-workspace';
 
 const QUICK_ACTIONS: ReadonlyArray<{ kind: QuickAction; icon: IconName; title: string; text: string; shortcut?: string }> = [
   { kind: 'new-menu', icon: 'chest', title: 'Nouveau menu', text: 'Vierge ou à partir d’un gabarit : coffre, modale, liste paginée…' },
   { kind: 'new-asset', icon: 'image', title: 'Nouvel asset', text: 'Composition libre (boîtes, images, texte) exportée en PNG et en glyphe.' },
+  {
+    kind: 'new-pixel',
+    icon: 'pencil',
+    title: 'Nouvelle image',
+    text: `Dessin au pixel près${NBSP}: calques, symétrie, sélection, exportée en PNG.`,
+  },
   { kind: 'import-font', icon: 'library', title: 'Importer un écran', text: 'Un menu entier, reconstruit depuis une police d’un pack branché.' },
   { kind: 'open-workspace', icon: 'folder', title: 'Ouvrir un espace', text: 'Changer de dossier de travail ou en ajouter un.', shortcut: 'Ctrl+O' },
 ];
@@ -63,6 +69,10 @@ function MenuThumbnail({ menu, menus, version }: { menu: MenuDefinition; menus: 
 
 function DocumentThumbnail({ document, snapshot }: { document: RecentDocument; snapshot: WorkspaceSnapshot | null }) {
   const version = Date.parse(document.modified) || 0;
+  if (document.type === 'pixel') {
+    if (document.texture && snapshot?.textures.includes(document.texture)) return <img src={textureUrl(document.texture, version)} alt="" />;
+    return <Icon name="pencil" size={36} />;
+  }
   if (document.type === 'asset') {
     const png = `assets/${document.id}.png`;
     if (snapshot?.textures.includes(png)) return <img src={textureUrl(png, version)} alt="" />;
@@ -174,7 +184,8 @@ export function HomeScreen({
                   <span className="doc-name">{document.name}</span>
                   <span className="doc-sub">
                     <span className={`kind-dot doc-kind-${document.type}`} aria-hidden="true" />
-                    {document.type === 'menu' ? 'Menu' : 'Asset'} · <span className="mono">{document.id}</span>
+                    {document.type === 'menu' ? 'Menu' : document.type === 'asset' ? 'Asset' : 'Image'} ·{' '}
+                    <span className="mono">{document.id}</span>
                   </span>
                   <span className="doc-sub" title={formatDate(document.modified)}>
                     <Icon name="clock" />

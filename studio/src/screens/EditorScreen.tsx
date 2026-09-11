@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { EditorMode } from '../shell/router';
 import { useContextMenu } from '../ui/menuContext';
@@ -21,6 +21,14 @@ import { NewAssetDialog } from '../components/NewAssetDialog';
 import type { NewAssetInput } from '../components/NewAssetDialog';
 import { OutlinePanel } from '../components/OutlinePanel';
 import { PreviewPanel } from '../components/PreviewPanel';
+import { NewPixelDialog } from '../pixel/PixelDialogs';
+import type { NewPixelInput } from '../pixel/PixelDialogs';
+import { MAX_PIXEL_SIZE, createState, defaultTexture, editableInPlace } from '../pixel/document';
+import type { PixelDocumentFile, PixelSource, PixelState } from '../pixel/document';
+import { encodeDocument, flattenToBlob, loadBitmap } from '../pixel/io';
+import { NBSP } from '../lib/format';
+import { fetchPixelList, savePixel } from '../lib/pixelApi';
+import type { PixelSummary } from '../lib/pixelApi';
 import { fetchWorkspace, saveAsset, saveMenu, textureUrl, uploadTexture } from '../lib/api';
 import type { WorkspaceSnapshot } from '../lib/api';
 import { importFromLibrary, libraryRawUrl } from '../lib/libraryApi';
@@ -49,9 +57,13 @@ type DialogState =
   | { kind: 'generator'; mode: 'create' }
   | { kind: 'generator'; mode: 'edit'; layerId: string }
   | { kind: 'crop-layer'; layerId: string }
+  | { kind: 'new-pixel' }
   | null;
 
 type Recipe = (draft: MenuDefinition) => void;
+
+/** Éditeur de pixels, chargé à sa première ouverture : son code n’alourdit pas le démarrage du studio. */
+const PixelEditor = lazy(() => import('../pixel/PixelEditor').then((module) => ({ default: module.PixelEditor })));
 
 const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8];
 
@@ -90,7 +102,7 @@ async function bakeTexture(path: string, spec: GeneratorSpec, origin: Point) {
 
 /** Demande venue d’un autre écran (actions rapides de l’accueil) ; `nonce` change à chaque demande. */
 export interface EditorRequest {
-  kind: 'new-menu' | 'new-asset' | 'import-font';
+  kind: 'new-menu' | 'new-asset' | 'new-pixel' | 'import-font';
   nonce: number;
 }
 
@@ -119,7 +131,7 @@ export interface EditorScreenProps {
   workspacePill: ReactNode;
   onDirtyChange: (dirty: boolean) => void;
   /** Document ouvert (titre de la fenêtre, Rich Presence Discord). */
-  onDocumentChange: (kind: 'menu' | 'asset' | null, name: string | null) => void;
+  onDocumentChange: (kind: 'menu' | 'asset' | 'pixel' | null, name: string | null) => void;
 }
 
 /** Éditeur : menus (toile, couches, slots, inspecteur) et assets du mode libre. */
@@ -153,12 +165,18 @@ export function EditorScreen({
   const [status, setStatus] = useState('');
   const [leftTab, setLeftTab] = useState<'outline' | 'library'>('outline');
   // Mode libre : édition d’assets (compositions exportées en PNG).
-  const [mode, setMode] = useState<'menus' | 'assets'>('menus');
+  const [mode, setMode] = useState<EditorMode>('menus');
   const [assetId, setAssetId] = useState<string | null>(null);
   const [assetDirty, setAssetDirty] = useState(false);
   // Compteur des demandes d’enregistrement de l’asset (bouton de la barre du haut).
   const [assetSaveRequest, setAssetSaveRequest] = useState(0);
   const [insertRequest, setInsertRequest] = useState<{ texture: string; source?: Region; nonce: number } | null>(null);
+  // Éditeur de pixels : images de l’espace (résumés, sans calques) et image ouverte.
+  const [pixelList, setPixelList] = useState<PixelSummary[]>([]);
+  const [pixelId, setPixelId] = useState<string | null>(null);
+  const [pixelDirty, setPixelDirty] = useState(false);
+  // Compteur des demandes d’enregistrement de l’image (bouton de la barre du haut).
+  const [pixelSaveRequest, setPixelSaveRequest] = useState(0);
 
   const menu = editor.menu;
   const dirty = menu !== null && JSON.stringify(menu) !== editor.savedJson;
@@ -175,23 +193,38 @@ export function EditorScreen({
     }
   }, []);
 
+  /** Images de l’éditeur de pixels (résumés, sans calques). */
+  const refreshPixels = useCallback(async () => {
+    try {
+      const list = await fetchPixelList();
+      setPixelList(list);
+      return list;
+    } catch {
+      return [];
+    }
+  }, []);
+
   // L’adresse de départ n’est lue qu’une fois, au premier chargement de l’espace.
   const initialRoute = useRef(route);
   useEffect(() => {
     // Chargement initial : les setState ont lieu après l’await du fetch, pas pendant l’effet.
     // oxlint-disable-next-line react/set-state-in-effect
-    void refreshWorkspace().then((snapshot) => {
+    void Promise.all([refreshWorkspace(), refreshPixels()]).then(([snapshot, pixels]) => {
       const wanted = initialRoute.current;
       if (snapshot && wanted.mode === 'assets') {
         setMode('assets');
         setAssetId(snapshot.assets.find((candidate) => candidate.id === wanted.id)?.id ?? snapshot.assets[0]?.id ?? null);
+      }
+      if (wanted.mode === 'pixels') {
+        setMode('pixels');
+        setPixelId(pixels.find((candidate) => candidate.id === wanted.id)?.id ?? pixels[0]?.id ?? null);
       }
       const requested = wanted.mode === 'menus' ? snapshot?.menus.find((candidate) => candidate.id === wanted.id) : undefined;
       const first = requested ?? snapshot?.menus.find((candidate) => !candidate.template) ?? snapshot?.menus[0];
       if (first) dispatch({ type: 'load', menu: first });
       setReady(true);
     });
-  }, [refreshWorkspace]);
+  }, [refreshWorkspace, refreshPixels]);
 
   const bumpTextures = useCallback((paths: string[]) => {
     setTextureVersions((previous) => {
@@ -308,7 +341,7 @@ export function EditorScreen({
     function onKeyDown(event: KeyboardEvent) {
       // Écran caché : aucun raccourci. En mode assets, l’éditeur d’assets gère les siens.
       // Menu contextuel ou dialogue ouvert : les touches sont pour lui, pas pour l’élément derrière.
-      if (!active || mode === 'assets' || event.defaultPrevented || overlayOpen()) return;
+      if (!active || mode !== 'menus' || event.defaultPrevented || overlayOpen()) return;
       const key = event.key.toLowerCase();
       const withModifier = event.ctrlKey || event.metaKey;
       if (withModifier && key === 's') {
@@ -492,12 +525,20 @@ export function EditorScreen({
     window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
 
   /** Change de mode ; faux si l’utilisateur reste sur l’asset en cours. */
+  const confirmLeavePixel = () =>
+    !pixelDirty ||
+    !preferences.confirmDiscard ||
+    window.confirm(`L’image a des modifications non enregistrées. Continuer quand même${NBSP}?`);
+
   const switchMode = (next: EditorMode) => {
     if (next === mode) return true;
     if (mode === 'assets' && !confirmLeaveAsset()) return false;
+    if (mode === 'pixels' && !confirmLeavePixel()) return false;
     setAssetDirty(false);
+    setPixelDirty(false);
     setMode(next);
     if (next === 'assets' && !assetId && workspace?.assets[0]) setAssetId(workspace.assets[0].id);
+    if (next === 'pixels' && !pixelId && pixelList[0]) setPixelId(pixelList[0].id);
     return true;
   };
 
@@ -510,7 +551,16 @@ export function EditorScreen({
     return true;
   };
 
-  const currentId = mode === 'menus' ? (menu?.id ?? null) : assetId;
+  /** Ouvre une image de pixels (faux si elle est introuvable, ou si l’utilisateur reste sur l’image en cours). */
+  const openPixel = (id: string) => {
+    if (id === pixelId) return true;
+    if (!pixelList.some((candidate) => candidate.id === id) || !confirmLeavePixel()) return false;
+    setPixelDirty(false);
+    setPixelId(id);
+    return true;
+  };
+
+  const currentId = mode === 'menus' ? (menu?.id ?? null) : mode === 'assets' ? assetId : pixelId;
 
   // Adresse → éditeur : un document demandé par l’adresse (accueil, Précédent / Suivant) est ouvert ;
   // s’il ne l’est pas (refus, introuvable), l’adresse revient au document resté ouvert.
@@ -522,7 +572,9 @@ export function EditorScreen({
     syncedRoute.current = key;
     let accepted = switchMode(route.mode);
     if (accepted && route.id) {
-      accepted = route.mode === 'menus' ? route.id === menu?.id || openMenu(route.id) : openAsset(route.id);
+      if (route.mode === 'menus') accepted = route.id === menu?.id || openMenu(route.id);
+      else if (route.mode === 'assets') accepted = openAsset(route.id);
+      else accepted = openPixel(route.id);
     }
     if (!accepted) {
       syncedRoute.current = `${mode}/${currentId ?? ''}`;
@@ -548,6 +600,8 @@ export function EditorScreen({
   const handleRequest = (kind: EditorRequest['kind']) => {
     if (kind === 'new-asset') {
       if (switchMode('assets')) setDialog({ kind: 'new-asset' });
+    } else if (kind === 'new-pixel') {
+      if (switchMode('pixels')) setDialog({ kind: 'new-pixel' });
     } else if (switchMode('menus')) {
       if (kind === 'new-menu') setDialog({ kind: 'new-menu' });
       else setLeftTab('library');
@@ -565,7 +619,7 @@ export function EditorScreen({
     handleRequestRef.current(request.kind);
   }, [request, ready]);
 
-  const anyDirty = dirty || assetDirty;
+  const anyDirty = dirty || assetDirty || pixelDirty;
   useEffect(() => {
     onDirtyChange(anyDirty);
   }, [anyDirty, onDirtyChange]);
@@ -587,6 +641,111 @@ export function EditorScreen({
     setAssetId(id);
     setDialog(null);
     setStatus(`Asset « ${id} » créé`);
+  };
+
+  /** Quitte le document ouvert en mode assets ou pixels (confirmation s’il reste des modifications). */
+  const confirmLeaveDocument = () => (mode === 'assets' ? confirmLeaveAsset() : mode === 'pixels' ? confirmLeavePixel() : true);
+
+  /** Montre une image de pixels (liste relue d’abord : elle vient peut-être d’être créée). */
+  const showPixel = async (id: string) => {
+    await refreshPixels();
+    setAssetDirty(false);
+    setPixelDirty(false);
+    setMode('pixels');
+    setPixelId(id);
+  };
+
+  /** Enregistre une nouvelle image (document et, si demandé, son PNG exporté) puis l’ouvre. */
+  const createPixel = async (
+    meta: { id: string; name: string; texture: string; source?: PixelSource },
+    state: PixelState,
+    exportPng: boolean,
+  ) => {
+    await savePixel(await encodeDocument(meta, state));
+    if (exportPng) {
+      await uploadTexture(meta.texture, await flattenToBlob(state));
+      bumpTextures([meta.texture]);
+    }
+    void refreshWorkspace();
+    await showPixel(meta.id);
+  };
+
+  const handleNewPixel = async ({ id, name, width, height, background }: NewPixelInput) => {
+    if (!confirmLeavePixel()) return;
+    const fill: [number, number, number, number] | undefined =
+      background === 'white' ? [255, 255, 255, 255] : background === 'black' ? [0, 0, 0, 255] : undefined;
+    await createPixel({ id, name, texture: defaultTexture(id) }, createState(width, height, fill), true);
+    setDialog(null);
+    setStatus(`Image «${NBSP}${id}${NBSP}» créée`);
+  };
+
+  /**
+   * Ouvre une texture dans l’éditeur de pixels. Une texture de bibliothèque (ou
+   * régénérée par le studio) n’est jamais modifiée : l’image exporte dans sa
+   * propre copie, `pixels/<id>.png`. Une texture de l’espace est modifiée sur
+   * place ; une image qui l’exporte déjà est simplement rouverte.
+   */
+  const openTextureInPixels = async (url: string, baseName: string, source: PixelSource, inPlace: string | null) => {
+    const existing = inPlace ? pixelList.find((candidate) => candidate.texture === inPlace) : undefined;
+    if (existing) {
+      if (mode === 'pixels' && pixelId === existing.id) return;
+      if (!confirmLeaveDocument()) return;
+      setAssetDirty(false);
+      setPixelDirty(false);
+      setMode('pixels');
+      setPixelId(existing.id);
+      return;
+    }
+    if (!confirmLeaveDocument()) return;
+    try {
+      const bitmap = await loadBitmap(url);
+      if (bitmap.width > MAX_PIXEL_SIZE || bitmap.height > MAX_PIXEL_SIZE) {
+        setStatus(
+          `Impossible d’ouvrir «${NBSP}${baseName}${NBSP}»${NBSP}: ${bitmap.width} × ${bitmap.height} px, ${MAX_PIXEL_SIZE} px au plus`,
+        );
+        return;
+      }
+      const id = uniqueId(sanitizeId(baseName) || 'image', pixelList.map((candidate) => candidate.id));
+      const blank = createState(bitmap.width, bitmap.height);
+      const state: PixelState = { ...blank, layers: [{ ...blank.layers[0], data: bitmap.data }] };
+      const texture = inPlace ?? defaultTexture(id);
+      await createPixel({ id, name: baseName, texture, source }, state, inPlace === null);
+      setStatus(
+        inPlace
+          ? `Image «${NBSP}${id}${NBSP}» créée${NBSP}: chaque enregistrement réécrit textures/${texture}`
+          : `Copie «${NBSP}${id}${NBSP}» créée dans textures/${texture}${NBSP}; l’original n’est pas modifié`,
+      );
+    } catch (error) {
+      setStatus(`Échec de l’ouverture dans l’éditeur de pixels${NBSP}: ${errorMessage(error)}`);
+    }
+  };
+
+  const openLayerInPixels = (layerId: string) => {
+    const layer = menu?.layers.find((candidate) => candidate.id === layerId);
+    if (!layer) return;
+    void openTextureInPixels(
+      textureUrl(layer.texture, textureVersions[layer.texture] ?? 0),
+      textureBaseName(layer.texture),
+      { kind: 'texture', texture: layer.texture },
+      editableInPlace(layer.texture) ? layer.texture : null,
+    );
+  };
+
+  const openLibraryInPixels = (source: LibrarySourceInfo, texture: LibraryTexture) =>
+    void openTextureInPixels(
+      libraryRawUrl(source.id, texture.path),
+      textureBaseName(texture.path),
+      { kind: 'library', library: source.id, path: texture.path },
+      null,
+    );
+
+  const handleSavePixel = async (file: PixelDocumentFile, png: Blob) => {
+    await savePixel(file);
+    await uploadTexture(file.export.texture, png);
+    bumpTextures([file.export.texture]);
+    setStatus(`Image «${NBSP}${file.id}${NBSP}» enregistrée et exportée dans textures/${file.export.texture}`);
+    void refreshPixels();
+    void refreshWorkspace();
   };
 
   const handleLibraryToAsset = async (source: LibrarySourceInfo, texture: LibraryTexture) => {
@@ -701,6 +860,7 @@ export function EditorScreen({
           disabled: Boolean(layer?.generator),
           onSelect: () => setDialog({ kind: 'crop-layer', layerId: target.id }),
         },
+        { label: 'Ouvrir dans l’éditeur de pixels', icon: 'pencil', onSelect: () => openLayerInPixels(target.id) },
         ...(layer?.generator
           ? [
               {
@@ -761,8 +921,11 @@ export function EditorScreen({
   // Affichage seulement : les messages d’échec passent en rouge dans la barre d’outils.
   const statusIsError = /^(Échec|Impossible)/.test(status);
 
-  const documentKind = mode === 'menus' ? (menu ? 'menu' : null) : currentAsset ? 'asset' : null;
-  const documentName = mode === 'menus' ? (menu?.name ?? null) : (currentAsset?.name ?? null);
+  const currentPixel = pixelList.find((candidate) => candidate.id === pixelId) ?? null;
+  const documentKind =
+    mode === 'menus' ? (menu ? 'menu' : null) : mode === 'assets' ? (currentAsset ? 'asset' : null) : currentPixel ? 'pixel' : null;
+  const documentName =
+    mode === 'menus' ? (menu?.name ?? null) : mode === 'assets' ? (currentAsset?.name ?? null) : (currentPixel?.name ?? null);
   useEffect(() => {
     if (active) onDocumentChange(documentKind, documentName);
   }, [active, documentKind, documentName, onDocumentChange]);
@@ -780,6 +943,10 @@ export function EditorScreen({
           <button type="button" role="tab" aria-selected={mode === 'assets'} className={mode === 'assets' ? 'active' : ''} onClick={() => switchMode('assets')}>
             <Icon name="image" />
             Assets
+          </button>
+          <button type="button" role="tab" aria-selected={mode === 'pixels'} className={mode === 'pixels' ? 'active' : ''} onClick={() => switchMode('pixels')}>
+            <Icon name="pencil" />
+            Pixels
           </button>
         </div>
         <span className="tb-sep" aria-hidden="true" />
@@ -822,7 +989,7 @@ export function EditorScreen({
               </Tooltip>
             </div>
           </>
-        ) : (
+        ) : mode === 'assets' ? (
           <div className="toolbar-group">
             <select
               className="menu-picker"
@@ -855,6 +1022,42 @@ export function EditorScreen({
                 <Icon name={assetDirty ? 'save' : 'check'} />
                 {assetDirty ? 'Enregistrer' : 'Enregistré'}
                 {assetDirty && <span className="dirty-mark" aria-hidden="true" />}
+              </button>
+            </Tooltip>
+          </div>
+        ) : (
+          <div className="toolbar-group">
+            <select
+              className="menu-picker"
+              value={pixelId ?? ''}
+              onChange={(event) => openPixel(event.target.value)}
+              disabled={pixelList.length === 0}
+              aria-label="Image ouverte"
+            >
+              {!currentPixel && <option value="">Aucune image</option>}
+              {pixelList.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name} ({candidate.id}) · {candidate.width} × {candidate.height}
+                </option>
+              ))}
+            </select>
+            <Tooltip label="Nouvelle image" hint="Dessin au pixel près, exporté en PNG dans textures/">
+              <button type="button" onClick={() => setDialog({ kind: 'new-pixel' })}>
+                <Icon name="plus" />
+                Nouvelle image
+              </button>
+            </Tooltip>
+            <Tooltip label={pixelDirty ? 'Enregistrer et exporter l’image' : 'Tout est enregistré'} shortcut="Ctrl+S">
+              <button
+                type="button"
+                className="primary"
+                disabled={!currentPixel || !pixelDirty}
+                aria-keyshortcuts="Control+S"
+                onClick={() => setPixelSaveRequest((count) => count + 1)}
+              >
+                <Icon name={pixelDirty ? 'save' : 'check'} />
+                {pixelDirty ? 'Enregistrer' : 'Enregistré'}
+                {pixelDirty && <span className="dirty-mark" aria-hidden="true" />}
               </button>
             </Tooltip>
           </div>
@@ -911,6 +1114,7 @@ export function EditorScreen({
               onAddLayer={handleLibraryLayer}
               onAddRegion={handleLibraryRegion}
               onImportFont={handleImportFont}
+              onOpenInPixels={openLibraryInPixels}
             />
           </div>
           {leftTab === 'outline' && resolved && context && (
@@ -1109,7 +1313,7 @@ export function EditorScreen({
           )}
         </aside>
       </main>
-      ) : (
+      ) : mode === 'assets' ? (
         <main className="asset-host">
           {currentAsset ? (
             <AssetEditor
@@ -1129,6 +1333,7 @@ export function EditorScreen({
                   onAddLayer={handleLibraryToAsset}
                   onAddRegion={handleLibraryRegionToAsset}
                   onImportFont={handleImportFontFromAssets}
+                  onOpenInPixels={openLibraryInPixels}
                 />
               }
               onSave={handleSaveAsset}
@@ -1146,6 +1351,46 @@ export function EditorScreen({
                 <button type="button" className="primary" onClick={() => setDialog({ kind: 'new-asset' })}>
                   <Icon name="plus" />
                   Nouvel asset
+                </button>
+              </div>
+            </section>
+          )}
+        </main>
+      ) : (
+        <main className="asset-host">
+          {currentPixel ? (
+            <Suspense
+              fallback={
+                <section className="stage">
+                  <p className="muted loading-line empty-state">
+                    <Icon name="loader" />
+                    Chargement de l’éditeur de pixels…
+                  </p>
+                </section>
+              }
+            >
+              <PixelEditor
+                key={currentPixel.id}
+                id={currentPixel.id}
+                active={active}
+                defaultShowGrid={preferences.showGrid}
+                saveRequest={pixelSaveRequest}
+                onSave={handleSavePixel}
+                onDirtyChange={setPixelDirty}
+              />
+            </Suspense>
+          ) : (
+            <section className="stage">
+              <div className="empty-state">
+                <Icon name="pencil" size={48} />
+                <h2>Aucune image ouverte</h2>
+                <p className="muted">
+                  Dessine au pixel près (calques, symétrie, sélection), ou ouvre une texture d’un menu ou de la bibliothèque depuis
+                  son menu contextuel.
+                </p>
+                <button type="button" className="primary" onClick={() => setDialog({ kind: 'new-pixel' })}>
+                  <Icon name="plus" />
+                  Nouvelle image
                 </button>
               </div>
             </section>
@@ -1177,6 +1422,12 @@ export function EditorScreen({
             <span>textures/assets/{currentAsset.id}.png</span>
           </span>
         )}
+        {mode === 'pixels' && currentPixel && (
+          <span className="statusbar-meta">
+            <span>image {currentPixel.id}</span>
+            <span>textures/{currentPixel.texture}</span>
+          </span>
+        )}
       </footer>
 
       {dialog?.kind === 'new-menu' && (
@@ -1192,6 +1443,13 @@ export function EditorScreen({
           existingIds={knownAssets.map((candidate) => candidate.id)}
           onCancel={() => setDialog(null)}
           onCreate={handleNewAsset}
+        />
+      )}
+      {dialog?.kind === 'new-pixel' && (
+        <NewPixelDialog
+          existingIds={pixelList.map((candidate) => candidate.id)}
+          onCancel={() => setDialog(null)}
+          onCreate={handleNewPixel}
         />
       )}
       {dialog?.kind === 'generator' && menu && generatorInitial && (
