@@ -5,7 +5,7 @@
  * panneaux et de boutons, calques d’une image de l’éditeur de pixels peints au
  * rectangle) et le logo du projet : aucun asset tiers, aucune bibliothèque de
  * pack. Les PNG sont « cuits » dans le navigateur par le code du studio
- * lui-même (`renderGenerator`, `renderAsset`), voir `capture.mjs`.
+ * lui-même (`renderGeneratorBlob`, `renderAsset`), voir `capture.mjs`.
  *
  * Géométrie du coffre (docs/rendering.md) : cellule d’un slot en
  * (7 + 18 × col, 17 + 18 × ligne), 18 × 18 px ; titre en (8, 6).

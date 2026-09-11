@@ -156,13 +156,14 @@ function prepareWorkDir() {
 
 /**
  * Écrit menus, assets, images de pixels et textures par l’API, depuis la page :
- * les PNG sont produits par le code du studio (`renderGenerator`, `renderAsset`,
+ * les PNG sont produits par le code du studio (`renderGeneratorBlob`, `renderAsset`,
  * encodeur PNG de l’éditeur de pixels).
  */
 async function seedWorkspace(page) {
   await page.evaluate(
     async ({ menus, assets, pixels }) => {
       const generator = await import('/src/model/generator.ts');
+      const textureRender = await import('/src/model/textureRender.ts');
       const assetRender = await import('/src/asset/render.ts');
       const pixelDocument = await import('/src/pixel/document.ts');
       const pixelIo = await import('/src/pixel/io.ts');
@@ -192,7 +193,10 @@ async function seedWorkspace(page) {
       }
       for (const menu of menus) {
         for (const layer of menu.layers) {
-          if (layer.generator) await putTexture(layer.texture, generator.renderGenerator(layer.generator, layer));
+          if (layer.generator) {
+            const png = await textureRender.renderGeneratorBlob(layer.generator, layer);
+            await put(`/api/textures/${layer.texture.split('/').map(encodeURIComponent).join('/')}`, png, 'image/png');
+          }
         }
         await put(`/api/menus/${menu.id}`, JSON.stringify(menu, null, 2), 'application/json');
         await pause();
@@ -208,7 +212,7 @@ async function seedWorkspace(page) {
           layer.name = spec.name;
           layer.opacity = spec.opacity ?? 100;
           if (spec.generator) {
-            const canvas = generator.renderGenerator(spec.generator, { x: 0, y: 0 });
+            const canvas = textureRender.imageToCanvas(textureRender.renderGeneratorImage(spec.generator, { x: 0, y: 0 }));
             layer.data.set(canvas.getContext('2d').getImageData(0, 0, width, height).data);
           }
           for (const [x, y, w, h, color] of spec.rects) {
