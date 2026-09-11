@@ -513,6 +513,102 @@ fn recent_documents_are_sorted_by_modification() {
 }
 
 #[test]
+fn documents_rename_duplicate_and_trash() {
+    let dir = TempDir::new("documents");
+    let backend = Backend::new(config(&dir));
+    let root = dir.path("default");
+    let menu = json!({
+        "formatVersion": 1, "id": "shop", "name": "Boutique", "container": {"type": "chest", "rows": 3},
+        "layers": [
+            {"id": "panel", "texture": "generated/shop/panel.png", "x": 0, "y": 0},
+            {"id": "logo", "texture": "imported/logo.png", "x": 4, "y": 4}
+        ]
+    });
+    assert_eq!(call(&backend, "PUT", "/menus/shop", menu).0, 204);
+    assert_eq!(backend.handle(&Request::new("PUT", "/textures/generated/shop/panel.png", png())).status, 204);
+    assert_eq!(call(&backend, "PUT", "/assets/badge", json!({"id": "badge", "name": "Badge"})).0, 204);
+    assert_eq!(backend.handle(&Request::new("PUT", "/textures/assets/badge.png", png())).status, 204);
+
+    for (route, body, status, expected) in [
+        ("/documents/rename", json!({"type": "menu", "from": "shop"}), 400, "« to » doit être un identifiant"),
+        ("/documents/rename", json!({"type": "menu", "from": "shop", "to": "../evil"}), 400, "« to » : identifiant invalide"),
+        ("/documents/rename", json!({"type": "menu", "from": "..\\shop", "to": "x"}), 400, "« from » : identifiant invalide"),
+        ("/documents/rename", json!({"type": "page", "from": "shop", "to": "x"}), 400, "« type » doit valoir"),
+        ("/documents/rename", json!({"type": "menu", "from": "absent", "to": "x"}), 404, "Menu introuvable : absent"),
+        ("/documents/rename", json!({"type": "menu", "from": "shop", "to": "shop"}), 409, "Un menu « shop » existe déjà"),
+        ("/documents/duplicate", json!({"type": "menu", "from": "shop", "to": "x", "name": " "}), 400, "« name » doit être"),
+        ("/documents/duplicate", json!(["shop"]), 400, "Le corps de la requête doit être un objet JSON"),
+        ("/documents/trash", json!({"type": "asset", "id": "absent"}), 404, "Asset introuvable : absent"),
+        ("/documents/trash", json!({"type": "asset", "id": "a/b"}), 400, "« id » : identifiant invalide"),
+    ] {
+        let (code, _, message) = call(&backend, "POST", route, body.clone());
+        assert_eq!(code, status, "{route} {body} → {message}");
+        assert!(message.starts_with(expected), "{route} {body} → {message}");
+    }
+
+    // Dupliquer : l’original reste, les textures générées sont recopiées sous le nouveau nom.
+    let body = json!({"type": "menu", "from": "shop", "to": "shop_copy", "name": "Boutique (copie)"});
+    let (status, summary, _) = call(&backend, "POST", "/documents/duplicate", body);
+    assert_eq!(status, 200);
+    assert_eq!(summary, json!({"type": "menu", "id": "shop_copy", "name": "Boutique (copie)"}));
+    let copy: Value = serde_json::from_slice(&fs::read(root.join("menus/shop_copy.menu.json")).unwrap()).unwrap();
+    assert_eq!((copy["id"].as_str(), copy["name"].as_str()), (Some("shop_copy"), Some("Boutique (copie)")));
+    assert_eq!(copy["layers"][0]["texture"], "generated/shop_copy/panel.png");
+    assert_eq!(copy["layers"][1]["texture"], "imported/logo.png");
+    assert!(root.join("textures/generated/shop_copy/panel.png").is_file());
+    assert!(root.join("menus/shop.menu.json").is_file());
+    assert!(root.join("textures/generated/shop/panel.png").is_file());
+
+    // Un dossier de textures déjà pris n’est jamais écrasé : la copie va dans un dossier libre.
+    fs::create_dir_all(root.join("textures/generated/other")).unwrap();
+    fs::write(root.join("textures/generated/other/panel.png"), b"ancien").unwrap();
+    let (status, _, _) = call(&backend, "POST", "/documents/duplicate", json!({"type": "menu", "from": "shop", "to": "other"}));
+    assert_eq!(status, 200);
+    let other: Value = serde_json::from_slice(&fs::read(root.join("menus/other.menu.json")).unwrap()).unwrap();
+    assert_eq!((other["name"].as_str(), other["layers"][0]["texture"].as_str()), (Some("Boutique"), Some("generated/other_2/panel.png")));
+    assert_eq!(fs::read(root.join("textures/generated/other/panel.png")).unwrap(), b"ancien");
+    assert!(root.join("textures/generated/other_2/panel.png").is_file());
+
+    // Renommer un menu : nouveau fichier, champ `id` et chemins mis à jour, ancien fichier retiré.
+    let (status, summary, _) = call(&backend, "POST", "/documents/rename", json!({"type": "menu", "from": "shop", "to": "store"}));
+    assert_eq!(status, 200);
+    assert_eq!(summary, json!({"type": "menu", "id": "store", "name": "Boutique"}));
+    assert!(!root.join("menus/shop.menu.json").exists());
+    let store: Value = serde_json::from_slice(&fs::read(root.join("menus/store.menu.json")).unwrap()).unwrap();
+    assert_eq!((store["id"].as_str(), store["layers"][0]["texture"].as_str()), (Some("store"), Some("generated/store/panel.png")));
+    assert!(root.join("textures/generated/shop/panel.png").is_file(), "les textures d’origine restent");
+
+    // Renommer un asset : son export PNG est recopié sous le nouveau nom.
+    let body = json!({"type": "asset", "from": "badge", "to": "medal", "name": "Médaille"});
+    assert_eq!(call(&backend, "POST", "/documents/rename", body).0, 200);
+    let medal: Value = serde_json::from_slice(&fs::read(root.join("assets/medal.asset.json")).unwrap()).unwrap();
+    assert_eq!((medal["id"].as_str(), medal["name"].as_str()), (Some("medal"), Some("Médaille")));
+    assert!(!root.join("assets/badge.asset.json").exists());
+    assert!(root.join("textures/assets/medal.png").is_file() && root.join("textures/assets/badge.png").is_file());
+
+    // Corbeille : déplacé, jamais supprimé ; deux passages ne se marchent pas dessus.
+    let (status, trashed, _) = call(&backend, "POST", "/documents/trash", json!({"type": "menu", "id": "store"}));
+    assert_eq!(status, 200);
+    let relative = trashed["trashed"].as_str().unwrap().to_owned();
+    assert!(relative.starts_with(".trash/") && relative.ends_with("/menus/store.menu.json"), "{relative}");
+    assert!(root.join(&relative).is_file());
+    assert!(!root.join("menus/store.menu.json").exists());
+    assert!(root.join("textures/generated/store/panel.png").is_file(), "les textures restent en place");
+    call(&backend, "POST", "/documents/duplicate", json!({"type": "menu", "from": "other", "to": "store"}));
+    let (_, again, _) = call(&backend, "POST", "/documents/trash", json!({"type": "menu", "id": "store"}));
+    assert_ne!(again["trashed"], trashed["trashed"]);
+    assert!(root.join(again["trashed"].as_str().unwrap()).is_file() && root.join(&relative).is_file());
+
+    // L’espace ne liste plus ce qui est à la corbeille.
+    let (_, snapshot, _) = call(&backend, "GET", "/workspace", Value::Null);
+    let mut ids: Vec<&str> = snapshot["menus"].as_array().unwrap().iter().filter_map(|menu| menu["id"].as_str()).collect();
+    ids.sort_unstable();
+    assert_eq!(ids, ["other", "shop_copy"]);
+    let (_, recent, _) = call(&backend, "GET", "/documents/recent", Value::Null);
+    assert_eq!(recent.as_array().unwrap().len(), 3);
+}
+
+#[test]
 fn libraries_add_remove_reindex_keep_memory_index() {
     let dir = TempDir::new("libraries");
     let backend = Backend::new(config(&dir));
@@ -624,6 +720,9 @@ fn legacy_behaviour_on_other_methods_is_unchanged() {
         ("PUT", "/workspaces"),
         ("GET", "/workspaces/open"),
         ("POST", "/documents/recent"),
+        ("GET", "/documents/rename"),
+        ("PUT", "/documents/duplicate"),
+        ("DELETE", "/documents/trash"),
         ("PUT", "/libraries"),
         ("GET", "/libraries/vanilla/reindex"),
         ("PUT", "/libraries/vanilla"),

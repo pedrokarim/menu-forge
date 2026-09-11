@@ -52,6 +52,23 @@ pub fn list_dirs(dir: &Path) -> io::Result<Vec<String>> {
     Ok(names)
 }
 
+/// Copie récursive de `from` vers `to` (créé s’il manque) ; un fichier déjà
+/// présent dans `to` n’est **jamais** écrasé. Les liens ne sont pas suivis.
+pub fn copy_dir(from: &Path, to: &Path) -> io::Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        let kind = entry.file_type()?;
+        if kind.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else if kind.is_file() && !target.exists() {
+            fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
 /// Crée le dossier parent de `file` (équivalent de `mkdir -p`).
 pub fn ensure_parent(file: &str) -> Result<(), crate::error::HttpError> {
     let parent = crate::paths::dirname(file);

@@ -17,6 +17,8 @@ libraries.local.json
 examples/menus/
 examples/assets/
 examples/textures/
+# Corbeille de l’espace d’exemple (documents mis à la corbeille par le studio).
+examples/.trash/
 
 # Environnement
 .env

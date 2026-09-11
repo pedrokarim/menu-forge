@@ -87,6 +87,9 @@ Routes de l’application :
 | `POST /api/workspaces/open` | `{ path, name? }` : dossier absolu existant ; crée `menus/`, `assets/`, `textures/` s’ils manquent ; devient l’espace actif |
 | `DELETE /api/workspaces` | `{ path }` : retire de la liste (409 pour l’espace actif), **ne supprime aucun fichier** |
 | `GET /api/documents/recent` | `[{ type: "menu" \| "asset", id, name, modified }]`, du plus récent au plus ancien |
+| `POST /api/documents/rename` | `{ type, from, to, name? }` : change l’identifiant d’un menu ou d’un asset (fichier et champ `id`) ; 404 si `from` manque, 409 si `to` existe ; textures copiées sous le nouveau nom, jamais déplacées |
+| `POST /api/documents/duplicate` | même corps : copie sous `to`, l’original reste |
+| `POST /api/documents/trash` | `{ type, id }` : déplace le document dans `<espace>/.trash/<date>/`, **ne supprime jamais rien** ; renvoie `{ type, id, trashed }` |
 | `POST /api/libraries` | `{ id, name, root, ownership }` : `root` absolu, contenant `assets/` |
 | `DELETE /api/libraries/:id` | débranche le pack (rien n’est supprimé sur le disque) |
 | `POST /api/libraries/:id/reindex` | reconstruit l’index sans cache ; renvoie `{ id, textures, fonts }` |

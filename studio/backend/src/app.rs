@@ -12,6 +12,9 @@
 //! | `POST /workspaces/open` | `{ path, name? }` : ouvre (et ajoute) un espace, qui devient actif |
 //! | `DELETE /workspaces` | `{ path }` : retire de la liste, **ne supprime aucun fichier** |
 //! | `GET /documents/recent` | menus et assets de l’espace actif, du plus récent au plus ancien |
+//! | `POST /documents/rename` | `{ type: "menu" \| "asset", from, to, name? }` : change l’identifiant (nom du fichier et champ `id`, `name` remplacé s’il est fourni) → `{ type, id, name }` ; 404 si `from` n’existe pas, 409 si `to` existe déjà. Les textures sont **copiées, jamais déplacées** : `generated/<from>/` d’un menu vers un dossier libre (`generated/<to>/`, sinon `generated/<to>_2/`…), chemins des couches mis à jour ; export `assets/<from>.png` d’un asset vers `assets/<to>.png` s’il n’existe pas |
+//! | `POST /documents/duplicate` | même corps et mêmes règles ; l’original reste → `{ type, id, name }` |
+//! | `POST /documents/trash` | `{ type, id }` : déplace le fichier dans `<espace>/.trash/<date>/<menus\|assets>/`, **ne supprime jamais rien** (textures laissées en place) → `{ type, id, trashed }`, chemin relatif à l’espace |
 //! | `POST /libraries` | `{ id, name, root, ownership }` : branche un pack extrait |
 //! | `DELETE /libraries/:id` | débranche un pack (rien n’est supprimé sur le disque) |
 //! | `POST /libraries/:id/reindex` | reconstruit l’index en ignorant les caches |
@@ -95,6 +98,11 @@ impl Backend {
             ("/workspaces", "DELETE") => self.forget_workspace(&request.body)?,
             ("/workspaces/open", "POST") => self.open_workspace(&request.body)?,
             ("/documents/recent", "GET") => self.recent_documents(),
+            ("/documents/rename", "POST") => json(&self.current_workspace().rename_document(&body_object(&request.body)?)?),
+            ("/documents/duplicate", "POST") => {
+                json(&self.current_workspace().duplicate_document(&body_object(&request.body)?)?)
+            }
+            ("/documents/trash", "POST") => json(&self.current_workspace().trash_document(&body_object(&request.body)?)?),
             ("/libraries", "POST") => self.add_library(&request.body)?,
             _ => match library_action(pathname) {
                 Some((raw_id, None)) if method == "DELETE" => self.remove_library(&decode_component(raw_id)?)?,
@@ -252,8 +260,13 @@ impl Backend {
         Ok(Response::no_content())
     }
 
+    /// Espace actif (instantané : un changement d’espace ne coupe pas la requête en deux).
+    fn current_workspace(&self) -> Arc<Workspace> {
+        Arc::clone(&self.read_state().workspace)
+    }
+
     fn recent_documents(&self) -> Response {
-        let workspace = Arc::clone(&self.read_state().workspace);
+        let workspace = self.current_workspace();
         let list = workspace
             .recent_documents()
             .into_iter()
