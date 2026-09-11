@@ -176,17 +176,25 @@ Pour un pipeline de pack existant (celui d’Enderium, par exemple), les fichier
 générés sont disponibles en mémoire via `api.generatedPack().files()`, chemins
 relatifs à la racine du pack.
 
-## Points à calibrer en jeu
+## Calibration en jeu
 
-Rien de ce qui touche au rendu n’a encore été vérifié dans un client Minecraft :
+Vérifié dans un client le 2026-09-10 (Paper 1.20.6, détails dans
+[`../docs/rendering.md`](../docs/rendering.md)) :
 
-- la table d’avance des caractères (`CharWidths`) et la grille d’`ascii.png`
-  hors ASCII (`AsciiFont`, lignes 0–1 et 8–15, reprises de mémoire) ;
-- la formule `ascent = 13 − y` et le complément transparent en bas des images
-  quand `ascent > hauteur` ;
-- le comportement des très grands `ascent` négatifs ;
-- l’ordre de rendu titre / items en 1.21.x ;
-- les textes au-dessus de `y = 5` sont refusés (`ascent > 8`, que Minecraft
-  rejette pour une police de hauteur 8).
+- la formule `ascent = 13 − y`, les avances et le recadrage : placement
+  horizontal et vertical exact au pixel ;
+- les largeurs des caractères testés et les alignements gauche, centre et
+  droite ;
+- l’ordre de rendu : les items passent au-dessus des couches du titre.
 
-Le menu `/menuforge calibrate` sert précisément à valider ces points.
+Reste à vérifier :
+
+- la table d’avance complète (`CharWidths`) et la grille d’`ascii.png` hors
+  ASCII (`AsciiFont`, lignes 0–1 et 8–15, reprises de mémoire) ;
+- le complément transparent en bas des images quand `ascent > hauteur`, et
+  les très grands `ascent` négatifs ;
+- l’ordre de rendu titre / items en 1.21.x.
+
+Les textes au-dessus de `y = 5` sont refusés (`ascent > 8`, que Minecraft
+rejette pour une police de hauteur 8). Le menu `/menuforge calibrate` sert à
+valider ces points.
