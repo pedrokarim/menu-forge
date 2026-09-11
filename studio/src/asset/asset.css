@@ -400,3 +400,38 @@
 .panel-section .warning {
   margin: 0;
 }
+
+/* Groupes dans la liste des éléments : en-tête repliable, membres en retrait. */
+.outline-item.group-row .outline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-toggle {
+  flex: none;
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+  color: var(--ds-muted);
+  background: transparent;
+  box-shadow: none;
+}
+
+.group-toggle:where(:hover:not(:disabled)) {
+  color: var(--ds-ink);
+  background: transparent;
+  box-shadow: none;
+}
+
+.outline-item.group-member {
+  padding-left: 26px;
+  box-shadow: inset 12px 0 0 -10px var(--ds-divider);
+}
+
+.group-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}

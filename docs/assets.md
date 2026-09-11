@@ -54,12 +54,16 @@ export dans `textures/assets/<id>.png`.
 | `size` | `width`, `height` en pixels (1 à 1024) |
 | `background` | Couleur de fond (`#rrggbbaa`) ou `null` (transparent, le cas normal) |
 | `elements` | Liste d’éléments, de bas en haut (le dernier est dessiné au-dessus) |
+| `groups` | Groupes d’éléments, facultatif (voir « Groupes ») |
 | `export` | `ascent` du glyphe proposé (voir « Export ») |
 
 ## Éléments
 
 Champs communs : `id`, `type`, `x`, `y` (coin haut-gauche, pixels entiers),
-`hidden` (facultatif, masqué dans l’éditeur et à l’export).
+`hidden` (facultatif, masqué dans l’éditeur et à l’export), `locked`
+(facultatif, verrouillé : ne se sélectionne plus sur la toile, reste dans la
+liste des éléments ; sans effet sur l’export), `group` (facultatif,
+identifiant du groupe de l’élément).
 
 ### `box`
 
@@ -86,6 +90,41 @@ facteurs admis : 0.125, 0.25, 0.5, 1, 2, 3, 4 – rendu au plus proche voisin).
 `lineHeight` (défaut 10 : 9 px de ligne + 1), `align` (`left`, `center`,
 `right`, par rapport à `x`). Rendu avec la **vraie police du jeu** (bibliothèque
 `vanilla`), mêmes largeurs et mêmes accents qu’en jeu.
+
+## Groupes
+
+Des éléments peuvent être **groupés** : ils se sélectionnent, se déplacent,
+se copient, se masquent et se verrouillent ensemble. Un seul niveau (pas de
+groupe dans un groupe).
+
+```json
+"groups": [{ "id": "header", "name": "En-tête" }],
+"elements": [
+  { "id": "frame", "type": "box", "group": "header", "x": 0, "y": 0, "width": 44, "height": 44, "style": { … } },
+  { "id": "title", "type": "text", "group": "header", "x": 6, "y": 6, "text": "Aide" },
+  { "id": "logo", "type": "image", "x": 50, "y": 6, "texture": "…" }
+]
+```
+
+| Clé | Rôle |
+|---|---|
+| `groups[].id` | Identifiant du groupe (`[a-z0-9_]`), unique dans l’asset |
+| `groups[].name` | Nom lisible, affiché dans la liste des éléments (facultatif ; l’identifiant sinon) |
+| `elements[].group` | Groupe de l’élément (facultatif) |
+
+- Les membres d’un groupe restent dans `elements` et y sont **contigus** : le
+  groupe s’empile comme un bloc, le rendu (de bas en haut) ne change pas.
+- Un groupe sans membre est retiré ; un `group` qui vise un groupe inconnu est
+  ignoré (et retiré au prochain enregistrement).
+- Replier un groupe dans la liste est un état de l’éditeur, pas du fichier.
+- Dans le studio : `Ctrl+G` groupe la sélection, `Ctrl+Maj+G` dégroupe, un clic
+  sur un membre prend tout le groupe, un double-clic ne prend que ce membre.
+
+### Compatibilité
+
+`groups`, `group` et `locked` sont facultatifs et `formatVersion` reste `1` :
+un asset écrit avant eux s’ouvre et s’exporte à l’identique, et le PNG exporté
+ne dépend ni des groupes ni du verrou.
 
 ## Export
 

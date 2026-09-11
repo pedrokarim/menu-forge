@@ -27,6 +27,7 @@ import { Pencil } from 'pixelarticons/react/Pencil';
 import { Reload } from 'pixelarticons/react/Reload';
 import { Sliders } from 'pixelarticons/react/Sliders';
 import { ChevronDown } from 'pixelarticons/react/ChevronDown';
+import { ChevronRight } from 'pixelarticons/react/ChevronRight';
 import { ChevronUp } from 'pixelarticons/react/ChevronUp';
 import { Close } from 'pixelarticons/react/Close';
 import { Copy } from 'pixelarticons/react/Copy';
@@ -240,6 +241,7 @@ const ICONS = {
   check: Check,
   chest: Chest,
   'chevron-down': ChevronDown,
+  'chevron-right': ChevronRight,
   'chevron-up': ChevronUp,
   clipboard: Clipboard,
   clock: Clock,

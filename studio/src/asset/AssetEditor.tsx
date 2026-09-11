@@ -1,21 +1,42 @@
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import type { DragEvent as ReactDragEvent, JSX, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
-import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { useContextMenu } from '../ui/menuContext';
+import type { MenuEntry } from '../ui/menuContext';
 import { overlayOpen } from '../ui/overlay';
+import { assetClipboard, nextPasteShift, readClipboard, writeClipboard } from '../lib/clipboard';
+import type { AssetClipboard, ClipboardContent } from '../lib/clipboard';
+import { plural } from '../lib/format';
+import { hasDraggedFiles, pastedImageName, pngFiles } from '../lib/imageImport';
+import { arrowDelta, isDeleteKey, shortcutDigit, shortcutLetter, withCommand } from '../lib/shortcuts';
 import type { LoadedTexture } from '../lib/textures';
+import { useClipboardShortcuts } from '../lib/useClipboardShortcuts';
+import { alignOffsets, distributeOffsets, unionRect } from '../model/arrange';
+import type { AlignMode, AlignReference, DistributeAxis } from '../model/arrange';
 import { canvasToBlob } from '../model/generator';
 import { sanitizeId, uniqueId } from '../model/menu';
 import { AssetCanvas } from './AssetCanvas';
+import type { ElementPosition } from './AssetCanvas';
 import { Segmented, TextureField } from './AssetFields';
 import { AssetInspector } from './AssetInspector';
 import { ElementList } from './ElementList';
 import { ExportPanel } from './ExportPanel';
+import {
+  collectForClipboard,
+  insertPasted,
+  offsetElements,
+  pastePlan,
+  removeElements,
+  setElementFlag,
+  translateElements,
+} from './assetEdit';
+import type { ElementFlag } from './assetEdit';
 import { errorMessage, isTypingTarget } from './canvasUtils';
 import type { Point, Rect } from './geometry';
+import { canMoveBlock, expandToGroups, findGroup, groupElements, groupLabel, moveBlock, selectedGroups, ungroupElements } from './groups';
 import { createHistory, historyReducer } from './history';
 import type { Recipe } from './history';
 import type { AssetDefinition, AssetElement, ImageElement } from './model';
@@ -48,7 +69,7 @@ export interface AssetEditorProps {
    * La demande présente au montage est considérée comme déjà traitée.
    */
   insertRequest: { texture: string; source?: ImageElement['source']; nonce: number } | null;
-  /** Contenu à afficher dans l’onglet « Bibliothèque » de la colonne de gauche (fourni par l’application). */
+  /** Contenu à afficher dans l’onglet « Bibliothèque » de la colonne de gauche (fourni par l’application). */
   librarySlot: ReactNode;
   /** Enregistre le JSON et le PNG exporté (échelle 1). Lève une erreur en cas d’échec. */
   onSave: (asset: AssetDefinition, png: Blob) => Promise<void>;
@@ -58,7 +79,7 @@ export interface AssetEditorProps {
   active?: boolean;
   /** Grille de pixels à l’ouverture (réglage de l’éditeur). */
   defaultShowGrid?: boolean;
-  /** Zoom à l’ouverture : 0 ou absent = « Ajuster ». */
+  /** Zoom à l’ouverture : 0 ou absent = « Ajuster ». */
   defaultZoom?: number;
   /** Demande d’enregistrement venue de la barre du haut ; change à chaque demande. */
   saveRequest?: number;
@@ -72,6 +93,7 @@ export interface AssetEditorProps {
 const TOOLS: readonly AssetTool[] = ['select', 'box', 'text', 'image'];
 const TOOL_ICONS: Record<AssetTool, IconName> = { select: 'cursor', box: 'box', text: 'text', image: 'image' };
 const TOOL_KEYS: Record<string, AssetTool> = { v: 'select', b: 'box', t: 'text', i: 'image' };
+const TYPE_NOUNS: Record<AssetElement['type'], string> = { box: 'Box', image: 'Image', text: 'Texte' };
 
 /** Recette qui modifie un élément par son identifiant. */
 function onElement(id: string, mutate: (element: AssetElement) => void): Recipe {
@@ -81,8 +103,15 @@ function onElement(id: string, mutate: (element: AssetElement) => void): Recipe 
   };
 }
 
+/** Où poser une image insérée : coin haut-gauche, ou centre (dépôt, collage). */
+interface ImagePlacement {
+  x: number;
+  y: number;
+  centered?: boolean;
+}
+
 /**
- * Éditeur d’assets (« mode libre ») : box, images et textes composés
+ * Éditeur d’assets (« mode libre ») : box, images et textes composés
  * librement puis exportés en un PNG, à insérer comme glyphe. Occupe toute la
  * zone de travail : éléments / bibliothèque à gauche, toile au centre,
  * inspecteur et export à droite.
@@ -100,21 +129,24 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     defaultShowGrid = true,
     defaultZoom: openingZoom = 0,
     saveRequest = 0,
+    onImportImage,
   } = props;
   const [history, dispatch] = useReducer(historyReducer, initial, createHistory);
   const asset = history.present;
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [tool, setTool] = useState<AssetTool>('select');
   const [boxPresetId, setBoxPresetId] = useState(DEFAULT_BOX_PRESET);
   const [imageTexture, setImageTexture] = useState('');
   const [zoom, setZoom] = useState(() => openingZoom || defaultZoom(initial.size.width, initial.size.height));
-  // Zoom « Ajuster » par défaut, comme pour les menus : le plus grand palier où l’asset tient dans la zone.
+  // Zoom « Ajuster » par défaut, comme pour les menus : le plus grand palier où l’asset tient dans la zone.
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(openingZoom === 0 ? 'fit' : 'manual');
   const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
+  const stageNode = useRef<HTMLDivElement | null>(null);
   const observeStage = useCallback((node: HTMLDivElement | null) => {
+    stageNode.current = node;
     if (!node) return;
     const observer = new ResizeObserver(([entry]) => {
-      // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
+      // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
       if (entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
       setStageSize({ width: Math.floor(entry.contentRect.width), height: Math.floor(entry.contentRect.height) });
     });
@@ -126,9 +158,16 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
+  const [alignReference, setAlignReference] = useState<AlignReference>('selection');
+  // Groupes repliés dans la liste : état d’affichage, hors du document.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
+  const [dropActive, setDropActive] = useState(false);
 
   const dirty = JSON.stringify(asset) !== savedJson;
-  const selected = asset.elements.find((element) => element.id === selectedId) ?? null;
+  // Sélection encore présente dans l’asset (après annuler, supprimer…), dans l’ordre du fichier.
+  const selected = asset.elements.filter((element) => selectedIds.includes(element.id));
+  const selection = selected.map((element) => element.id);
+  const movableIds = selected.filter((element) => !element.locked).map((element) => element.id);
 
   /* Ressources et rendus */
 
@@ -144,6 +183,8 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     [asset, resources],
   );
   const missingTextures = assetTexturePaths(asset).filter((path) => resources.textures.get(path) === null);
+  const selectedRects = selection.map((id) => bounds.get(id)).filter((rect): rect is Rect => rect !== undefined);
+  const selectionBounds = selectedRects.length > 0 ? unionRect(selectedRects) : null;
 
   /* Liens avec le parent */
 
@@ -168,18 +209,19 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
 
   const addElement = useCallback((element: AssetElement) => {
     dispatch({ type: 'change', recipe: (draft) => void draft.elements.push(structuredClone(element)), at: Date.now() });
-    setSelectedId(element.id);
+    setSelectedIds([element.id]);
     setTool('select');
   }, []);
 
   const takenIds = () => assetRef.current.elements.map((element) => element.id);
+  const expand = useCallback((ids: string[]) => expandToGroups(assetRef.current, ids), []);
 
   /**
    * Ajoute une image (au point donné, ou centrée), à une échelle qui tient dans l’asset.
    * `source` : zone de la texture à afficher (sprite rogné dans un atlas).
    */
   const insertImage = useCallback(
-    (texture: string, loaded: LoadedTexture | null, at: Point | null, source?: ImageElement['source']) => {
+    (texture: string, loaded: LoadedTexture | null, at: ImagePlacement | null, source?: ImageElement['source']) => {
       const current = assetRef.current;
       const base = sanitizeId(texture.split('/').pop()?.replace(/\.png$/i, '') ?? 'image');
       const id = uniqueId(base, current.elements.map((element) => element.id));
@@ -188,30 +230,15 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       const scale = loaded ? fitScale(sourceWidth, sourceHeight, current.size.width, current.size.height) : 1;
       const width = Math.max(1, Math.round(sourceWidth * scale));
       const height = Math.max(1, Math.round(sourceHeight * scale));
-      const element: ImageElement = {
-        id,
-        type: 'image',
-        x: at ? at.x : Math.floor((current.size.width - width) / 2),
-        y: at ? at.y : Math.floor((current.size.height - height) / 2),
-        texture,
-      };
+      const x = at ? (at.centered ? Math.round(at.x - width / 2) : at.x) : Math.floor((current.size.width - width) / 2);
+      const y = at ? (at.centered ? Math.round(at.y - height / 2) : at.y) : Math.floor((current.size.height - height) / 2);
+      const element: ImageElement = { id, type: 'image', x, y, texture };
       if (source) element.source = source;
       if (scale !== 1) element.scale = scale;
       addElement(element);
     },
     [addElement],
   );
-
-  /** Copie d’un élément, décalée de 4 px pour qu’on la voie ; la copie est sélectionnée. */
-  const duplicateElement = (id: string) => {
-    const original = assetRef.current.elements.find((element) => element.id === id);
-    if (!original) return;
-    const copy = structuredClone(original);
-    copy.id = uniqueId(original.id, takenIds());
-    copy.x += 4;
-    copy.y += 4;
-    addElement(copy);
-  };
 
   // Insertion demandée par la bibliothèque : la texture est chargée d’abord pour centrer l’image.
   const handledNonce = useRef(insertRequest?.nonce ?? null);
@@ -224,6 +251,19 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       setStatus(loaded ? `Image insérée : ${texture}` : `Texture introuvable : ${texture}`);
     });
   }, [insertRequest, textureVersions, insertImage]);
+
+  /** Image venue de l’extérieur (fichier déposé, image collée) : nouvelle texture, puis nouvel élément image. */
+  const importImage = async (blob: Blob, fileName: string, at: ImagePlacement | null) => {
+    if (!onImportImage) return;
+    try {
+      const texture = await onImportImage(blob, fileName);
+      const loaded = await loadAssetTexture(texture, 0);
+      insertImage(texture, loaded, at);
+      setStatus(`Texture importée : textures/${texture}`);
+    } catch (error) {
+      setStatus(`Échec de l’import : ${errorMessage(error)}`);
+    }
+  };
 
   const createBox = (rect: Rect, clicked: boolean) => {
     const preset = findBoxPreset(boxPresetId);
@@ -255,42 +295,137 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     insertImage(imageTexture, resources.textures.get(imageTexture) ?? null, pixel);
   };
 
-  const reorder = (id: string, direction: 1 | -1) =>
-    change((draft) => {
-      const from = draft.elements.findIndex((element) => element.id === id);
-      const to = from + direction;
-      if (from < 0 || to < 0 || to >= draft.elements.length) return;
-      [draft.elements[from], draft.elements[to]] = [draft.elements[to], draft.elements[from]];
-    });
+  /* Sélection et opérations groupées */
 
-  const toggleHidden = (id: string) =>
-    change(
-      onElement(id, (element) => {
-        if (element.hidden) delete element.hidden;
-        else element.hidden = true;
-      }),
-    );
+  const selectAll = () => setSelectedIds(asset.elements.filter((element) => !element.hidden && !element.locked).map((element) => element.id));
 
-  const deleteElement = (id: string) => {
-    change((draft) => void (draft.elements = draft.elements.filter((element) => element.id !== id)));
-    if (selectedId === id) setSelectedId(null);
+  const reorder = (ids: string[], direction: 1 | -1) => change((draft) => void moveBlock(draft, ids, direction));
+
+  const setFlag = (ids: string[], flag: ElementFlag, value: boolean) => change((draft) => setElementFlag(draft, ids, flag, value));
+
+  /** Masquer / verrouiller (ou l’inverse) : si tous portent déjà le drapeau, il est retiré à tous. */
+  const toggleFlag = (ids: string[], flag: ElementFlag) => {
+    const all = asset.elements.filter((element) => ids.includes(element.id)).every((element) => element[flag]);
+    setFlag(ids, flag, !all);
+  };
+
+  const deleteElements = (ids: string[]) => {
+    if (ids.length === 0) return;
+    change((draft) => removeElements(draft, ids));
+    setSelectedIds((current) => current.filter((id) => !ids.includes(id)));
   };
 
   const rename = (from: string, to: string) => {
     change(onElement(from, (element) => void (element.id = to)));
-    setSelectedId(to);
+    setSelectedIds((current) => current.map((id) => (id === from ? to : id)));
   };
 
   const nudge = (dx: number, dy: number) => {
-    if (!selected) return;
-    change(
-      onElement(selected.id, (element) => {
-        element.x += dx;
-        element.y += dy;
-      }),
-      `${selected.id}.nudge`,
-    );
+    if (movableIds.length === 0) return;
+    change((draft) => translateElements(draft, movableIds, dx, dy), `${movableIds.join(',')}.nudge`);
   };
+
+  const moveSelectionBy = (dx: number, dy: number) => {
+    if (movableIds.length > 0 && (dx !== 0 || dy !== 0)) change((draft) => translateElements(draft, movableIds, dx, dy));
+  };
+
+  /** Aligner ou répartir les éléments déplaçables de `ids`. */
+  const arrange = (compute: (rects: Rect[]) => Point[], ids: string[] = movableIds) => {
+    const placed = ids.filter((id) => bounds.has(id));
+    const offsets = compute(placed.map((id) => bounds.get(id) as Rect));
+    if (offsets.every((offset) => offset.x === 0 && offset.y === 0)) {
+      if (placed.length > 0) setStatus('Déjà aligné');
+      return;
+    }
+    change((draft) => offsetElements(draft, placed, offsets));
+  };
+  const canvasRect: Rect = { x: 0, y: 0, width: asset.size.width, height: asset.size.height };
+  const align = (mode: AlignMode) =>
+    arrange((rects) => alignOffsets(rects, mode, alignReference === 'canvas' || rects.length < 2 ? canvasRect : unionRect(rects)));
+  const distribute = (axis: DistributeAxis) => arrange((rects) => distributeOffsets(rects, axis));
+
+  /** Ctrl+G : regroupe la sélection (deux éléments au moins). */
+  const groupSelection = (ids: string[] = selection) => {
+    if (ids.length < 2) {
+      setStatus('Sélectionne au moins deux éléments pour les grouper.');
+      return;
+    }
+    const groupId = uniqueId('group', (asset.groups ?? []).map((group) => group.id));
+    const name = `Groupe ${(asset.groups?.length ?? 0) + 1}`;
+    change((draft) => {
+      if (!groupElements(draft, ids, groupId)) return;
+      const group = draft.groups?.find((candidate) => candidate.id === groupId);
+      if (group) group.name = name;
+    });
+    setStatus(`${plural(ids.length, 'élément')} groupés dans « ${name} »`);
+  };
+
+  /** Ctrl+Maj+G : dissout les groupes touchés par la sélection. */
+  const ungroupSelection = (groupIds?: string[]) => {
+    const targets = groupIds ?? [...new Set(selected.map((element) => element.group).filter((group): group is string => Boolean(group)))];
+    if (targets.length === 0) return;
+    change((draft) => ungroupElements(draft, targets));
+    setStatus(targets.length > 1 ? `${targets.length} groupes dissous` : 'Groupe dissous');
+  };
+
+  const renameGroup = (groupId: string, name: string) =>
+    change((draft) => {
+      const group = draft.groups?.find((candidate) => candidate.id === groupId);
+      if (group) group.name = name;
+    });
+
+  /* Presse-papiers */
+
+  const clipboardFor = (ids: string[]): AssetClipboard | null => {
+    if (ids.length === 0) return null;
+    const { elements, groups } = collectForClipboard(asset, ids);
+    setStatus(`${plural(elements.length, 'élément')} copié${elements.length > 1 ? 's' : ''}`);
+    return assetClipboard(`asset:${asset.id}`, elements, groups);
+  };
+
+  const copyElements = (ids: string[]) => {
+    const payload = clipboardFor(ids);
+    if (payload) writeClipboard(payload);
+  };
+
+  const cutElements = (ids: string[]) => {
+    copyElements(ids);
+    deleteElements(ids);
+  };
+
+  /** Copies décalées au-dessus de tout, identifiants uniques ; les copies sont sélectionnées. */
+  const insertCopies = (payload: Pick<AssetClipboard, 'elements' | 'groups'>, shift: number, verb: string) => {
+    const plan = pastePlan(payload, assetRef.current, shift);
+    if (plan.elements.length === 0) return;
+    change((draft) => insertPasted(draft, plan));
+    setSelectedIds(plan.elements.map((element) => element.id));
+    setTool('select');
+    setStatus(`${plural(plan.elements.length, 'élément')} ${verb}`);
+  };
+
+  /** Ctrl+D : copies de la sélection, décalées de 4 px. */
+  const duplicateElements = (ids: string[] = selection) => {
+    if (ids.length > 0) insertCopies(collectForClipboard(asset, ids), 1, ids.length > 1 ? 'dupliqués' : 'dupliqué');
+  };
+
+  const pasteContent = (content: ClipboardContent) => {
+    if (content.payload?.kind === 'asset') {
+      insertCopies(content.payload, nextPasteShift(content.payload, `asset:${asset.id}`), 'collé(s)');
+    } else if (content.payload?.kind === 'menu') {
+      setStatus('Le presse-papiers contient des éléments de menu : colle-les dans un menu.');
+    } else if (content.image) {
+      void importImage(content.image, pastedImageName(), { x: asset.size.width / 2, y: asset.size.height / 2, centered: true });
+    } else {
+      setStatus('Rien à coller : copie d’abord des éléments (Ctrl+C) ou une image PNG.');
+    }
+  };
+
+  useClipboardShortcuts({
+    enabled: () => active,
+    copy: () => clipboardFor(selection),
+    remove: () => deleteElements(selection),
+    paste: pasteContent,
+  });
 
   /* Enregistrement */
 
@@ -305,7 +440,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       const png = await canvasToBlob(canvas);
       await onSave(snapshot, png);
       setSavedJson(JSON.stringify(snapshot));
-      setStatus(`« ${snapshot.id} » enregistré, PNG exporté (${canvas.width} × ${canvas.height})`);
+      setStatus(`« ${snapshot.id} » enregistré, PNG exporté (${canvas.width} × ${canvas.height})`);
     } catch (error) {
       setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
     } finally {
@@ -313,7 +448,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     }
   };
 
-  // Bouton « Enregistrer » de la barre du haut : chaque nouvelle demande enregistre une fois.
+  // Bouton « Enregistrer » de la barre du haut : chaque nouvelle demande enregistre une fois.
   const saveRef = useRef(save);
   useEffect(() => {
     saveRef.current = save;
@@ -325,28 +460,71 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     void saveRef.current();
   }, [saveRequest]);
 
-  /* Menu contextuel d’un élément (clic droit dans la liste) */
+  /* Menus contextuels */
 
   const openContextMenu = useContextMenu();
-  const openElementMenu = (id: string, event: ReactMouseEvent) => {
-    const index = asset.elements.findIndex((element) => element.id === id);
-    const element = asset.elements[index];
-    if (!element) return;
-    const noun = element.type === 'box' ? 'Box' : element.type === 'image' ? 'Image' : 'Texte';
-    openContextMenu(event, [
-      { heading: `${noun} « ${id} »` },
-      { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => duplicateElement(id) },
-      {
-        label: element.hidden ? 'Afficher' : 'Masquer',
-        icon: element.hidden ? 'eye' : 'eye-off',
-        onSelect: () => toggleHidden(id),
-      },
+
+  /** Actions d’un élément, d’un groupe ou de la sélection (clic droit dans la liste ou sur la toile). */
+  const selectionMenu = (ids: string[]): MenuEntry[] => {
+    const targets = asset.elements.filter((element) => ids.includes(element.id));
+    if (targets.length === 0) return [];
+    const targetIds = targets.map((element) => element.id);
+    const whole = selectedGroups(asset, targetIds);
+    const touched = [...new Set(targets.map((element) => element.group).filter((group): group is string => Boolean(group)))];
+    const onlyGroup =
+      whole.length === 1 && touched.length === 1 && targets.every((element) => element.group === whole[0]) ? findGroup(asset, whole[0]) : undefined;
+    const heading =
+      targets.length === 1
+        ? `${TYPE_NOUNS[targets[0].type]} « ${targets[0].id} »`
+        : onlyGroup
+          ? `Groupe « ${groupLabel(onlyGroup)} »`
+          : `${plural(targets.length, 'élément')} sélectionnés`;
+    const hidden = targets.every((element) => element.hidden);
+    const locked = targets.every((element) => element.locked);
+    return [
+      { heading },
+      { label: 'Couper', icon: 'cut', shortcut: 'Ctrl+X', onSelect: () => cutElements(targetIds) },
+      { label: 'Copier', icon: 'clipboard', shortcut: 'Ctrl+C', onSelect: () => copyElements(targetIds) },
+      { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => duplicateElements(targetIds) },
       { separator: true },
-      { label: 'Monter', icon: 'chevron-up', disabled: index === asset.elements.length - 1, onSelect: () => reorder(id, 1) },
-      { label: 'Descendre', icon: 'chevron-down', disabled: index === 0, onSelect: () => reorder(id, -1) },
+      ...(targets.length > 1 && !onlyGroup
+        ? [{ label: 'Grouper', icon: 'group' as const, shortcut: 'Ctrl+G', onSelect: () => groupSelection(targetIds) }]
+        : []),
+      ...(touched.length > 0
+        ? [{ label: 'Dégrouper', icon: 'ungroup' as const, shortcut: 'Ctrl+Maj+G', onSelect: () => ungroupSelection(touched) }]
+        : []),
+      { label: 'Monter', icon: 'chevron-up', disabled: !canMoveBlock(asset, targetIds, 1), onSelect: () => reorder(targetIds, 1) },
+      { label: 'Descendre', icon: 'chevron-down', disabled: !canMoveBlock(asset, targetIds, -1), onSelect: () => reorder(targetIds, -1) },
       { separator: true },
-      { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteElement(id) },
-    ]);
+      { label: hidden ? 'Afficher' : 'Masquer', icon: hidden ? 'eye' : 'eye-off', onSelect: () => toggleFlag(targetIds, 'hidden') },
+      { label: locked ? 'Déverrouiller' : 'Verrouiller', icon: locked ? 'unlock' : 'lock', onSelect: () => toggleFlag(targetIds, 'locked') },
+      { separator: true },
+      { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteElements(targetIds) },
+    ];
+  };
+
+  /** Clic droit sur une zone vide de la toile. */
+  const canvasMenu = (): MenuEntry[] => [
+    { heading: `Asset « ${asset.name} »` },
+    { label: 'Coller', icon: 'clipboard', shortcut: 'Ctrl+V', onSelect: () => void readClipboard().then(pasteContent) },
+    { label: 'Tout sélectionner', icon: 'marquee', shortcut: 'Ctrl+A', onSelect: selectAll },
+    { separator: true },
+    { label: 'Ajouter un texte', icon: 'text', onSelect: () => createText({ x: 4, y: 4 }) },
+    { label: 'Ajuster le zoom', icon: 'expand', shortcut: 'Ctrl+0', onSelect: () => setZoomMode('fit') },
+  ];
+
+  const openListMenu = (ids: string[], event: ReactMouseEvent) => {
+    // La ligne cliquée rejoint la sélection : les actions portent sur toute la sélection si elle la contient.
+    const targets = ids.every((id) => selection.includes(id)) && selection.length > ids.length ? selection : ids;
+    openContextMenu(event, selectionMenu(targets));
+  };
+
+  const openCanvasMenu = (id: string | null, event: ReactMouseEvent) => {
+    if (!id) {
+      openContextMenu(event, canvasMenu());
+      return;
+    }
+    openContextMenu(event, selectionMenu(selection.includes(id) ? selection : expand([id])));
   };
 
   /* Clavier */
@@ -354,50 +532,62 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   const handleKeyDown = (event: KeyboardEvent) => {
     // Écran caché, ou menu contextuel / dialogue ouvert : les touches ne sont pas pour la toile.
     if (!active || event.defaultPrevented || overlayOpen()) return;
-    const key = event.key.toLowerCase();
-    const withModifier = event.ctrlKey || event.metaKey;
-    if (withModifier && key === 's') {
+    const letter = shortcutLetter(event);
+    const command = withCommand(event);
+    if (command && letter === 's') {
       event.preventDefault();
       void save();
       return;
     }
     if (isTypingTarget(event.target)) return;
-    if (withModifier && key === 'z') {
+    if (command && letter === 'z') {
       event.preventDefault();
       dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
       return;
     }
-    if (withModifier && key === 'y') {
+    if (command && letter === 'y') {
       event.preventDefault();
       dispatch({ type: 'redo' });
       return;
     }
-    // Touche physique : sur AZERTY, Ctrl + la touche du 0 produit « à ».
-    if (withModifier && (event.code === 'Digit0' || event.code === 'Numpad0')) {
+    // Touche physique : sur AZERTY, Ctrl + la touche du 0 produit « à ».
+    if (command && shortcutDigit(event) === '0') {
       event.preventDefault();
       setZoomMode('fit');
       return;
     }
-    if (withModifier && key === 'd') {
+    if (command && letter === 'd') {
       event.preventDefault();
-      if (selected) duplicateElement(selected.id);
+      duplicateElements();
       return;
     }
-    if (withModifier || event.altKey) return;
-    if (TOOL_KEYS[key]) {
-      setTool(TOOL_KEYS[key]);
-    } else if (key === 'escape') {
-      setSelectedId(null);
+    if (command && letter === 'a') {
+      event.preventDefault();
+      selectAll();
+      return;
+    }
+    if (command && letter === 'g') {
+      event.preventDefault();
+      if (event.shiftKey) ungroupSelection();
+      else groupSelection();
+      return;
+    }
+    // Ctrl+C, Ctrl+X, Ctrl+V : traités par useClipboardShortcuts.
+    if (command || event.altKey) return;
+    if (letter && TOOL_KEYS[letter] && !event.shiftKey) {
+      setTool(TOOL_KEYS[letter]);
+    } else if (event.key === 'Escape') {
+      setSelectedIds([]);
       setTool('select');
-    } else if ((key === 'delete' || key === 'backspace') && selected) {
+    } else if (isDeleteKey(event) && selection.length > 0) {
       event.preventDefault();
-      deleteElement(selected.id);
-    } else if (key.startsWith('arrow') && selected) {
-      event.preventDefault();
-      const step = event.shiftKey ? 10 : 1;
-      const dx = key === 'arrowleft' ? -step : key === 'arrowright' ? step : 0;
-      const dy = key === 'arrowup' ? -step : key === 'arrowdown' ? step : 0;
-      nudge(dx, dy);
+      deleteElements(selection);
+    } else {
+      const delta = arrowDelta(event, 1, 10);
+      if (delta && selection.length > 0) {
+        event.preventDefault();
+        nudge(delta.dx, delta.dy);
+      }
     }
   };
 
@@ -430,6 +620,44 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     setZoom(level);
   };
 
+  /* Glisser-déposer d’un PNG depuis l’explorateur */
+
+  /** Pixel de l’asset sous le pointeur (coordonnées écran), ou `null` hors de la toile. */
+  const pixelAt = (clientX: number, clientY: number): Point | null => {
+    const canvas = stageNode.current?.querySelector('canvas.asset-canvas');
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return { x: (clientX - rect.left - CANVAS_PAD) / effectiveZoom, y: (clientY - rect.top - CANVAS_PAD) / effectiveZoom };
+  };
+
+  const stageDropHandlers = {
+    onDragOver: (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!onImportImage || !hasDraggedFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      if (!dropActive) setDropActive(true);
+    },
+    onDragLeave: (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false);
+    },
+    onDrop: (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!hasDraggedFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      setDropActive(false);
+      const files = pngFiles(event.dataTransfer.files);
+      if (files.length === 0) {
+        setStatus('Seuls les fichiers PNG peuvent être déposés sur la toile.');
+        return;
+      }
+      const at = pixelAt(event.clientX, event.clientY);
+      void (async () => {
+        for (const [index, file] of files.entries()) {
+          await importImage(file, file.name, at ? { x: at.x + index * 4, y: at.y + index * 4, centered: true } : null);
+        }
+      })();
+    },
+  };
+
   return (
     <div className="asset-editor">
       <aside className="sidebar">
@@ -460,13 +688,23 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
         {leftTab === 'elements' && (
           <>
             <ElementList
-              elements={asset.elements}
-              selectedId={selected?.id ?? null}
-              onSelect={setSelectedId}
+              asset={asset}
+              selectedIds={selection}
+              collapsed={collapsed}
+              onToggleCollapsed={(groupId) =>
+                setCollapsed((current) => {
+                  const next = new Set(current);
+                  if (next.has(groupId)) next.delete(groupId);
+                  else next.add(groupId);
+                  return next;
+                })
+              }
+              onSelect={setSelectedIds}
               onReorder={reorder}
-              onToggleHidden={toggleHidden}
-              onItemContextMenu={openElementMenu}
-              onDelete={deleteElement}
+              onToggleFlag={toggleFlag}
+              onItemContextMenu={openListMenu}
+              onDelete={deleteElements}
+              onUngroup={(groupId) => ungroupSelection([groupId])}
               onAddBox={addBoxPreset}
               onAddText={() => createText({ x: 4, y: 4 })}
             />
@@ -489,6 +727,18 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                     </Fragment>
                   ))}
                   <dt>
+                    <ShortcutKeys shortcut="Maj+Clic" />
+                  </dt>
+                  <dd>Ajouter à la sélection</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Ctrl+A" />
+                  </dt>
+                  <dd>Tout sélectionner</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Ctrl+G" />
+                  </dt>
+                  <dd>Grouper (Ctrl+Maj+G : dégrouper)</dd>
+                  <dt>
                     <ArrowKeys />
                   </dt>
                   <dd>Déplacer de 1 px</dd>
@@ -499,11 +749,15 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                   <dt>
                     <ShortcutKeys shortcut="Suppr" />
                   </dt>
-                  <dd>Supprimer l’élément</dd>
+                  <dd>Supprimer la sélection</dd>
                   <dt>
                     <ShortcutKeys shortcut="Ctrl+D" />
                   </dt>
-                  <dd>Dupliquer l’élément</dd>
+                  <dd>Dupliquer</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Ctrl+C" />
+                  </dt>
+                  <dd>Copier (Ctrl+X couper, Ctrl+V coller)</dd>
                   <dt>
                     <kbd>Échap</kbd>
                   </dt>
@@ -606,7 +860,15 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             </label>
           </div>
         </div>
-        <div className="stage asset-stage-scroll" ref={observeStage}>
+        <div
+          className={dropActive ? 'stage asset-stage-scroll is-drop-target' : 'stage asset-stage-scroll'}
+          ref={observeStage}
+          onContextMenu={(event) => {
+            // Zone autour de l’asset : même menu qu’une zone vide de la toile.
+            if (event.target === event.currentTarget) openCanvasMenu(null, event);
+          }}
+          {...stageDropHandlers}
+        >
           <AssetCanvas
             asset={asset}
             preview={preview}
@@ -614,16 +876,19 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             zoom={effectiveZoom}
             showGrid={showGrid}
             tool={tool}
-            selectedId={selected?.id ?? null}
-            onSelect={setSelectedId}
+            selectedIds={selection}
+            onSelect={setSelectedIds}
+            expand={expand}
             onBeginEdit={checkpoint}
-            onMoveElement={(id, x, y) =>
-              live(
-                onElement(id, (element) => {
-                  element.x = x;
-                  element.y = y;
-                }),
-              )
+            onMoveElements={(positions: ElementPosition[]) =>
+              live((draft) => {
+                for (const position of positions) {
+                  const element = draft.elements.find((candidate) => candidate.id === position.id);
+                  if (!element) continue;
+                  element.x = position.x;
+                  element.y = position.y;
+                }
+              })
             }
             onResizeBox={(id, rect) =>
               live(
@@ -639,8 +904,15 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             onCreateBox={createBox}
             onCreateText={createText}
             onPlaceImage={placeImage}
+            onContextMenu={openCanvasMenu}
           />
         </div>
+        {dropActive && (
+          <div className="drop-hint" aria-hidden="true">
+            <Icon name="upload" size={24} />
+            Déposer le PNG : il devient une image de l’asset
+          </div>
+        )}
         <div className="asset-footer">
           <span className="asset-footer-hint">
             <Icon name={TOOL_ICONS[tool]} />
@@ -658,13 +930,25 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
           <AssetInspector
             asset={asset}
             selected={selected}
-            selectedBounds={selected ? (bounds.get(selected.id) ?? null) : null}
+            selectionBounds={selectionBounds}
             textures={textures}
             resources={resources}
             onChange={change}
             onLive={live}
             onCheckpoint={checkpoint}
             onRename={rename}
+            alignReference={alignReference}
+            onAlignReferenceChange={setAlignReference}
+            onAlign={align}
+            onDistribute={distribute}
+            onMoveSelection={moveSelectionBy}
+            onSetFlag={setFlag}
+            onGroup={() => groupSelection()}
+            onUngroup={(groupIds) => ungroupSelection(groupIds)}
+            onRenameGroup={renameGroup}
+            onDuplicate={() => duplicateElements()}
+            onCopy={() => copyElements(selection)}
+            onDelete={() => deleteElements(selection)}
           />
         </div>
         <ExportPanel

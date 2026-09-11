@@ -35,13 +35,14 @@ interface ElementBase {
   group?: string;
 }
 
-/** Groupe d’éléments : ses membres se sélectionnent et se déplacent ensemble. */
+/**
+ * Groupe d’éléments : ses membres se sélectionnent et se déplacent ensemble.
+ * Replier un groupe dans la liste est un état d’affichage de l’éditeur, pas du format.
+ */
 export interface AssetGroup {
   id: string;
   /** Nom lisible (liste des éléments) ; l’identifiant sinon. */
   name?: string;
-  /** Replié dans la liste des éléments (affichage seulement). */
-  collapsed?: boolean;
 }
 
 export interface BoxElement extends ElementBase {
