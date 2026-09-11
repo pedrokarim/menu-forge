@@ -110,6 +110,33 @@ Détails et commandes : [`../studio/README.md`](../studio/README.md).
 Reste à faire : brancher les écrans (choix d’espace, sélecteur de dossier,
 réglages, récents) sur ces routes.
 
+## Gestes d’édition (2026-09-11)
+
+Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
+
+- **Sélection multiple** : Maj ou Ctrl + clic (toile et liste), plage au
+  Maj+clic dans la liste, rectangle tracé sur une zone vide, `Ctrl+A` ;
+  déplacer (souris, flèches), supprimer, dupliquer (`Ctrl+D`) plusieurs
+  éléments ; l’inspecteur résume la sélection (position de l’ensemble,
+  condition commune, drapeaux à trois états).
+- **Presse-papiers** : `Ctrl+C` / `Ctrl+X` / `Ctrl+V`, JSON marqué dans le
+  presse-papiers système (d’un menu à l’autre, d’un asset à l’autre),
+  collages décalés, identifiants rendus uniques ; une image PNG collée
+  devient une texture de `textures/imported/` puis une couche ou une image.
+- **Aligner et répartir** par rapport à la sélection ou à la toile (barre
+  d’icônes de l’inspecteur, menu contextuel des menus).
+- **Groupes** dans les assets (`Ctrl+G`, `Ctrl+Maj+G`, repliables dans la
+  liste), format documenté dans [`assets.md`](assets.md).
+- **Verrouiller / masquer** : clé `editor` des menus (ignorée par la lib, test
+  Java), `locked` / `hidden` des éléments d’asset.
+- **Documents** : renommer (avec mise à jour des `open` / `extends` des
+  autres menus), dupliquer, mettre à la corbeille (`.trash/` de l’espace,
+  jamais de suppression) depuis l’accueil, le sélecteur de l’éditeur et les
+  menus contextuels ; routes `POST /documents/rename`, `/duplicate`,
+  `/trash` du backend.
+- **Glisser-déposer** d’un PNG depuis l’explorateur sur la toile, dans le
+  navigateur comme dans l’appli (gestionnaire natif de Tauri désactivé).
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et
@@ -122,5 +149,6 @@ réglages, récents) sur ces routes.
    - police pixel fidèle pour l’aperçu des textes ;
    - éditeur visuel des états et des actions (sans passer par le JSON) ;
    - export d’un pack ZIP pour tester sans serveur ;
-   - copier / coller, multi-sélection, repères.
+   - repères posés à la main (règles, guides) ;
+   - restaurer un document depuis la corbeille.
 5. **Décider** du sort de `generic_54.png` (effet global sur tous les coffres).
