@@ -11,7 +11,7 @@
 //! | `GET /workspaces` | espaces connus, avec résumé (menus, assets, textures, existence) |
 //! | `POST /workspaces/open` | `{ path, name? }` : ouvre (et ajoute) un espace, qui devient actif |
 //! | `DELETE /workspaces` | `{ path }` : retire de la liste, **ne supprime aucun fichier** |
-//! | `GET /documents/recent` | menus et assets de l’espace actif, du plus récent au plus ancien |
+//! | `GET /documents/recent` | menus, assets et images de pixels de l’espace actif, du plus récent au plus ancien (`texture`  PNG exporté d’une image de pixels) |
 //! | `POST /libraries` | `{ id, name, root, ownership }` : branche un pack extrait |
 //! | `DELETE /libraries/:id` | débranche un pack (rien n’est supprimé sur le disque) |
 //! | `POST /libraries/:id/reindex` | reconstruit l’index en ignorant les caches |
@@ -263,6 +263,9 @@ impl Backend {
                 map.insert("id".into(), Value::String(document.id));
                 map.insert("name".into(), Value::String(document.name));
                 map.insert("modified".into(), Value::String(iso_utc(document.modified)));
+                if let Some(texture) = document.texture {
+                    map.insert("texture".into(), Value::String(texture));
+                }
                 Value::Object(map)
             })
             .collect();

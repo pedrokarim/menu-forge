@@ -86,7 +86,10 @@ Routes de l’application :
 | `GET /api/workspaces` | `{ active, workspaces: [{ path, name, lastOpened, active, exists, menus, assets, textures }] }` |
 | `POST /api/workspaces/open` | `{ path, name? }` : dossier absolu existant ; crée `menus/`, `assets/`, `textures/` s’ils manquent ; devient l’espace actif |
 | `DELETE /api/workspaces` | `{ path }` : retire de la liste (409 pour l’espace actif), **ne supprime aucun fichier** |
-| `GET /api/documents/recent` | `[{ type: "menu" \| "asset", id, name, modified }]`, du plus récent au plus ancien |
+| `GET /api/documents/recent` | `[{ type: "menu" \| "asset" \| "pixel", id, name, modified, texture? }]`, du plus récent au plus ancien ; `texture`  PNG exporté d’une image de pixels |
+| `GET /api/pixels` | images de l’éditeur de pixels : `[{ id, name, width, height, layers, texture, modified }]` (sans les calques) |
+| `GET /api/pixels/:id` | le document `pixels/<id>.pixel.json` complet (format dans [`../docs/pixels.md`](../docs/pixels.md)) |
+| `PUT /api/pixels/:id` | enregistre le document après validation (taille, calques PNG, texture d’export sous `textures/`) ; écriture atomique |
 | `POST /api/libraries` | `{ id, name, root, ownership }` : `root` absolu, contenant `assets/` |
 | `DELETE /api/libraries/:id` | débranche le pack (rien n’est supprimé sur le disque) |
 | `POST /api/libraries/:id/reindex` | reconstruit l’index sans cache ; renvoie `{ id, textures, fonts }` |

@@ -17,6 +17,7 @@ libraries.local.json
 examples/menus/
 examples/assets/
 examples/textures/
+examples/pixels/
 
 # Environnement
 .env

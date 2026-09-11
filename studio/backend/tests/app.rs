@@ -512,6 +512,103 @@ fn recent_documents_are_sorted_by_modification() {
     assert!(modified.ends_with('Z') && modified.len() == 24, "{modified}");
 }
 
+/// Base64 standard, pour les calques des images de pixels.
+fn base64(data: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for chunk in data.chunks(3) {
+        let group = chunk.iter().enumerate().fold(0u32, |group, (index, &byte)| group | (u32::from(byte) << (16 - 8 * index)));
+        for index in 0..4 {
+            out.push(if index <= chunk.len() { ALPHABET[((group >> (18 - 6 * index)) & 63) as usize] as char } else { '=' });
+        }
+    }
+    out
+}
+
+/// Image de pixels de 16 × 8 (la taille du PNG de test), un calque.
+fn pixel_document(id: &str, texture: &str) -> Value {
+    json!({
+        "formatVersion": 1,
+        "id": id,
+        "name": "Épée",
+        "size": {"width": 16, "height": 8},
+        "layers": [{"id": "calque_1", "name": "Calque 1", "visible": true, "opacity": 100, "png": base64(&png())}],
+        "export": {"texture": texture},
+        "source": {"kind": "library", "library": "vanilla", "path": "assets/minecraft/textures/item/iron_sword.png"}
+    })
+}
+
+#[test]
+fn pixel_documents_round_trip_inside_the_workspace() {
+    let dir = TempDir::new("pixels");
+    let backend = Backend::new(config(&dir));
+    let root = dir.path("default");
+    let nbsp = '\u{a0}';
+
+    assert_eq!(call(&backend, "GET", "/pixels", Value::Null).1, json!([]), "dossier pixels/ absent : liste vide");
+    let document = pixel_document("epee", "pixels/epee.png");
+    let (status, _, message) = call(&backend, "PUT", "/pixels/epee", document.clone());
+    assert_eq!(status, 204, "{message}");
+    assert!(root.join("pixels/epee.pixel.json").is_file());
+    let leftovers: Vec<_> = fs::read_dir(root.join("pixels")).unwrap().map(|entry| entry.unwrap().file_name()).collect();
+    assert_eq!(leftovers, ["epee.pixel.json"], "écriture atomique : aucun fichier temporaire");
+
+    let (status, read, _) = call(&backend, "GET", "/pixels/epee", Value::Null);
+    assert_eq!((status, read), (200, document.clone()));
+    let (status, list, _) = call(&backend, "GET", "/pixels", Value::Null);
+    assert_eq!(status, 200);
+    let summary = &list[0];
+    assert_eq!(
+        (&summary["id"], &summary["name"], &summary["width"], &summary["height"], &summary["layers"], &summary["texture"]),
+        (&json!("epee"), &json!("Épée"), &json!(16), &json!(8), &json!(1), &json!("pixels/epee.png"))
+    );
+    assert!(summary["modified"].as_str().unwrap().ends_with('Z'));
+
+    // Le PNG aplati passe par la route des textures ; les récents l’indiquent pour la vignette.
+    assert_eq!(backend.handle(&Request::new("PUT", "/textures/pixels/epee.png", png())).status, 204);
+    let (_, recent, _) = call(&backend, "GET", "/documents/recent", Value::Null);
+    assert_eq!(recent[0]["type"], "pixel");
+    assert_eq!(recent[0]["texture"], "pixels/epee.png");
+    assert!(recent.as_array().unwrap().iter().all(|entry| entry["type"] == "pixel" || entry.get("texture").is_none()));
+
+    let (status, _, message) = call(&backend, "GET", "/pixels/absent", Value::Null);
+    assert_eq!((status, message), (404, format!("Image introuvable{nbsp}: absent")));
+
+    // Identifiants hors format et sorties du dossier : refusés, rien n’est écrit ailleurs.
+    for path in ["/pixels/Epee", "/pixels/..%2F..%2Fevasion", "/pixels/a%5C..%5C..%5Cevasion", "/pixels/%2E%2E%2Fevasion"] {
+        let (status, _, message) = call(&backend, "PUT", path, pixel_document("evasion", "pixels/x.png"));
+        assert_eq!(status, 400, "{path} → {message}");
+    }
+    // `..` (en clair ou `%2E%2E`) est résolu dans l’URL : la requête ne vise plus une image.
+    for path in ["/pixels/../../evasion", "/pixels/%2E%2E"] {
+        assert_eq!(call(&backend, "PUT", path, pixel_document("evasion", "pixels/x.png")).0, 404, "{path}");
+    }
+    for texture in ["../menus/evasion.png", "../../evasion.png", "C:/evasion.png", "/evasion.png", "pixels/x.gif"] {
+        let (status, _, message) = call(&backend, "PUT", "/pixels/evasion", pixel_document("evasion", texture));
+        assert_eq!(status, 400, "{texture} → {message}");
+        assert!(message.starts_with(&format!("«{nbsp}export.texture{nbsp}»")), "{message}");
+    }
+    let (status, _, message) = call(&backend, "PUT", "/pixels/autre", pixel_document("epee", "pixels/x.png"));
+    assert_eq!((status, message.as_str()), (400, "L’identifiant du document ne correspond pas à l’URL"));
+    let response = backend.handle(&Request::new("PUT", "/pixels/epee", b"pas du json".to_vec()));
+    assert_eq!((response.status, response.body.as_slice()), (400, "JSON invalide".as_bytes()));
+    assert_eq!(call(&backend, "PUT", "/pixels/epee", json!(["x"])).0, 400);
+    let mut wrong_size = pixel_document("epee", "pixels/epee.png");
+    wrong_size["size"]["width"] = json!(32);
+    let (status, _, message) = call(&backend, "PUT", "/pixels/epee", wrong_size);
+    assert_eq!(status, 400);
+    assert!(message.contains("16 × 8 px"), "{message}");
+    assert!(!root.join("pixels/evasion.pixel.json").exists() && !dir.path("evasion.pixel.json").exists());
+    assert!(!root.join("menus/evasion.pixel.json").exists());
+    assert_eq!(fs::read_dir(root.join("pixels")).unwrap().count(), 1);
+    // Le document valide n’a pas été touché par les refus.
+    assert_eq!(call(&backend, "GET", "/pixels/epee", Value::Null).1, document);
+
+    // Autres méthodes : route inconnue, comme les autres documents.
+    let (status, _, message) = call(&backend, "DELETE", "/pixels/epee", Value::Null);
+    assert_eq!((status, message.as_str()), (404, "Route inconnue : DELETE /pixels/epee"));
+}
+
 #[test]
 fn libraries_add_remove_reindex_keep_memory_index() {
     let dir = TempDir::new("libraries");
