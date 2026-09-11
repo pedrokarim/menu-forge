@@ -202,8 +202,9 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
   1180 × 700 sans débordement), suites existantes relancées.
 - **Reste** : surcharger un seul champ d’un élément d’instance (aujourd’hui on
   remplace l’élément entier, par identifiant) ; aperçu des items des slots
-  « liste » en mode essai (entrées simulées) ;
-  contraindre une IA qui génère des menus avec le schéma.
+  « liste » en mode essai (entrées simulées).
+- **Depuis** : la génération de menus par IA contrainte par ce schéma est faite
+  (validation et correction bornée, voir [`ai.md`](ai.md)).
 
 ## Prochaines étapes
 

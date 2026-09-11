@@ -331,7 +331,8 @@ async function seedWorkspace(page) {
 /** Ouvre une adresse du studio dans une page fraîche (l’éditeur ne lit l’adresse qu’au chargement). */
 async function open(page, hash) {
   await page.goto('about:blank');
-  await page.goto(`${UI_ORIGIN}/${hash}`, { waitUntil: 'load' });
+  // Premier chargement : Vite peut encore précompiler ses dépendances.
+  await page.goto(`${UI_ORIGIN}/${hash}`, { waitUntil: 'load', timeout: 180_000 });
   await page.locator('.rail').first().waitFor({ timeout: 60000 });
   await page.evaluate(() => document.fonts.ready);
   await wait(700);
@@ -805,7 +806,9 @@ try {
     plugins: [react()],
     logLevel: 'warn',
     clearScreen: false,
-    cacheDir: path.join(WORK_DIR, 'vite'),
+    // Cache des dépendances gardé d'un lancement à l'autre (WORK_DIR est effacé à chaque fois) :
+    // sans lui, Vite repart à froid et la première page dépasse les délais.
+    cacheDir: path.join(STUDIO_DIR, 'node_modules', '.vite-capture'),
     server: {
       // `studio/node_modules` peut être une jonction (worktree) : on autorise aussi sa cible.
       // `docs/` : le dialogue « Générer une interface » importe `docs/menu.schema.json`.
