@@ -54,7 +54,8 @@ import { mergeSelections, sameSelection, selectionIncludes, toggleSelection } fr
 import type { Selection } from '../state/editor';
 import { SLOT_COLORS } from './slotColors';
 
-export type CanvasTool = 'select' | 'slot';
+/** `try` : mode « Essayer », un clic sur un slot exécute ses actions (rien ne se sélectionne ni ne bouge). */
+export type CanvasTool = 'select' | 'slot' | 'try';
 export type BackgroundMode = 'slots-only' | 'vanilla' | 'none';
 
 /** Marges autour de la fenêtre, pour voir ce qui déborde (barre d’onglets flottante…). */
@@ -111,6 +112,8 @@ interface MenuCanvasProps {
    * fait déjà partie de la sélection), ou `null` sur une zone vide.
    */
   onContextMenu?: (target: Selection | null, event: ReactMouseEvent<HTMLCanvasElement>) => void;
+  /** Mode « Essayer » : clic sur un slot visible (hérité compris). */
+  onTrySlot?: (slotId: string) => void;
 }
 
 /** Glisser d’un ou plusieurs éléments (couches, textes, zones de slots). */
@@ -356,6 +359,15 @@ export function MenuCanvas(props: MenuCanvasProps) {
     return stack;
   }
 
+  /**
+   * Mode « Essayer » : slot sous le pointeur (hérités compris), visible d’abord ; un slot masqué
+   * reste cliquable pour que le journal explique pourquoi rien ne se passe.
+   */
+  function trySlotAt(point: Point): Slot | null {
+    const under = [...(menu.slots ?? [])].reverse().filter((slot) => rectContains(areaRect(slot.area), point));
+    return under.find((slot) => evaluateCondition(slot.visibleWhen, context)) ?? under[0] ?? null;
+  }
+
   /** Un élément déjà sélectionné garde la main s’il est sous le pointeur ; sinon le plus haut. */
   function pick(stack: Selection[]): { target: Selection | null; cycleTo: Selection | null; kept: boolean } {
     const index = stack.findIndex((candidate) => selectionIncludes(selection, candidate));
@@ -450,6 +462,11 @@ export function MenuCanvas(props: MenuCanvasProps) {
       return;
     }
     if (event.button !== 0) return;
+    if (tool === 'try') {
+      const slot = trySlotAt(point);
+      if (slot) props.onTrySlot?.(slot.id);
+      return;
+    }
     canvas.setPointerCapture(event.pointerId);
     lastPointRef.current = point;
 
@@ -500,7 +517,10 @@ export function MenuCanvas(props: MenuCanvasProps) {
 
   function updateHover(screen: Point, point: Point) {
     let next: Hover;
-    if (tool === 'slot') {
+    if (tool === 'try') {
+      const slot = trySlotAt(point);
+      next = { target: slot ? { kind: 'slot', id: slot.id } : null, handle: null, cell: null };
+    } else if (tool === 'slot') {
       next = { target: null, handle: null, cell: chestCellAt(point, rows) };
     } else {
       const handle = handleAt(screen);
@@ -773,7 +793,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
       drawHoverFrame(ctx, toScreenRect({ ...cell, width: SLOT_SIZE, height: SLOT_SIZE }));
     }
 
-    if (tool === 'select' && !interaction && hover.target && !selectionIncludes(selection, hover.target)) {
+    if ((tool === 'select' || tool === 'try') && !interaction && hover.target && !selectionIncludes(selection, hover.target)) {
       const rect = elementRect(hover.target, shown);
       if (rect) drawHoverFrame(ctx, toScreenRect(rect));
     }
@@ -814,6 +834,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
     if (interaction?.kind === 'slot-resize') return HANDLE_CURSORS[interaction.handle];
     if (interaction?.kind === 'move') return 'move';
     if (interaction?.kind === 'marquee') return 'crosshair';
+    if (tool === 'try') return hover.target ? 'pointer' : 'default';
     if (tool === 'slot') return 'crosshair';
     if (hover.handle) return HANDLE_CURSORS[hover.handle];
     if (hover.target) return 'move';
@@ -839,7 +860,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
       }}
       onContextMenu={(event: ReactMouseEvent<HTMLCanvasElement>) => {
         event.preventDefault();
-        if (!props.onContextMenu) return;
+        if (!props.onContextMenu || tool === 'try') return;
         const { target } = pick(hitStack(readPointer(event).point));
         if (target && !selectionIncludes(selection, target)) props.onSelect([target]);
         props.onContextMenu(target, event);

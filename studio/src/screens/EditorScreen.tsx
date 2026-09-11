@@ -14,9 +14,7 @@ import type { NewMenuInput } from '../components/NewMenuDialog';
 import { RenameDocumentDialog } from '../components/DocumentDialogs';
 import { createEmptyAsset } from '../asset/model';
 import type { AssetDefinition, Region } from '../asset/model';
-import { CropDialog } from '../components/CropDialog';
 import { cropToBlob, croppedTexturePath, textureBaseName } from '../lib/crop';
-import { LibraryPanel } from '../components/LibraryPanel';
 import { NewAssetDialog } from '../components/NewAssetDialog';
 import type { NewAssetInput } from '../components/NewAssetDialog';
 import { OutlinePanel } from '../components/OutlinePanel';
@@ -76,6 +74,15 @@ import { DEFAULT_PREVIEW, buildPreviewContext } from '../model/preview';
 import type { PreviewValues } from '../model/preview';
 import { menuReferences, rewriteMenuReferences } from '../model/references';
 import { resolveMenu } from '../model/resolve';
+import { pageLists } from '../model/actions';
+import type { ActionContext } from '../model/actions';
+import { collectFlags, menuConditions } from '../model/conditionText';
+import { clearLog, clickSlot, goBack, reopen, setFrameValues, startSession } from '../model/simulate';
+import type { TrySession } from '../model/simulate';
+import { referencedStates } from '../model/stateEdit';
+import { NewComponentDialog } from '../components/visual/NewComponentDialog';
+import type { NewComponentInput } from '../components/visual/NewComponentDialog';
+import { TryJournal, TrySessionPanel } from '../components/visual/TryPanel';
 import { CANVAS_MARGINS, fitZoom, isEditableTarget, stepZoom } from '../canvas/viewport';
 import { INITIAL_EDITOR, editorReducer, selectionIncludes } from '../state/editor';
 import type { Selection } from '../state/editor';
@@ -92,14 +99,22 @@ type DialogState =
   | { kind: 'crop-layer'; layerId: string }
   | { kind: 'new-pixel' }
   | { kind: 'rename'; type: DocumentType; id: string; name: string }
+  | { kind: 'new-component'; targets: Selection[] }
   | null;
 
 type Recipe = (draft: MenuDefinition) => void;
+
+/** Mode « Essayer » : aucun élément hérité ni sélectionné sur la toile. */
+const NO_KEYS: ReadonlySet<string> = new Set();
+const NO_SELECTION: Selection[] = [];
 
 /** Éditeur de pixels, chargé à sa première ouverture : son code n’alourdit pas le démarrage du studio. */
 const PixelEditor = lazy(() => import('../pixel/PixelEditor').then((module) => ({ default: module.PixelEditor })));
 /** Éditeur d’assets, chargé de même à sa première ouverture. */
 const AssetEditor = lazy(() => import('../asset/AssetEditor').then((module) => ({ default: module.AssetEditor })));
+/** Bibliothèque et rognage (sélecteur de zones, détection des sprites) : chargés à leur premier affichage. */
+const LibraryPanel = lazy(() => import('../components/LibraryPanel').then((module) => ({ default: module.LibraryPanel })));
+const CropDialog = lazy(() => import('../components/CropDialog').then((module) => ({ default: module.CropDialog })));
 
 const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8];
 
@@ -216,6 +231,8 @@ export function EditorScreen({
   const [pixelDirty, setPixelDirty] = useState(false);
   // Compteur des demandes d’enregistrement de l’image (bouton de la barre du haut).
   const [pixelSaveRequest, setPixelSaveRequest] = useState(0);
+  // Mode « Essayer » : session simulée (pile de menus, état, journal) ; `null` en édition.
+  const [trySession, setTrySession] = useState<TrySession | null>(null);
   const stageNode = useRef<HTMLDivElement | null>(null);
 
   const menu = editor.menu;
@@ -274,27 +291,84 @@ export function EditorScreen({
     });
   }, []);
 
-  const resolved = useMemo(() => {
-    if (!menu) return null;
-    const menusById = new Map((workspace?.menus ?? []).map((candidate) => [candidate.id, candidate]));
-    menusById.set(menu.id, menu);
-    return resolveMenu(menu, (id) => menusById.get(id));
+  /** Menus de l’espace, le menu ouvert remplacé par sa version en cours d’édition. */
+  const menusById = useMemo(() => {
+    const byId = new Map((workspace?.menus ?? []).map((candidate) => [candidate.id, candidate]));
+    if (menu) byId.set(menu.id, menu);
+    return byId;
   }, [menu, workspace]);
 
-  const context = useMemo(() => (resolved ? buildPreviewContext(resolved.menu, preview) : null), [resolved, preview]);
+  const resolved = useMemo(() => (menu ? resolveMenu(menu, (id) => menusById.get(id)) : null), [menu, menusById]);
 
-  const texturePathsKey = resolved ? [...new Set(resolved.menu.layers.map((layer) => layer.texture))].join('\n') : '';
+  /** Menus résolus à la demande (mode « Essayer » : une action `open` affiche un autre menu). */
+  const resolvedLookup = useCallback(
+    (id: string): MenuDefinition | undefined => {
+      if (resolved && id === resolved.menu.id) return resolved.menu;
+      const raw = menusById.get(id);
+      return raw ? resolveMenu(raw, (other) => menusById.get(other)).menu : undefined;
+    },
+    [resolved, menusById],
+  );
+
+  // Un autre menu ouvert (ou le menu renommé) met fin à l’essai en cours.
+  if (trySession && trySession.stack[0]?.menuId !== menu?.id) setTrySession(null);
+
+  // Mode « Essayer » : on affiche le menu du haut de la pile simulée, dans son état simulé.
+  const tryFrame = trySession?.stack.at(-1) ?? null;
+  const tryMenuId = tryFrame?.menuId ?? null;
+  const displayed = useMemo(
+    () => (tryMenuId ? (resolvedLookup(tryMenuId) ?? null) : (resolved?.menu ?? null)),
+    [tryMenuId, resolvedLookup, resolved],
+  );
+  const displayedValues = tryFrame ? tryFrame.values : preview;
+  const context = useMemo(() => (displayed ? buildPreviewContext(displayed, displayedValues) : null), [displayed, displayedValues]);
+
+  const texturePathsKey = displayed ? [...new Set(displayed.layers.map((layer) => layer.texture))].join('\n') : '';
   const texturePaths = useMemo(() => (texturePathsKey ? texturePathsKey.split('\n') : []), [texturePathsKey]);
   const textures = useTextures(texturePaths, textureVersions);
 
   const composition = useMemo(() => {
-    if (!resolved || !context) return null;
-    return composeTitle(resolved.menu, context, (path) => {
+    if (!displayed || !context) return null;
+    return composeTitle(displayed, context, (path) => {
       const texture = textures.get(path);
       if (texture === undefined) return undefined;
       return texture === null ? null : texture.bounds;
     });
-  }, [resolved, context, textures]);
+  }, [displayed, context, textures]);
+
+  /* Ce que les éditeurs visuels de l’inspecteur connaissent de l’espace */
+
+  const actionContext = useMemo<ActionContext>(
+    () => ({ states: resolved?.menu.state ?? {}, menus: [...menusById.values()] }),
+    [resolved, menusById],
+  );
+  const knownFlagList = useMemo(() => {
+    const flags = new Set<string>();
+    for (const candidate of menusById.values()) for (const condition of menuConditions(candidate)) collectFlags(condition, flags);
+    for (const flag of preview.flags) if (flag.trim()) flags.add(flag.trim());
+    return [...flags].sort();
+  }, [menusById, preview.flags]);
+  const listSources = useMemo(() => {
+    const lists = new Set(pageLists(resolved?.menu.state ?? {}));
+    for (const slot of resolved?.menu.slots ?? []) if (slot.kind === 'list' && slot.list) lists.add(slot.list);
+    return [...lists];
+  }, [resolved]);
+  const componentChoices = useMemo(
+    () =>
+      [...menusById.values()]
+        .filter((candidate) => candidate.component && candidate.id !== menu?.id)
+        .map(({ id, name }) => ({ id, name })),
+    [menusById, menu?.id],
+  );
+
+  /* Mode « Essayer » */
+
+  const startTry = () => {
+    if (!menu) return;
+    select([]);
+    setTrySession(startSession(menu.id, preview));
+  };
+  const stopTry = () => setTrySession(null);
 
   const change = useCallback((recipe: Recipe, record = true) => dispatch({ type: 'change', recipe, record }), []);
   const select = useCallback((selection: Selection[]) => dispatch({ type: 'select', selection }), []);
@@ -522,6 +596,17 @@ export function EditorScreen({
       return;
     }
     if (isEditableTarget(event.target)) return;
+    // Mode « Essayer » : Échap ou E terminent l’essai, Retour arrière simule « back » ; rien ne modifie le menu.
+    if (trySession) {
+      if (!command && !event.altKey && (event.key === 'Escape' || letter === 'e')) {
+        event.preventDefault();
+        stopTry();
+      } else if (!command && event.key === 'Backspace') {
+        event.preventDefault();
+        setTrySession((session) => session && goBack(session, resolvedLookup));
+      }
+      return;
+    }
     if (command && letter === 'z') {
       event.preventDefault();
       dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
@@ -551,6 +636,7 @@ export function EditorScreen({
     if (command || event.altKey) return;
     if (letter === 'v') setTool('select');
     else if (letter === 's') setTool('slot');
+    else if (letter === 'e') startTry();
     else if (event.key === 'Escape') select([]);
     else if (isDeleteKey(event) && ownSelection.length > 0) {
       event.preventDefault();
@@ -565,7 +651,7 @@ export function EditorScreen({
   });
 
   useClipboardShortcuts({
-    enabled: () => active && mode === 'menus' && menu !== null,
+    enabled: () => active && mode === 'menus' && menu !== null && trySession === null,
     copy: () => clipboardFor(ownSelection),
     remove: () => deleteTargets(ownSelection),
     paste: (content) => void pasteContent(content),
@@ -736,6 +822,7 @@ export function EditorScreen({
     setAssetDirty(false);
     setPixelDirty(false);
     setMode(next);
+    setTrySession(null);
     if (next === 'assets' && !assetId && workspace?.assets[0]) setAssetId(workspace.assets[0].id);
     if (next === 'pixels' && !pixelId && pixelList[0]) setPixelId(pixelList[0].id);
     return true;
@@ -1174,6 +1261,60 @@ export function EditorScreen({
       if (slot) slot.area = area;
     });
 
+  /** « Créer un composant » : la sélection part dans un nouveau fichier ; le menu en garde une instance, au même endroit. */
+  const handleCreateComponent = async ({ id, name }: NewComponentInput) => {
+    if (!menu || !resolved || dialog?.kind !== 'new-component') return;
+    const { targets } = dialog;
+    const { layers, texts, slots } = collectElements(menu, targets);
+    const strip = <T extends { editor?: unknown }>(element: T): T => {
+      const copy = { ...element };
+      delete copy.editor;
+      return copy;
+    };
+    const pieces: MenuDefinition = {
+      ...createEmptyMenu(id, name, menu.container.rows),
+      layers: layers.map(strip),
+      texts: texts.map(strip),
+      slots: slots.map(strip),
+    };
+    // Le composant emporte la déclaration des états qu’il cite : il reste utilisable seul dans un autre menu.
+    await saveMenu({ ...pieces, component: true, state: referencedStates(pieces, resolved.menu.state ?? {}) });
+    await refreshWorkspace();
+    change((draft) => {
+      removeElements(draft, targets);
+      draft.includes = [...(draft.includes ?? []), { component: id }];
+    });
+    select([]);
+    setDialog(null);
+    setStatus(`Composant « ${id} » créé avec ${plural(targets.length, 'élément')} ; ce menu en garde une instance`);
+  };
+
+  /** Détache une instance : les éléments du composant deviennent propres au menu (sous ses éléments), l’instance disparaît. */
+  const handleDetachInclude = (index: number) => {
+    const include = menu?.includes?.[index];
+    if (!menu || !include) return;
+    const probe: MenuDefinition = { ...createEmptyMenu(menu.id, menu.name, menu.container.rows), includes: [include] };
+    const expanded = resolveMenu(probe, (id) => menusById.get(id));
+    if (expanded.errors.length > 0) {
+      setStatus(`Impossible de détacher l’instance${NBSP}: ${expanded.errors[0]}`);
+      return;
+    }
+    change((draft) => {
+      const includes = (draft.includes ?? []).filter((_, other) => other !== index);
+      if (includes.length > 0) draft.includes = includes;
+      else delete draft.includes;
+      const fresh = <T extends { id: string }>(added: T[] | undefined, own: T[] | undefined) => {
+        const taken = new Set((own ?? []).map((element) => element.id));
+        return [...(added ?? []).filter((element) => !taken.has(element.id)), ...(own ?? [])];
+      };
+      draft.layers = fresh(expanded.menu.layers, draft.layers);
+      draft.texts = fresh(expanded.menu.texts, draft.texts);
+      draft.slots = fresh(expanded.menu.slots, draft.slots);
+      draft.state = { ...expanded.menu.state, ...draft.state };
+    });
+    setStatus(`Instance de «${NBSP}${include.component}${NBSP}» détachée${NBSP}: ses éléments appartiennent maintenant au menu`);
+  };
+
   const generatorInitial = ((): GeneratorResult | null => {
     if (dialog?.kind !== 'generator' || !menu) return null;
     if (dialog.mode === 'edit') {
@@ -1198,6 +1339,12 @@ export function EditorScreen({
     { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => duplicateTargets(targets) },
   ];
 
+  const componentEntry = (targets: readonly Selection[]): MenuEntry => ({
+    label: 'Créer un composant…',
+    icon: 'component',
+    onSelect: () => setDialog({ kind: 'new-component', targets: [...targets] }),
+  });
+
   const flagEntries = (targets: readonly Selection[]): MenuEntry[] => {
     const locked = menu ? targets.every((target) => hasEditorFlag(findElement(menu, target) ?? {}, 'locked')) : false;
     const hidden = menu ? targets.every((target) => hasEditorFlag(findElement(menu, target) ?? {}, 'hidden')) : false;
@@ -1219,6 +1366,7 @@ export function EditorScreen({
       return [
         { heading: `${plural(targets.length, 'élément')} sélectionnés` },
         ...clipboardEntries(targets),
+        componentEntry(targets),
         { separator: true },
         ...(Object.keys(ALIGN_LABELS) as AlignMode[]).map((alignMode) => ({
           label: ALIGN_LABELS[alignMode],
@@ -1242,6 +1390,7 @@ export function EditorScreen({
       return [
         { heading: `Couche « ${target.id} »` },
         ...clipboardEntries(targets),
+        componentEntry(targets),
         {
           label: 'Rogner…',
           icon: 'crop',
@@ -1413,7 +1562,7 @@ export function EditorScreen({
                 {menu && !menuIsOnDisk && <option value={menu.id}>{menu.name} (non enregistré)</option>}
                 {knownMenus.map((candidate) => (
                   <option key={candidate.id} value={candidate.id}>
-                    {candidate.name} ({candidate.id}){candidate.template ? ' · gabarit' : ''}
+                    {candidate.name} ({candidate.id}){candidate.template ? ' · gabarit' : candidate.component ? ' · composant' : ''}
                   </option>
                 ))}
               </select>
@@ -1550,7 +1699,7 @@ export function EditorScreen({
       {mode === 'menus' ? (
       <main className="workspace">
         <aside className="sidebar">
-          <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche">
+          <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche" hidden={trySession !== null}>
             <button
               type="button"
               role="tab"
@@ -1573,20 +1722,24 @@ export function EditorScreen({
             </button>
           </div>
           {/* Les deux onglets restent montés : la bibliothèque garde ses filtres et son index. */}
-          <div hidden={leftTab !== 'library'}>
-            <LibraryPanel
-              key={librariesVersion}
-              canAddLayer={menu !== null}
-              onAddLayer={handleLibraryLayer}
-              onAddRegion={handleLibraryRegion}
-              onImportFont={handleImportFont}
-              onOpenInPixels={openLibraryInPixels}
-            />
+          <div hidden={leftTab !== 'library' || trySession !== null}>
+            <Suspense fallback={null}>
+              <LibraryPanel
+                key={librariesVersion}
+                canAddLayer={menu !== null}
+                onAddLayer={handleLibraryLayer}
+                onAddRegion={handleLibraryRegion}
+                onImportFont={handleImportFont}
+                onOpenInPixels={openLibraryInPixels}
+              />
+            </Suspense>
           </div>
-          {leftTab === 'outline' && resolved && context && (
+          {trySession && <TryJournal session={trySession} onClear={() => setTrySession((session) => session && clearLog(session))} />}
+          {leftTab === 'outline' && resolved && context && !trySession && (
             <OutlinePanel
               menu={resolved.menu}
               inherited={resolved.inherited}
+              origins={resolved.origins}
               context={context}
               selection={editor.selection}
               onSelect={select}
@@ -1607,10 +1760,13 @@ export function EditorScreen({
               <Tooltip label="Sélection" hint="Choisir et déplacer ; Maj+clic ou rectangle pour en prendre plusieurs" shortcut="V">
                 <button
                   type="button"
-                  className={tool === 'select' ? 'active' : ''}
-                  aria-pressed={tool === 'select'}
+                  className={!trySession && tool === 'select' ? 'active' : ''}
+                  aria-pressed={!trySession && tool === 'select'}
                   aria-keyshortcuts="V"
-                  onClick={() => setTool('select')}
+                  onClick={() => {
+                    stopTry();
+                    setTool('select');
+                  }}
                 >
                   <Icon name="cursor" />
                   <span className="tool-label">Sélection</span>
@@ -1620,14 +1776,31 @@ export function EditorScreen({
               <Tooltip label="Slots" hint="Glisser sur la grille pour créer une zone de slots" shortcut="S">
                 <button
                   type="button"
-                  className={tool === 'slot' ? 'active' : ''}
-                  aria-pressed={tool === 'slot'}
+                  className={!trySession && tool === 'slot' ? 'active' : ''}
+                  aria-pressed={!trySession && tool === 'slot'}
                   aria-keyshortcuts="S"
-                  onClick={() => setTool('slot')}
+                  onClick={() => {
+                    stopTry();
+                    setTool('slot');
+                  }}
                 >
                   <Icon name="grid" />
                   <span className="tool-label">Slots</span>
                   <kbd aria-hidden="true">S</kbd>
+                </button>
+              </Tooltip>
+              <Tooltip label="Essayer" hint="Cliquer un slot exécute ses actions, sans modifier le menu ; Échap pour revenir" shortcut="E">
+                <button
+                  type="button"
+                  className={trySession ? 'active' : ''}
+                  aria-pressed={trySession !== null}
+                  aria-keyshortcuts="E"
+                  disabled={!menu}
+                  onClick={() => (trySession ? stopTry() : startTry())}
+                >
+                  <Icon name="play" />
+                  <span className="tool-label">Essayer</span>
+                  <kbd aria-hidden="true">E</kbd>
                 </button>
               </Tooltip>
             </div>
@@ -1710,15 +1883,16 @@ export function EditorScreen({
           >
           {resolved && context ? (
             <MenuCanvas
-              menu={resolved.menu}
-              inherited={resolved.inherited}
+              menu={displayed ?? resolved.menu}
+              inherited={trySession ? NO_KEYS : resolved.inherited}
               context={context}
               textures={textures}
               zoom={effectiveZoom}
-              tool={tool}
+              tool={trySession ? 'try' : tool}
               background={background}
               showSlots={showSlots}
-              selection={editor.selection}
+              selection={trySession ? NO_SELECTION : editor.selection}
+              onTrySlot={(slotId) => setTrySession((session) => session && clickSlot(session, resolvedLookup, slotId))}
               onSelect={select}
               onMoveElements={applyElementMoves}
               onCreateSlot={handleCreateSlot}
@@ -1751,7 +1925,17 @@ export function EditorScreen({
         </section>
 
         <aside className="sidebar">
-          {menu && resolved && (
+          {menu && resolved && trySession && (
+            <TrySessionPanel
+              session={trySession}
+              lookup={resolvedLookup}
+              onBack={() => setTrySession((session) => session && goBack(session, resolvedLookup))}
+              onReopen={() => setTrySession((session) => session && reopen(session))}
+              onRestart={startTry}
+              onExit={stopTry}
+            />
+          )}
+          {menu && resolved && !trySession && (
             <Inspector
               menu={menu}
               states={resolved.menu.state ?? {}}
@@ -1770,13 +1954,20 @@ export function EditorScreen({
               onAlignReferenceChange={setAlignReference}
               onAlign={(alignMode) => alignTargets(alignMode)}
               onDistribute={(axis) => distributeTargets(axis)}
+              actionContext={actionContext}
+              flags={knownFlagList}
+              variables={context?.variables ?? {}}
+              lists={listSources}
+              components={componentChoices}
+              onOpenMenu={(id) => void openMenu(id)}
+              onDetachInclude={handleDetachInclude}
             />
           )}
           {resolved && (
             <PreviewPanel
-              menu={resolved.menu}
-              values={preview}
-              onChange={setPreview}
+              menu={displayed ?? resolved.menu}
+              values={displayedValues}
+              onChange={trySession ? (values) => setTrySession((session) => session && setFrameValues(session, values)) : setPreview}
               composition={composition}
               errors={resolved.errors}
             />
@@ -1806,6 +1997,7 @@ export function EditorScreen({
                 defaultShowGrid={preferences.showGrid}
                 defaultZoom={preferences.defaultZoom}
                 librarySlot={
+                  <Suspense fallback={null}>
                   <LibraryPanel
                     key={librariesVersion}
                     addLabel="Insérer dans l’asset"
@@ -1815,6 +2007,7 @@ export function EditorScreen({
                     onImportFont={handleImportFontFromAssets}
                     onOpenInPixels={openLibraryInPixels}
                   />
+                  </Suspense>
                 }
                 onSave={handleSaveAsset}
                 onDirtyChange={setAssetDirty}
@@ -1946,6 +2139,7 @@ export function EditorScreen({
         />
       )}
       {dialog?.kind === 'crop-layer' && cropLayer && (
+        <Suspense fallback={null}>
         <CropDialog
           title={`Rogner la couche « ${cropLayer.id} »`}
           url={textureUrl(cropLayer.texture, textureVersions[cropLayer.texture] ?? 0)}
@@ -1953,6 +2147,7 @@ export function EditorScreen({
           secondary={{ label: 'Extraire en nouvelle couche', run: (region) => handleExtractLayer(cropLayer.id, region) }}
           onClose={() => setDialog(null)}
         />
+        </Suspense>
       )}
       {renameDialog && (
         <RenameDocumentDialog
@@ -1963,6 +2158,14 @@ export function EditorScreen({
           references={renameDialog.type === 'menu' ? menuReferences(knownMenus, renameDialog.id) : []}
           onCancel={() => setDialog(null)}
           onConfirm={handleRename}
+        />
+      )}
+      {dialog?.kind === 'new-component' && (
+        <NewComponentDialog
+          count={dialog.targets.length}
+          existingIds={knownMenus.map((candidate) => candidate.id)}
+          onCancel={() => setDialog(null)}
+          onCreate={handleCreateComponent}
         />
       )}
     </div>

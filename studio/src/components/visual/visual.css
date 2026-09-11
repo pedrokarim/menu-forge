@@ -1,0 +1,485 @@
+/* ==========================================================================
+   Éditeurs visuels de l’inspecteur : actions, conditions, variables d’état,
+   items (MiniMessage), composants ; mode « Essayer ».
+   Tout tient dans la colonne de droite à 1180 × 700 : rien ne déborde, les
+   lignes rétrécissent (min-width: 0) et les textes longs s’abrègent.
+   ========================================================================== */
+
+.visual-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  min-width: 0;
+}
+
+.visual-block-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 24px;
+}
+
+.visual-block-head .field-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.inline-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.inline-control > select,
+.inline-control > input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.inline-commit {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.inline-commit input {
+  width: 100%;
+  min-width: 0;
+}
+
+.action-list,
+.condition-children,
+.state-list,
+.chip-list,
+.inherited-states {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cartes (action, variable) */
+
+.action-card,
+.state-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  min-width: 0;
+  padding: 6px;
+  background: rgba(106, 60, 242, 0.07);
+  border: 2px solid var(--ds-tip-line);
+}
+
+.action-card:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+
+.action-card.has-problem,
+.state-card.has-problem {
+  border-color: #6b2a35;
+}
+
+.action-card.is-drop-target,
+.condition-children > li.is-drop-target {
+  box-shadow: inset 0 3px 0 var(--ds-gold);
+}
+
+.action-card-head,
+.state-card-head,
+.condition-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.state-card-head .inline-commit {
+  flex: 1 1 auto;
+}
+
+.action-index {
+  flex: none;
+  min-width: 12px;
+  font: 11px var(--font-mono);
+  color: var(--ds-faint);
+  text-align: right;
+}
+
+.action-card-head > .icon {
+  margin: 0 2px;
+  color: var(--ds-tip-title);
+}
+
+.action-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drag-grip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 24px;
+  color: var(--ds-faint);
+  cursor: grab;
+}
+
+.drag-grip:hover {
+  color: var(--ds-ink);
+}
+
+.drag-grip:active {
+  cursor: grabbing;
+}
+
+.kv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.kv-row .checkbox {
+  min-width: 0;
+}
+
+.inline-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+/* Choix exclusifs compacts (exécutant d’une commande, rendu d’un item) */
+
+.segmented-mini {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.segmented-mini button {
+  min-width: 0;
+  min-height: var(--control-h-sm);
+  padding: 1px 4px;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.segmented-mini button[aria-checked='true'] {
+  color: var(--ds-gold-ink);
+  text-shadow: none;
+  background: var(--ds-gold-btn);
+  box-shadow: var(--bevel-gold);
+}
+
+.segmented-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Conditions */
+
+.condition-summary {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  background: var(--ds-tip-field);
+  box-shadow: inset 0 0 0 1px var(--ds-tip-line);
+}
+
+.condition-summary .icon {
+  margin-top: 2px;
+  color: var(--ds-tip-title);
+}
+
+.condition-summary.is-always {
+  color: var(--ds-muted);
+}
+
+.condition-node {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  min-width: 0;
+}
+
+.condition-row > select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.condition-node.is-branch > .condition-node,
+.condition-node.is-branch > .condition-children {
+  padding-left: 8px;
+  border-left: 2px solid var(--ds-tip-line);
+}
+
+.condition-children > li {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.condition-joiner {
+  font: 11px var(--font-mono);
+  color: var(--ds-tip-title);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.condition-add {
+  justify-self: start;
+}
+
+.value-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  min-width: 0;
+}
+
+.state-bool {
+  cursor: default;
+}
+
+/* Avancé (JSON) */
+
+.advanced-json {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.advanced-json > summary {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  font-size: 12px;
+  color: var(--ds-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.advanced-json > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-json > summary:hover {
+  color: var(--ds-ink);
+}
+
+.advanced-json[open] > summary {
+  color: var(--ds-tip-title);
+}
+
+/* Variables d’état */
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0;
+  max-width: 100%;
+  background: var(--ds-tip-field);
+  box-shadow: inset 0 0 0 1px var(--ds-tip-line);
+}
+
+.chip input {
+  width: 9ch;
+  min-height: var(--control-h-sm);
+  padding: 1px 6px;
+  font: 12px var(--font-mono);
+}
+
+.inherited-states li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Items et MiniMessage */
+
+.format-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+button.swatch {
+  width: 14px;
+  min-height: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid var(--ds-edge);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+button.swatch:where(:hover:not(:disabled)) {
+  box-shadow: 0 0 0 1px var(--ds-ink);
+}
+
+button.swatch:where(:active:not(:disabled)) {
+  padding: 0;
+}
+
+.format-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.format-buttons button {
+  min-width: 24px;
+  padding: 0 4px;
+}
+
+.mc-tooltip {
+  padding: 4px 6px 5px;
+  font: 13px/1.4 var(--font-display);
+  overflow-wrap: anywhere;
+  background: rgba(16, 0, 16, 0.94);
+  border: 2px solid;
+  border-image: linear-gradient(#5000ff, #28007f) 1;
+  box-shadow: 0 0 0 1px #100010;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.55);
+}
+
+.mc-line {
+  min-height: 1.4em;
+  white-space: pre-wrap;
+}
+
+/* Composants (instances) */
+
+.include-card .field-row + .field-row {
+  margin-top: -2px;
+}
+
+.include-card-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.include-card-head select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Mode « Essayer » */
+
+.try-panel .button-row {
+  gap: 4px;
+}
+
+.try-stack {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.try-stack li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 3px 6px;
+  color: var(--ds-muted);
+  background: var(--ds-tip-field);
+  box-shadow: inset 0 0 0 1px var(--ds-tip-line);
+}
+
+.try-stack li.is-current {
+  color: var(--ds-ink-strong);
+  box-shadow: inset 0 0 0 1px var(--ds-tip-title), inset 3px 0 0 var(--ds-gold);
+}
+
+.try-stack-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.try-log {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.try-log-entry {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 3px 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  border-left: 2px solid transparent;
+}
+
+.try-log-entry .icon {
+  margin-top: 2px;
+}
+
+.try-log-entry.tone-click {
+  margin-top: 6px;
+  color: var(--ds-ink-strong);
+  border-left-color: var(--ds-gold);
+}
+
+.try-log-entry.tone-state {
+  color: var(--ds-text-token);
+}
+
+.try-log-entry.tone-nav {
+  color: var(--ds-info);
+}
+
+.try-log-entry.tone-info {
+  color: var(--ds-muted);
+}
+
+.try-log-entry.tone-warn {
+  color: var(--ds-warn);
+}

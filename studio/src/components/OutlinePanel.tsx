@@ -5,7 +5,7 @@ import { evaluateCondition } from '../model/conditions';
 import type { EditorFlag, EditorFlags, MenuDefinition, SlotKind } from '../model/menu';
 import type { PreviewContext } from '../model/preview';
 import { elementKey } from '../model/resolve';
-import type { ElementKind } from '../model/resolve';
+import type { ElementKind, ElementOrigin } from '../model/resolve';
 import { mergeSelections, sameSelection, selectionIncludes, toggleSelection } from '../state/editor';
 import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
@@ -17,6 +17,8 @@ interface OutlinePanelProps {
   /** Menu résolu : les éléments hérités sont listés mais pas éditables. */
   menu: MenuDefinition;
   inherited: ReadonlySet<string>;
+  /** Origine des éléments hérités (gabarit ou composant), pour leur pastille. */
+  origins?: ReadonlyMap<string, ElementOrigin>;
   context: PreviewContext;
   selection: Selection[];
   onSelect: (selection: Selection[]) => void;
@@ -112,6 +114,7 @@ export function OutlinePanel(props: OutlinePanelProps) {
   ) => {
     const target = { kind, id };
     const isInherited = inherited.has(elementKey(kind, id));
+    const origin = props.origins?.get(elementKey(kind, id));
     const isSelected = selectionIncludes(selection, target);
     const classes = ['outline-item'];
     if (isSelected) classes.push('selected');
@@ -143,7 +146,9 @@ export function OutlinePanel(props: OutlinePanelProps) {
       >
         <span className="outline-label">{label}</span>
         {isInherited ? (
-          <span className="badge">gabarit</span>
+          <span className="badge" title={origin ? `${origin.kind === 'component' ? 'Composant' : 'Gabarit'} « ${origin.id} »` : undefined}>
+            {origin?.kind === 'component' ? 'composant' : 'gabarit'}
+          </span>
         ) : (
           <>
             {(flags?.locked || flags?.hidden) && (

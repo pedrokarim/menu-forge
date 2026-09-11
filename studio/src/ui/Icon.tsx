@@ -75,6 +75,18 @@ import { Scale } from 'pixelarticons/react/Scale';
 import { Wand } from 'pixelarticons/react/Wand';
 import { ZoomIn } from 'pixelarticons/react/ZoomIn';
 import { ZoomOut } from 'pixelarticons/react/ZoomOut';
+import { Braces } from 'pixelarticons/react/Braces';
+import { CornerUpLeft } from 'pixelarticons/react/CornerUpLeft';
+import { Flag } from 'pixelarticons/react/Flag';
+import { Link } from 'pixelarticons/react/Link';
+import { Package } from 'pixelarticons/react/Package';
+import { Play } from 'pixelarticons/react/Play';
+import { Script } from 'pixelarticons/react/Script';
+import { Stop } from 'pixelarticons/react/Stop';
+import { Terminal } from 'pixelarticons/react/Terminal';
+import { User } from 'pixelarticons/react/User';
+import { Volume2 } from 'pixelarticons/react/Volume2';
+import { Zap } from 'pixelarticons/react/Zap';
 
 type IconComponent = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
@@ -403,6 +415,19 @@ const ICONS = {
   wand: Wand,
   'zoom-in': ZoomIn,
   'zoom-out': ZoomOut,
+  // Éditeurs visuels (actions, conditions, composants) et mode « Essayer »
+  back: CornerUpLeft,
+  braces: Braces,
+  component: Package,
+  flag: Flag,
+  link: Link,
+  play: Play,
+  script: Script,
+  stop: Stop,
+  terminal: Terminal,
+  user: User,
+  volume: Volume2,
+  zap: Zap,
 } satisfies Record<string, IconComponent>;
 
 export type IconName = keyof typeof ICONS;

@@ -70,7 +70,7 @@ function StateControl({
         <Field label={name}>
           <input
             type="number"
-            value={Number(values.state[name] ?? definition.default)}
+            value={Number(values.state[name] ?? definition.default ?? definition.min ?? 0)}
             onChange={(event) => setState(Number(event.target.value))}
           />
         </Field>
