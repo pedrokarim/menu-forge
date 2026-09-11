@@ -125,5 +125,12 @@ intersites).
 ## Tests
 
 ```sh
-cd backend && cargo test
+npm test                  # schéma du format et parité de la résolution avec la lib
+cd backend && cargo test  # backend Rust
 ```
+
+`npm test` lance `tests/*.test.mjs` avec le lanceur de tests de Node, sans
+dépendance : Node charge directement `src/model/resolve.ts` (il efface les
+types), valide [`../docs/menu.schema.json`](../docs/menu.schema.json) sur les
+gabarits et exemples du dépôt, et joue les fixtures de parité partagées avec
+la lib (`../lib/menu-forge-core/src/test/resources/parity`).

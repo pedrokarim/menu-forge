@@ -162,6 +162,27 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
 - **Glisser-déposer** d’un PNG depuis l’explorateur sur la toile, dans le
   navigateur comme dans l’appli (gestionnaire natif de Tauri désactivé).
 
+## Éditer un menu sans JSON (2026-09-11)
+
+- **Fait** : éditeurs visuels des actions (tous les types, réordonnables),
+  des conditions (arbre et / ou / pas, résumé lisible, accès JSON), des
+  variables d’état (renommage qui suit les références) et des items
+  (MiniMessage avec aperçu) ; mode « Essayer » (session simulée comme
+  celle de la lib, journal) ; **composants** dans le format (`component`,
+  `includes`), résolus à l’identique par le studio et la lib, créés depuis
+  une sélection, détachables ; **schéma JSON** du format
+  ([`menu.schema.json`](menu.schema.json)) ; bibliothèque, rognage et
+  éditeurs visuels chargés à la demande.
+- **Vérifié** : `npm test` (16 tests : schéma sur les gabarits, menus de test
+  et exemple du format, documents refusés, parité de la résolution),
+  `./gradlew build` (46 tests du noyau, dont 10 cas de parité partagés avec le
+  studio), deux scénarios de bout en bout (éditeurs, essai, composants,
+  1180 × 700 sans débordement), suites existantes relancées.
+- **Reste** : surcharger un seul champ d’un élément d’instance (aujourd’hui on
+  remplace l’élément entier, par identifiant) ; aperçu des items des slots
+  « liste » en mode essai (entrées simulées) ; schéma des assets ;
+  contraindre une IA qui génère des menus avec le schéma.
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et
@@ -172,7 +193,6 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
    textures générées à la place des assets du pack de référence.
 4. **Studio** :
    - police pixel fidèle pour l’aperçu des textes ;
-   - éditeur visuel des états et des actions (sans passer par le JSON) ;
    - export d’un pack ZIP pour tester sans serveur ;
    - repères posés à la main (règles, guides) ;
    - restaurer un document depuis la corbeille.

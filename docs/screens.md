@@ -86,6 +86,32 @@ seulement pour un menu, de l’export pour un asset. Les assets ont des groupes
 (`Ctrl+G`, `Ctrl+Maj+G`). Le bouton « … » à côté du sélecteur de document
 renomme, duplique ou met à la corbeille le document ouvert.
 
+**Éditer sans JSON.** L’inspecteur d’un slot édite ses actions au clic
+(liste réordonnable au glisser, aux flèches ou à Alt+↑ / Alt+↓, ajout par
+type, champs propres à chaque type avec listes des menus, des variables et des
+listes paginées, validation en direct), son item (invisible, matériau, tête,
+référence du serveur, nom et description en MiniMessage avec aperçu coloré et
+palette de balises) et ses conditions (arbre « toutes », « au moins une »,
+« pas », feuilles « état égal à », « état parmi », « drapeau », résumé en une
+ligne, accès « Avancé (JSON) » pour les cas exotiques). Sans sélection,
+l’inspecteur du menu édite ses variables d’état (renommer une variable met à
+jour ses références) et ses composants inclus.
+
+**Essayer** (`E`, `Échap` pour revenir). Un clic sur un slot de la toile
+exécute ses actions sur l’état d’aperçu, comme en jeu : `setState`,
+pagination, `open` (le menu ouvert s’affiche, une pile garde le chemin pour
+`back`), `close` (message, puis « Rouvrir ») ; commandes, sons et actions
+serveur sont écrits au journal (colonne de gauche). Le titre composé suit en
+direct. Rien n’est modifié dans le document.
+
+**Composants.** « Créer un composant… » (menu contextuel d’une sélection)
+déplace les éléments dans un nouveau fichier `component: true` et laisse une
+instance à leur place. Dans les propriétés du menu, « Composants inclus »
+pose, décale, préfixe ou conditionne des instances, ouvre le composant ou
+détache une instance. Les éléments d’instance sont listés avec la pastille
+« composant » et ne se modifient que dans leur composant (format :
+[`format.md`](format.md) § Composants).
+
 **Éditeur de pixels** (`#/editeur/pixels/<id>`, troisième mode après Menus et
 Assets). Pour dessiner une texture au pixel près : couleurs à gauche (principale
 et secondaire, palette, récentes, couleurs du document), outils et toile au
