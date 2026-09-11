@@ -60,6 +60,7 @@ fn config(dir: &TempDir) -> BackendConfig {
         libraries_override: None,
         // Jamais l’application Discord par défaut : les tests ne touchent pas au vrai profil.
         discord_client_id: None,
+        presence: true,
     }
 }
 
@@ -135,7 +136,71 @@ fn first_launch_imports_libraries_and_persists_atomically() {
     assert!(same(app["settingsPath"].as_str().unwrap(), &dir.path("config").join("settings.json")));
     assert_eq!(app["overrides"], json!([]));
     assert_eq!(app["firstLaunch"], false);
+    assert_eq!(app["settingsReadOnly"], false);
     assert!(!backend.first_launch());
+}
+
+#[test]
+fn unreadable_settings_file_is_never_overwritten() {
+    let dir = TempDir::new("unreadable");
+    // Un dossier à la place du fichier : présent, mais illisible.
+    fs::create_dir_all(dir.path("config/settings.json")).unwrap();
+    let backend = Backend::new(config(&dir));
+    assert!(backend.settings_read_only());
+    let (_, app, _) = call(&backend, "GET", "/app", Value::Null);
+    assert_eq!((app["settingsReadOnly"].as_bool(), app["firstLaunch"].as_bool()), (Some(true), Some(false)));
+    assert_eq!(call(&backend, "GET", "/settings", Value::Null).1["ui"]["defaultZoom"], 0);
+    // Les modifications vivent en mémoire, rien n’est écrit.
+    let (status, settings, _) = call(&backend, "PUT", "/settings", json!({"ui": {"defaultZoom": 4}}));
+    assert_eq!((status, settings["ui"]["defaultZoom"].as_u64()), (200, Some(4)));
+    assert!(dir.path("config/settings.json").is_dir());
+    let names: Vec<_> = fs::read_dir(dir.path("config")).unwrap().map(|entry| entry.unwrap().file_name()).collect();
+    assert_eq!(names, ["settings.json"]);
+}
+
+/// Fichier invalide qu’on ne peut pas renommer (ouvert sans partage de
+/// suppression) : il reste intact.
+#[cfg(windows)]
+#[test]
+fn invalid_settings_that_cannot_be_set_aside_are_kept() {
+    use std::os::windows::fs::OpenOptionsExt;
+    const FILE_SHARE_READ: u32 = 1;
+    let dir = TempDir::new("keep-invalid");
+    fs::create_dir_all(dir.path("config")).unwrap();
+    let content = r#"{"ui":{"defaultZoom":99}}"#;
+    fs::write(dir.path("config/settings.json"), content).unwrap();
+    let held = fs::File::options().read(true).share_mode(FILE_SHARE_READ).open(dir.path("config/settings.json")).unwrap();
+    let backend = Backend::new(config(&dir));
+    assert!(backend.settings_read_only());
+    assert_eq!(call(&backend, "GET", "/app", Value::Null).1["settingsReadOnly"], true);
+    assert_eq!(call(&backend, "PUT", "/settings", json!({"ui": {"showGrid": false}})).0, 200);
+    drop(held);
+    assert_eq!(fs::read_to_string(dir.path("config/settings.json")).unwrap(), content);
+    assert_eq!(fs::read_dir(dir.path("config")).unwrap().count(), 1, "rien n’est mis de côté ni écrit");
+}
+
+#[test]
+fn invalid_discord_section_only_resets_discord() {
+    let dir = TempDir::new("bad-discord");
+    fs::create_dir_all(dir.path("config")).unwrap();
+    let file = json!({
+        "version": 1,
+        "activeWorkspace": dir.text("default"),
+        "workspaces": [],
+        "libraries": [],
+        "ui": {"defaultZoom": 7, "showGrid": false, "confirmations": {"delete": false, "discardChanges": true}},
+        "export": {"enderiumResources": null, "namespace": "enderium", "packFormat": 46},
+        "discord": {"enabled": "oui", "clientId": "abc"}
+    });
+    fs::write(dir.path("config/settings.json"), file.to_string()).unwrap();
+    let backend = Backend::new(config(&dir));
+    assert!(!backend.settings_read_only());
+    let (_, settings, _) = call(&backend, "GET", "/settings", Value::Null);
+    assert_eq!(settings["ui"]["defaultZoom"], 7);
+    assert_eq!(settings["export"]["namespace"], "enderium");
+    assert_eq!(settings["discord"], json!({"enabled": true, "clientId": null, "showDocument": true}));
+    let names: Vec<_> = fs::read_dir(dir.path("config")).unwrap().map(|entry| entry.unwrap().file_name()).collect();
+    assert_eq!(names, ["settings.json"], "rien n’est mis de côté");
 }
 
 #[test]
@@ -305,6 +370,38 @@ fn presence_routes_and_discord_settings() {
     let (_, settings, _) = call(&backend, "PUT", "/settings", json!({"discord": {"clientId": null}}));
     assert_eq!(settings["discord"]["clientId"], Value::Null);
     assert_eq!(call(&backend, "GET", "/presence", Value::Null).1["configured"], false);
+
+    // Effacer l’activité (fermeture de l’onglet), deux fois de suite sans erreur.
+    for _ in 0..2 {
+        let (status, _, body) = call(&backend, "DELETE", "/presence", Value::Null);
+        assert_eq!((status, body.as_str()), (204, ""));
+    }
+    // Arrêt de la présence (sortie de l’appli) : les routes répondent toujours.
+    backend.stop_presence();
+    backend.stop_presence();
+    assert_eq!(call(&backend, "PUT", "/presence", json!({"details": "Menu"})).0, 204);
+    assert_eq!(call(&backend, "GET", "/presence", Value::Null).1["connected"], false);
+}
+
+#[test]
+fn no_discord_disables_presence_entirely() {
+    let dir = TempDir::new("no-presence");
+    let mut config = config(&dir);
+    config.presence = false;
+    let backend = Backend::new(config);
+    let (_, settings, _) = call(&backend, "PUT", "/settings", json!({"discord": {"enabled": true, "clientId": "123456789012345678"}}));
+    assert_eq!(settings["discord"]["enabled"], true);
+    assert_eq!(call(&backend, "PUT", "/presence", json!({"details": "Menu"})).0, 204);
+    std::thread::sleep(Duration::from_millis(50));
+    let (_, presence, _) = call(&backend, "GET", "/presence", Value::Null);
+    assert_eq!(presence, json!({"enabled": false, "configured": true, "connected": false, "error": null}));
+    assert_eq!(call(&backend, "DELETE", "/presence", Value::Null).0, 204);
+}
+
+#[test]
+fn default_config_leaves_the_discord_application_to_the_host() {
+    let config = BackendConfig::defaults(".");
+    assert_eq!((config.discord_client_id, config.presence), (None, true));
 }
 
 #[test]
@@ -531,7 +628,6 @@ fn legacy_behaviour_on_other_methods_is_unchanged() {
         ("GET", "/libraries/vanilla/reindex"),
         ("PUT", "/libraries/vanilla"),
         ("POST", "/presence"),
-        ("DELETE", "/presence"),
     ] {
         let (status, _, message) = call(&backend, method, path, Value::Null);
         assert_eq!((status, message), (404, format!("Route inconnue : {method} {path}")));
@@ -599,6 +695,10 @@ fn server_serves_api_and_interface_on_one_origin() {
         http(port, &format!("POST /index.html HTTP/1.1\r\nHost: {host}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"))
             .unwrap();
     assert_eq!(status, 405);
+    // Origine opaque (`Origin: null`) : refusée, même en lecture.
+    let (status, _, body) =
+        http(port, &format!("GET /api/app HTTP/1.1\r\nHost: {host}\r\nOrigin: null\r\nConnection: close\r\n\r\n")).unwrap();
+    assert_eq!((status, String::from_utf8_lossy(&body).into_owned()), (403, "Origine non autorisée".to_owned()));
 
     handle.shutdown();
     std::thread::sleep(Duration::from_millis(200));
@@ -612,5 +712,39 @@ fn server_without_interface_keeps_legacy_404() {
     let port = handle.port();
     let (status, _, body) = get(port, "/index.html", &format!("localhost:{port}"));
     assert_eq!((status, String::from_utf8_lossy(&body).into_owned()), (404, "Hors de l’API : /index.html".to_owned()));
+    handle.shutdown();
+}
+
+/// Requête avec corps JSON et en-têtes supplémentaires.
+fn send(port: u16, method: &str, path: &str, extra_headers: &str, body: &str) -> (u16, String) {
+    let raw = format!(
+        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n{extra_headers}Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let (status, _, body) = http(port, &raw).expect("réponse HTTP");
+    (status, String::from_utf8_lossy(&body).into_owned())
+}
+
+#[test]
+fn server_requires_the_csrf_header_on_writes() {
+    let dir = TempDir::new("csrf");
+    let mut config = config(&dir);
+    config.presence = false;
+    let handle = server::serve(Arc::new(Backend::new(config)), 0, None).unwrap();
+    let port = handle.port();
+    let activity = r#"{"details":"Menu"}"#;
+    let missing = (403, "En-tête X-Menu-Forge manquant".to_owned());
+
+    assert_eq!(send(port, "PUT", "/api/presence", "", activity), missing);
+    assert_eq!(send(port, "PUT", "/api/presence", "X-Menu-Forge: 0\r\n", activity), missing);
+    assert_eq!(send(port, "DELETE", "/api/presence", "", ""), missing);
+    assert_eq!(send(port, "PUT", "/api/settings", "Origin: http://localhost:5173\r\n", "{}"), missing);
+    assert_eq!(send(port, "PUT", "/api/presence", "X-Menu-Forge: 1\r\n", activity).0, 204);
+    assert_eq!(send(port, "DELETE", "/api/presence", "x-menu-forge: 1\r\n", "").0, 204);
+    assert_eq!(send(port, "PUT", "/api/settings", "X-Menu-Forge: 1\r\nOrigin: http://localhost:5173\r\n", "{}").0, 200);
+    // Lectures : sans en-tête.
+    assert_eq!(send(port, "GET", "/api/presence", "", "").0, 200);
+    // En-tête présent mais origine opaque : refusé quand même.
+    assert_eq!(send(port, "PUT", "/api/presence", "X-Menu-Forge: 1\r\nOrigin: null\r\n", activity).0, 403);
     handle.shutdown();
 }

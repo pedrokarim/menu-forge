@@ -3,10 +3,11 @@
 //!
 //! | Route | Rôle |
 //! |---|---|
-//! | `GET /app` | `{ name, version, mode, settingsPath, platform, overrides, firstLaunch }` ; `firstLaunch` vaut `true` si le fichier de réglages n’existait pas au démarrage du backend |
+//! | `GET /app` | `{ name, version, mode, settingsPath, platform, overrides, firstLaunch, settingsReadOnly }` ; `firstLaunch` vaut `true` si le fichier de réglages n’existait pas au démarrage du backend, `settingsReadOnly` si ce fichier, illisible, est laissé intact (réglages en mémoire seulement) |
 //! | `GET /settings`, `PUT /settings` | réglages (document partiel accepté, validé, appliqué aussitôt, présence Discord comprise) |
-//! | `PUT /presence` | `{ details, state?, genericDetails?, smallImage?, smallText? }` : activité Discord (textes ajustés à 2–128 caractères ; `smallImage` parmi `menu`, `asset`, `home`, `library`, `settings`, `workspace`, `about`) → 204, retenue même hors connexion |
-//! | `GET /presence` | `{ enabled, configured, connected, error }` : état de la Rich Presence Discord |
+//! | `PUT /presence` | `{ details, state?, genericDetails?, smallImage?, smallText? }` : activité Discord (textes ajustés à 2–128 caractères ; `smallImage` parmi `menu`, `asset`, `home`, `library`, `settings`, `workspace`, `about`) → 204, retenue même hors connexion ; à renvoyer toutes les 30 s (battement de cœur), sinon elle expire au bout de 90 s |
+//! | `DELETE /presence` | efface l’activité tout de suite (fermeture de l’onglet) → 204 |
+//! | `GET /presence` | `{ enabled, configured, connected, error }` : état de la Rich Presence Discord (`enabled` faux avec `--no-discord`) |
 //! | `GET /workspaces` | espaces connus, avec résumé (menus, assets, textures, existence) |
 //! | `POST /workspaces/open` | `{ path, name? }` : ouvre (et ajoute) un espace, qui devient actif |
 //! | `DELETE /workspaces` | `{ path }` : retire de la liste, **ne supprime aucun fichier** |
@@ -86,6 +87,10 @@ impl Backend {
                 self.presence.set_activity(activity);
                 Response::no_content()
             }
+            ("/presence", "DELETE") => {
+                self.presence.clear_activity();
+                Response::no_content()
+            }
             ("/workspaces", "GET") => self.list_workspaces(),
             ("/workspaces", "DELETE") => self.forget_workspace(&request.body)?,
             ("/workspaces/open", "POST") => self.open_workspace(&request.body)?,
@@ -120,14 +125,21 @@ impl Backend {
         map.insert("platform".into(), Value::String(std::env::consts::OS.into()));
         map.insert("overrides".into(), Value::Array(overrides));
         map.insert("firstLaunch".into(), Value::Bool(self.first_launch));
+        map.insert("settingsReadOnly".into(), Value::Bool(self.settings_read_only));
         json(&Value::Object(map))
     }
 
     /// Enregistre `next` sur disque puis le retient ; rien ne change si
-    /// l’écriture échoue.
+    /// l’écriture échoue. Réglages en lecture seule : retenus en mémoire
+    /// seulement, le fichier illisible n’est jamais écrasé.
     fn commit(&self, state: &mut Runtime, next: Settings) -> Result<(), HttpError> {
-        write_atomic(&self.settings_path, next.to_json().as_bytes())
-            .map_err(|error| HttpError::new(500, format!("Réglages non enregistrés ({}) : {error}", self.settings_path)))?;
+        if self.settings_read_only {
+            eprintln!("[menu-forge] réglages appliqués en mémoire seulement ({} laissé intact)", self.settings_path);
+        } else {
+            write_atomic(&self.settings_path, next.to_json().as_bytes()).map_err(|error| {
+                HttpError::new(500, format!("Réglages non enregistrés ({}) : {error}", self.settings_path))
+            })?;
+        }
         state.settings = next;
         Ok(())
     }

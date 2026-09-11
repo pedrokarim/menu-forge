@@ -4,6 +4,18 @@
 //!
 //! Utilisé par `studio-api` (mode navigateur, port 5174, Vite « proxifie »
 //! `/api`) et par la coquille Tauri (port libre choisi à l’exécution).
+//!
+//! Protections contre un site tiers ouvert dans le navigateur, faites ici (au
+//! niveau du transport) et non dans [`Backend::handle`] :
+//! - l’en-tête `Host` doit être local (contre le « DNS rebinding ») ;
+//! - l’en-tête `Origin`, s’il est présent, doit être local ; `Origin: null`
+//!   (iframe isolée, redirection intersite, `file://`) est refusé ;
+//! - toute requête autre que GET/HEAD vers `/api` doit porter l’en-tête
+//!   `X-Menu-Forge: 1` ([`CSRF_HEADER`]) : un formulaire ou une image d’un site
+//!   tiers ne peut pas l’ajouter, et un `fetch` intersite qui l’ajoute exige
+//!   un contrôle préalable CORS que ce serveur n’accorde jamais.
+//!
+//! Chaque refus est un 403 texte.
 
 use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,6 +27,9 @@ use crate::{Backend, Request, Response};
 
 /// Nombre de fils qui traitent les requêtes.
 const WORKERS: usize = 8;
+
+/// En-tête exigé (valeur `1`) sur toute requête autre que GET/HEAD vers `/api`.
+pub const CSRF_HEADER: &str = "X-Menu-Forge";
 
 /// Fichier statique de l’interface.
 #[derive(Clone, Debug)]
@@ -109,6 +124,15 @@ fn is_local_host(host: &str) -> bool {
     matches!(host_name(host).to_ascii_lowercase().as_str(), "localhost" | "127.0.0.1" | "[::1]")
 }
 
+/// Origine admise : locale ; `null` (origine opaque) ne l’est jamais.
+fn is_local_origin(origin: &str) -> bool {
+    if origin == "null" {
+        return false;
+    }
+    let authority = origin.split_once("://").map(|(_, rest)| rest).unwrap_or(origin);
+    is_local_host(authority.split('/').next().unwrap_or(authority))
+}
+
 /// Protège le serveur d’un site tiers ouvert dans le navigateur : l’en-tête
 /// `Host` doit être local (contre le « DNS rebinding ») et l’origine, si
 /// présente, aussi (contre les requêtes intersites, POST/PUT compris).
@@ -118,14 +142,21 @@ fn check_origin(request: &tiny_http::Request) -> Result<(), Response> {
         if header.field.equiv("Host") && !is_local_host(value) {
             return Err(Response::text(403, "Hôte non autorisé"));
         }
-        if header.field.equiv("Origin") && value != "null" {
-            let authority = value.split_once("://").map(|(_, rest)| rest).unwrap_or(value);
-            if !is_local_host(authority.split('/').next().unwrap_or(authority)) {
-                return Err(Response::text(403, "Origine non autorisée"));
-            }
+        if header.field.equiv("Origin") && !is_local_origin(value) {
+            return Err(Response::text(403, "Origine non autorisée"));
         }
     }
     Ok(())
+}
+
+/// Requête qui modifie quelque chose (autre que GET/HEAD) : exige `X-Menu-Forge: 1`.
+fn check_csrf(request: &tiny_http::Request) -> Result<(), Response> {
+    let method = request.method().as_str();
+    if method == "GET" || method == "HEAD" {
+        return Ok(());
+    }
+    let marked = request.headers().iter().any(|header| header.field.equiv(CSRF_HEADER) && header.value.as_str() == "1");
+    if marked { Ok(()) } else { Err(Response::text(403, "En-tête X-Menu-Forge manquant")) }
 }
 
 /// Fichier de l’interface, avec repli sur `index.html` pour les routes de
@@ -175,14 +206,17 @@ fn respond(backend: &Backend, static_files: Option<&StaticFiles>, mut request: t
     let http = match check_origin(&request) {
         Err(response) => to_http(response),
         Ok(()) => match strip_api_prefix(request.url()) {
-            Some(path) => {
-                let mut body = Vec::new();
-                let response = match request.as_reader().read_to_end(&mut body) {
-                    Ok(_) => backend.handle(&Request::new(request.method().as_str(), path, body)),
-                    Err(_) => Response::text(400, "Corps de requête illisible"),
-                };
-                to_http(response)
-            }
+            Some(path) => match check_csrf(&request) {
+                Err(response) => to_http(response),
+                Ok(()) => {
+                    let mut body = Vec::new();
+                    let response = match request.as_reader().read_to_end(&mut body) {
+                        Ok(_) => backend.handle(&Request::new(request.method().as_str(), path, body)),
+                        Err(_) => Response::text(400, "Corps de requête illisible"),
+                    };
+                    to_http(response)
+                }
+            },
             None => match static_files {
                 Some(files) => static_response(files, request.method().as_str(), request.url()),
                 None => to_http(Response::text(404, &format!("Hors de l’API : {}", request.url()))),
@@ -205,6 +239,16 @@ mod tests {
         }
         for host in ["example.com", "127.0.0.2", "localhost.evil.com", "[::2]"] {
             assert!(!is_local_host(host), "{host}");
+        }
+    }
+
+    #[test]
+    fn local_origins() {
+        for origin in ["http://localhost:5173", "http://127.0.0.1:5174", "tauri://localhost"] {
+            assert!(is_local_origin(origin), "{origin}");
+        }
+        for origin in ["null", "https://evil.example", "http://localhost.evil.com"] {
+            assert!(!is_local_origin(origin), "{origin}");
         }
     }
 }

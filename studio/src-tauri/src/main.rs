@@ -15,6 +15,10 @@
 //! charger (20 s au plus : jamais de splash bloqué).
 //!
 //! Le port réel est écrit dans `<app_cache_dir>/server.json` au démarrage.
+//!
+//! Rich Presence Discord : permise, avec l’application officielle tant
+//! qu’aucune autre n’est réglée ; à la sortie, la présence est effacée
+//! (`Backend::stop_presence`, 2 s au plus) avant l’arrêt du serveur.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -41,8 +45,11 @@ const SPLASH_BACKGROUND: Color = Color(0x0b, 0x0b, 0x0e, 0xff);
 
 type BoxError = Box<dyn std::error::Error>;
 
-/// Serveur local, arrêté à la sortie de l’appli.
-struct ApiServer(Mutex<Option<ServerHandle>>);
+/// Serveur local et backend, arrêtés à la sortie de l’appli.
+struct ApiServer {
+    server: Mutex<Option<ServerHandle>>,
+    backend: Arc<Backend>,
+}
 
 fn path_text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
@@ -87,6 +94,7 @@ fn setup(app: &mut tauri::App) -> Result<(), BoxError> {
         libraries_override: None,
         // Rich Presence : l’application officielle menu-forge tant qu’aucune autre n’est réglée.
         discord_client_id: Some(studio_backend::presence::DEFAULT_CLIENT_ID.to_owned()),
+        presence: true,
     };
     let backend = Arc::new(Backend::new(config));
 
@@ -124,7 +132,7 @@ fn setup(app: &mut tauri::App) -> Result<(), BoxError> {
     }
     eprintln!("[menu-forge] API sur {}/api, interface sur {origin}", server.origin());
     eprintln!("[menu-forge] réglages {}", backend.settings_path());
-    app.manage(ApiServer(Mutex::new(Some(server))));
+    app.manage(ApiServer { server: Mutex::new(Some(server)), backend });
 
     open_windows(app.handle(), &origin)
 }
@@ -213,7 +221,10 @@ fn main() {
         .expect("impossible de démarrer menu-forge");
     app.run(|handle, event| {
         if let RunEvent::Exit = event {
-            let server = handle.try_state::<ApiServer>().and_then(|state| state.0.lock().ok()?.take());
+            let Some(state) = handle.try_state::<ApiServer>() else { return };
+            // D’abord la présence Discord (effacée, 2 s au plus), puis le serveur.
+            state.backend.stop_presence();
+            let server = state.server.lock().ok().and_then(|mut server| server.take());
             if let Some(server) = server {
                 server.shutdown();
             }

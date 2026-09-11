@@ -151,15 +151,20 @@ pub struct BackendConfig {
     /// part de cette liste et l’enregistre.
     pub libraries_override: Option<Vec<LibrarySource>>,
     /// Application Discord utilisée tant que `discord.clientId` n’est pas
-    /// défini : l’application officielle pour l’appli et `npm run dev`,
-    /// `None` pour les tests (jamais le vrai profil Discord).
+    /// défini : l’application officielle pour l’appli et `studio-api`
+    /// (fournie par eux), `None` pour les tests (jamais le vrai profil Discord).
     pub discord_client_id: Option<String>,
+    /// Rich Presence permise : faux (`--no-discord`), le fil ne se connecte
+    /// jamais à Discord, même avec un `discord.clientId` réglé.
+    pub presence: bool,
 }
 
 impl BackendConfig {
     /// Mode navigateur, relatif au dossier `studio/` : réglages dans
     /// `.cache/settings.json`, espace par défaut `../examples`, gabarits
     /// `../templates`, bibliothèques importées de `../libraries.local.json`.
+    /// Présence permise mais sans application de repli : c’est à l’hôte
+    /// (`studio-api`, l’appli) de fournir [`presence::DEFAULT_CLIENT_ID`].
     pub fn defaults(studio_dir: &str) -> Self {
         let studio_dir = paths::resolve(&[studio_dir]);
         Self {
@@ -172,7 +177,8 @@ impl BackendConfig {
             cache_dir: paths::resolve(&[&studio_dir, ".cache"]),
             workspace_override: None,
             libraries_override: None,
-            discord_client_id: Some(presence::DEFAULT_CLIENT_ID.to_owned()),
+            discord_client_id: None,
+            presence: true,
         }
     }
 }
@@ -218,8 +224,13 @@ pub struct Backend {
     /// lancement), exposé par `GET /app`. Un fichier invalide, mis de côté,
     /// ne compte pas comme un premier lancement.
     first_launch: bool,
+    /// Le fichier de réglages existe mais n’a pu être ni relu ni mis de côté :
+    /// les réglages vivent en mémoire et **rien n’est écrit** (le fichier est
+    /// laissé intact), exposé par `GET /app` (`settingsReadOnly`).
+    settings_read_only: bool,
     state: RwLock<Runtime>,
-    /// Rich Presence Discord : son fil s’arrête (et efface l’activité) avec le backend.
+    /// Rich Presence Discord : son fil s’arrête (et efface l’activité) avec le
+    /// backend, ou avant par [`Backend::stop_presence`].
     presence: presence::Presence,
 }
 
@@ -228,11 +239,12 @@ impl Backend {
         let settings_path = paths::resolve(&[&config.settings_path]);
         let templates_root = paths::resolve(&[&config.templates_root]);
         let library_cache_dir = paths::join(&paths::resolve(&[&config.cache_dir]), "libraries");
-        let (settings, first_launch) = Self::load_settings(&settings_path, &config);
+        let (settings, first_launch, settings_read_only) = Self::load_settings(&settings_path, &config);
         let workspace_override = config.workspace_override.map(|path| paths::resolve(&[&path]));
         let active = workspace_override.clone().unwrap_or_else(|| settings.active_workspace.clone());
         let libraries = config.libraries_override.clone().unwrap_or_else(|| settings.libraries.clone());
-        let presence = presence::Presence::start(settings.discord.clone(), config.discord_client_id.clone());
+        let presence =
+            presence::Presence::start(settings.discord.clone(), config.discord_client_id.clone(), config.presence);
         let runtime = Runtime {
             workspace: Arc::new(Workspace::new(active, templates_root.clone())),
             libraries: Arc::new(Libraries::new(libraries, library_cache_dir.clone())),
@@ -247,15 +259,18 @@ impl Backend {
             templates_root,
             library_cache_dir,
             first_launch,
+            settings_read_only,
             state: RwLock::new(runtime),
             presence,
         }
     }
 
-    /// Relit les réglages ; au premier lancement (ou si le fichier est
-    /// invalide), part des valeurs par défaut et les enregistre. Le booléen
-    /// vaut `true` si le fichier n’existait pas (premier lancement).
-    fn load_settings(settings_path: &str, config: &BackendConfig) -> (Settings, bool) {
+    /// Relit les réglages ; au premier lancement (ou si le fichier invalide a
+    /// pu être mis de côté), part des valeurs par défaut et les enregistre.
+    /// Renvoie `(réglages, premier lancement, lecture seule)` : un fichier
+    /// présent mais illisible, ou invalide et impossible à mettre de côté,
+    /// n’est **jamais** écrasé (défauts en mémoire, rien d’écrit).
+    fn load_settings(settings_path: &str, config: &BackendConfig) -> (Settings, bool, bool) {
         let imported = || {
             config
                 .legacy_libraries_file
@@ -264,13 +279,29 @@ impl Backend {
                 .unwrap_or_default()
         };
         let defaults = Settings::first_launch(&config.default_workspace, Vec::new());
+        let read_only = |reason: String| {
+            eprintln!(
+                "[menu-forge] réglages {reason} ; valeurs par défaut en mémoire, fichier {settings_path} laissé intact, rien ne sera enregistré"
+            );
+            (Settings::first_launch(&config.default_workspace, imported()), false, true)
+        };
         let (settings, first_launch) = match settings::load(settings_path, &defaults) {
-            settings::Loaded::Existing(settings) => return (settings, false),
+            settings::Loaded::Existing { settings, ignored_discord } => {
+                if let Some(reason) = ignored_discord {
+                    eprintln!(
+                        "[menu-forge] section « discord » des réglages invalide ({reason}) : ignorée, présence Discord aux valeurs par défaut"
+                    );
+                }
+                return (settings, false, false);
+            }
             settings::Loaded::Missing => (Settings::first_launch(&config.default_workspace, imported()), true),
-            settings::Loaded::Invalid { reason, backup } => {
+            settings::Loaded::Unreadable { reason } => return read_only(format!("illisibles ({reason})")),
+            settings::Loaded::Invalid { reason, backup: None } => {
+                return read_only(format!("invalides ({reason}) et impossibles à mettre de côté"))
+            }
+            settings::Loaded::Invalid { reason, backup: Some(file) } => {
                 eprintln!(
-                    "[menu-forge] réglages invalides ({reason}) ; valeurs par défaut utilisées{}",
-                    backup.map(|file| format!(", ancien fichier mis de côté : {file}")).unwrap_or_default()
+                    "[menu-forge] réglages invalides ({reason}) ; valeurs par défaut utilisées, ancien fichier mis de côté : {file}"
                 );
                 (Settings::first_launch(&config.default_workspace, imported()), false)
             }
@@ -278,7 +309,20 @@ impl Backend {
         if let Err(error) = settings::write_atomic(settings_path, settings.to_json().as_bytes()) {
             eprintln!("[menu-forge] réglages non enregistrés dans {settings_path} : {error}");
         }
-        (settings, first_launch)
+        (settings, first_launch, false)
+    }
+
+    /// Réglages en lecture seule (fichier illisible laissé intact) : les
+    /// modifications ne vivent qu’en mémoire.
+    pub fn settings_read_only(&self) -> bool {
+        self.settings_read_only
+    }
+
+    /// Arrête la Rich Presence : efface l’activité, ferme la connexion et
+    /// arrête son fil, sans attendre plus de 2 s. À appeler à la sortie de
+    /// l’appli (le `Backend`, partagé, n’est pas forcément libéré avant).
+    pub fn stop_presence(&self) {
+        self.presence.stop();
     }
 
     fn read_state(&self) -> RwLockReadGuard<'_, Runtime> {

@@ -3,10 +3,16 @@
 //!
 //! N’écoute que sur 127.0.0.1. Configuration : arguments, sinon variables
 //! d’environnement, sinon valeurs par défaut relatives au dossier `studio/`.
+//!
+//! Rich Presence : l’application Discord officielle est fournie ici (pas par
+//! `BackendConfig::defaults`) ; `--no-discord` coupe entièrement la présence.
+//! Sous Windows, Ctrl+C (ou la fermeture de la console) efface l’activité
+//! avant de quitter ; ailleurs, et si le processus est tué, c’est Discord
+//! qui l’efface à la fermeture du canal IPC.
 
 use std::sync::Arc;
 
-use studio_backend::{load_library_sources, paths, server, Backend, BackendConfig};
+use studio_backend::{load_library_sources, paths, presence, server, Backend, BackendConfig};
 
 const DEFAULT_PORT: u16 = 5174;
 
@@ -23,7 +29,7 @@ Options (chacune a sa variable d’environnement) :
   --templates <dir>   MENU_FORGE_TEMPLATES    gabarits (<studio>/../templates)
   --cache <dir>       MENU_FORGE_CACHE        caches (<studio>/.cache)
   --studio-dir <dir>  MENU_FORGE_STUDIO_DIR   dossier studio/ servant de base aux valeurs par défaut
-  --no-discord        MENU_FORGE_NO_DISCORD   sans l’application Discord par défaut (tests : jamais le vrai profil)
+  --no-discord        MENU_FORGE_NO_DISCORD   sans Rich Presence Discord, jamais de connexion (tests : jamais le vrai profil)
 ";
 
 struct Options {
@@ -104,9 +110,47 @@ fn build_config(options: &Options) -> BackendConfig {
         config.libraries_override = Some(load_library_sources(&paths::resolve(&[file])));
     }
     if options.no_discord {
-        config.discord_client_id = None;
+        config.presence = false;
+    } else {
+        // Application officielle menu-forge tant qu’aucune autre n’est réglée.
+        config.discord_client_id = Some(presence::DEFAULT_CLIENT_ID.to_owned());
     }
     config
+}
+
+/// Ctrl+C, fermeture de la console, fin de session : efface la présence
+/// Discord puis quitte (Windows seulement, par `SetConsoleCtrlHandler`).
+#[cfg(windows)]
+mod console {
+    use std::sync::{Arc, OnceLock};
+
+    use studio_backend::Backend;
+
+    static BACKEND: OnceLock<Arc<Backend>> = OnceLock::new();
+
+    type HandlerRoutine = unsafe extern "system" fn(u32) -> i32;
+
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn SetConsoleCtrlHandler(handler: Option<HandlerRoutine>, add: i32) -> i32;
+    }
+
+    /// Appelé par Windows dans un fil à part.
+    extern "system" fn on_console_event(_event: u32) -> i32 {
+        if let Some(backend) = BACKEND.get() {
+            backend.stop_presence();
+        }
+        std::process::exit(0)
+    }
+
+    pub fn stop_presence_on_exit(backend: Arc<Backend>) {
+        let _ = BACKEND.set(backend);
+        // SAFETY : `on_console_event` a la signature d’un `HandlerRoutine` et
+        // vit aussi longtemps que le programme.
+        if unsafe { SetConsoleCtrlHandler(Some(on_console_event), 1) } == 0 {
+            eprintln!("studio-api : Ctrl+C non intercepté, la présence Discord sera effacée par Discord");
+        }
+    }
 }
 
 fn main() {
@@ -118,6 +162,8 @@ fn main() {
         }
     };
     let backend = Arc::new(Backend::new(build_config(&options)));
+    #[cfg(windows)]
+    console::stop_presence_on_exit(Arc::clone(&backend));
     let handle = match server::serve(Arc::clone(&backend), options.port, None) {
         Ok(handle) => handle,
         Err(error) => {

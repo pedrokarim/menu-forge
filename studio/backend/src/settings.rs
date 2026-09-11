@@ -27,8 +27,13 @@
 //! présence ; `clientId` est l’identifiant de l’application Discord (texte de
 //! 17 à 20 chiffres) ou `null` tant qu’aucune application n’est configurée ;
 //! `showDocument` affiche le nom du document ouvert (sinon un texte
-//! générique). Un fichier sans section `discord` se relit avec ces valeurs
-//! par défaut.
+//! générique, et l’espace de travail n’est pas envoyé non plus). Un fichier
+//! sans section `discord`, ou dont la section `discord` est invalide, se relit
+//! avec ces valeurs par défaut (le reste des réglages est conservé).
+//!
+//! Un fichier présent mais illisible, ou invalide et impossible à mettre de
+//! côté, n’est jamais écrasé : le backend fonctionne alors avec les valeurs
+//! par défaut en mémoire, sans rien écrire (`GET /app` : `settingsReadOnly`).
 
 use std::fs;
 use std::io::{self, Write};
@@ -532,33 +537,51 @@ pub fn apply_patch(base: &Settings, patch: &Value, check_paths: bool) -> Result<
 
 /// Résultat de la lecture du fichier de réglages.
 pub enum Loaded {
-    /// Fichier lu et valide.
-    Existing(Settings),
+    /// Fichier lu et valide ; `ignored_discord` : la section `discord` était
+    /// invalide (raison) et a été remplacée par les valeurs par défaut, le
+    /// reste des réglages étant conservé.
+    Existing { settings: Settings, ignored_discord: Option<String> },
     /// Pas de fichier : premier lancement.
     Missing,
-    /// Fichier illisible ou invalide, mis de côté sous ce nom.
+    /// Fichier présent mais illisible (droits, verrou, dossier…) : à laisser intact.
+    Unreadable { reason: String },
+    /// Fichier invalide, mis de côté sous ce nom ; `None` : le renommage a
+    /// échoué, le fichier est resté en place et ne doit pas être écrasé.
     Invalid { reason: String, backup: Option<String> },
 }
 
 /// Relit le fichier ; un fichier invalide est renommé en
-/// `settings.invalid-<horodatage>.json` pour ne jamais être écrasé.
+/// `settings.invalid-<horodatage>.json` pour ne jamais être écrasé. Une
+/// section `discord` invalide n’invalide pas le reste : elle seule est
+/// ignorée.
 pub fn load(path: &str, defaults: &Settings) -> Loaded {
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Loaded::Missing,
-        Err(error) => return Loaded::Invalid { reason: error.to_string(), backup: None },
+        Err(error) => return Loaded::Unreadable { reason: error.to_string() },
     };
-    let parsed = parse_lossy(&bytes).ok_or_else(|| "JSON invalide".to_owned());
     let patch_base = Settings { workspaces: Vec::new(), ..defaults.clone() };
-    match parsed.and_then(|value| apply_patch(&patch_base, &value, false)) {
-        Ok(settings) => Loaded::Existing(settings),
-        Err(reason) => {
-            let stamp = now_iso().replace([':', '.'], "-");
-            let backup = format!("{}.invalid-{stamp}.json", path.trim_end_matches(".json"));
-            let backup = fs::rename(path, &backup).ok().map(|()| backup);
-            Loaded::Invalid { reason, backup }
-        }
-    }
+    let reason = match parse_lossy(&bytes) {
+        None => "JSON invalide".to_owned(),
+        Some(value) => match apply_patch(&patch_base, &value, false) {
+            Ok(settings) => return Loaded::Existing { settings, ignored_discord: None },
+            Err(reason) => {
+                let mut without_discord = value;
+                let retried = without_discord
+                    .as_object_mut()
+                    .and_then(|map| map.remove("discord"))
+                    .and_then(|_| apply_patch(&patch_base, &without_discord, false).ok());
+                if let Some(settings) = retried {
+                    return Loaded::Existing { settings, ignored_discord: Some(reason) };
+                }
+                reason
+            }
+        },
+    };
+    let stamp = now_iso().replace([':', '.'], "-");
+    let backup = format!("{}.invalid-{stamp}.json", path.trim_end_matches(".json"));
+    let backup = fs::rename(path, &backup).ok().map(|()| backup);
+    Loaded::Invalid { reason, backup }
 }
 
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
