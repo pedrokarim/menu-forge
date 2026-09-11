@@ -23,6 +23,8 @@ examples/pixels/
 examples/.trash/
 # Packs ZIP de test écrits par le studio (« Pack ZIP »).
 examples/exports/
+# Captures d’échec des tests de bout en bout du studio (`npm run e2e`).
+studio/e2e/results/
 
 # Environnement
 .env
