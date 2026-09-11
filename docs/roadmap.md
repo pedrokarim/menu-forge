@@ -170,17 +170,17 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
   (MiniMessage avec aperçu) ; mode « Essayer » (session simulée comme
   celle de la lib, journal) ; **composants** dans le format (`component`,
   `includes`), résolus à l’identique par le studio et la lib, créés depuis
-  une sélection, détachables ; **schéma JSON** du format
-  ([`menu.schema.json`](menu.schema.json)) ; bibliothèque, rognage et
+  une sélection, détachables ; **schémas JSON** des menus et des
+  assets ([`menu.schema.json`](menu.schema.json), [`asset.schema.json`](asset.schema.json)) ; bibliothèque, rognage et
   éditeurs visuels chargés à la demande.
-- **Vérifié** : `npm test` (16 tests : schéma sur les gabarits, menus de test
+- **Vérifié** : `npm test` (20 tests : schéma sur les gabarits, menus de test
   et exemple du format, documents refusés, parité de la résolution),
   `./gradlew build` (46 tests du noyau, dont 10 cas de parité partagés avec le
   studio), deux scénarios de bout en bout (éditeurs, essai, composants,
   1180 × 700 sans débordement), suites existantes relancées.
 - **Reste** : surcharger un seul champ d’un élément d’instance (aujourd’hui on
   remplace l’élément entier, par identifiant) ; aperçu des items des slots
-  « liste » en mode essai (entrées simulées) ; schéma des assets ;
+  « liste » en mode essai (entrées simulées) ;
   contraindre une IA qui génère des menus avec le schéma.
 
 ## Prochaines étapes

@@ -307,6 +307,5 @@ studio.
 
 ## Évolutions prévues
 
-- Schéma des assets (`*.asset.json`).
 - Types de conteneurs autres que le coffre (`hopper`, `dispenser`…).
 - Animations (couches alternées par tick).

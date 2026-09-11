@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pedrokarim.github.io/menu-forge/asset.schema.json",
+  "title": "Asset menu-forge (*.asset.json, version 1)",
+  "description": "Image composée librement (boîtes, images, textes), exportée en un PNG ; spécification lisible : docs/assets.md. Le schéma décrit ce que le studio écrit et refuse les clés inconnues.",
+  "type": "object",
+  "required": ["formatVersion", "id", "name", "size", "background", "elements", "export"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "formatVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "Nom du fichier, du PNG exporté et du glyphe proposé." },
+    "name": { "type": "string" },
+    "size": {
+      "type": "object",
+      "required": ["width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "width": { "type": "integer", "minimum": 1, "maximum": 1024 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 1024 }
+      }
+    },
+    "background": {
+      "type": ["string", "null"],
+      "pattern": "^#[0-9a-fA-F]{8}$",
+      "description": "Couleur de fond #rrggbbaa, ou null (transparent, le cas normal)."
+    },
+    "elements": { "type": "array", "description": "De bas en haut.", "items": { "$ref": "#/$defs/element" } },
+    "groups": { "type": "array", "items": { "$ref": "#/$defs/group" } },
+    "export": {
+      "type": "object",
+      "required": ["ascent"],
+      "additionalProperties": false,
+      "properties": { "ascent": { "type": "integer", "description": "Position verticale du glyphe dans une ligne de texte." } }
+    }
+  },
+  "$defs": {
+    "elementId": { "type": "string", "minLength": 1 },
+    "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$" },
+    "region": {
+      "type": "object",
+      "required": ["x", "y", "width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "integer", "minimum": 0 },
+        "y": { "type": "integer", "minimum": 0 },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "insets": {
+      "type": "object",
+      "required": ["top", "right", "bottom", "left"],
+      "additionalProperties": false,
+      "properties": {
+        "top": { "type": "integer", "minimum": 0 },
+        "right": { "type": "integer", "minimum": 0 },
+        "bottom": { "type": "integer", "minimum": 0 },
+        "left": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "boxStyle": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Style dessiné par le studio (mêmes styles que le générateur de textures des menus).",
+          "required": ["kind", "preset", "color"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "procedural" },
+            "preset": { "enum": ["panel", "button", "cell", "veil", "flat"] },
+            "color": { "$ref": "#/$defs/color" },
+            "border": { "$ref": "#/$defs/color" }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Nine-slice : coins copiés, bords et centre répétés.",
+          "required": ["kind", "texture", "insets"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "slice" },
+            "texture": { "type": "string", "minLength": 1 },
+            "source": { "$ref": "#/$defs/region" },
+            "insets": { "$ref": "#/$defs/insets" }
+          }
+        }
+      ]
+    },
+    "element": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["id", "type", "x", "y", "width", "height", "style"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "$ref": "#/$defs/elementId" },
+            "type": { "const": "box" },
+            "x": { "type": "integer" },
+            "y": { "type": "integer" },
+            "hidden": { "type": "boolean" },
+            "locked": { "type": "boolean" },
+            "group": { "type": "string" },
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 },
+            "style": { "$ref": "#/$defs/boxStyle" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["id", "type", "x", "y", "texture"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "$ref": "#/$defs/elementId" },
+            "type": { "const": "image" },
+            "x": { "type": "integer" },
+            "y": { "type": "integer" },
+            "hidden": { "type": "boolean" },
+            "locked": { "type": "boolean" },
+            "group": { "type": "string" },
+            "texture": { "type": "string", "minLength": 1 },
+            "source": { "$ref": "#/$defs/region" },
+            "scale": { "enum": [0.125, 0.25, 0.5, 1, 2, 3, 4] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["id", "type", "x", "y", "text"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "$ref": "#/$defs/elementId" },
+            "type": { "const": "text" },
+            "x": { "type": "integer" },
+            "y": { "type": "integer" },
+            "hidden": { "type": "boolean" },
+            "locked": { "type": "boolean" },
+            "group": { "type": "string" },
+            "text": { "type": "string", "description": "Plusieurs lignes séparées par \\n, codes § acceptés." },
+            "color": { "$ref": "#/$defs/color" },
+            "shadow": { "type": "boolean" },
+            "bold": { "type": "boolean" },
+            "lineHeight": { "type": "integer", "minimum": 1 },
+            "align": { "enum": ["left", "center", "right"] }
+          }
+        }
+      ]
+    },
+    "group": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "name": { "type": "string" }
+      }
+    }
+  }
+}
