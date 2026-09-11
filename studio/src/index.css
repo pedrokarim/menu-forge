@@ -939,8 +939,9 @@ input[type='color']::-webkit-color-swatch {
   gap: 6px;
 }
 
+/* 15vw : à la taille minimale (1180 px), la barre garde « Exporter », « Pack ZIP » et « Bedrock » sur une ligne. */
 .menu-picker {
-  width: clamp(170px, 18vw, 260px);
+  width: clamp(160px, 15vw, 260px);
 }
 
 .zoom-picker {
