@@ -23,7 +23,10 @@ PIXELARTICONS = SITE_DIR.parent / "studio" / "node_modules" / "pixelarticons" / 
 # Nom utilisé dans les pages → fichier pixelarticons.
 ICON_FILES = {
     "arrow-right": "arrow-right",
+    "blocks": "blocks",
     "book": "book-open",
+    "braces": "braces",
+    "braces-off": "braces-off",
     "check": "check",
     "chevron-left": "chevron-left",
     "chevron-right": "chevron-right",
@@ -31,6 +34,7 @@ ICON_FILES = {
     "code": "code",
     "copy": "copy",
     "download": "download",
+    "drag": "drag-and-drop",
     "eye": "eye",
     "file": "file-text",
     "folder": "folder",
@@ -42,11 +46,14 @@ ICON_FILES = {
     "info": "info-box",
     "keyboard": "keyboard",
     "laptop": "laptop",
+    "pencil": "pencil",
+    "play": "play",
     "server": "server",
     "sliders": "sliders",
     "sparkles": "sparkles",
     "terminal": "terminal",
     "text": "letter-t",
+    "upload": "upload",
     "warning": "warning-diamond",
 }
 
