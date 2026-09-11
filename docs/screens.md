@@ -12,7 +12,8 @@ avant de les construire.
 - **Pastille de l’espace de travail** en haut de chaque écran : nom de
   l’espace actif ; un clic ouvre l’écran Sélection.
 - **Adresse** : l’écran courant est reflété dans l’URL (`#/accueil`,
-  `#/editeur/menus/<id>`, `#/editeur/assets/<id>`, `#/bibliotheques`,
+  `#/editeur/menus/<id>`, `#/editeur/assets/<id>`, `#/editeur/pixels/<id>`,
+  `#/bibliotheques`,
   `#/parametres`, `#/a-propos`, `#/espaces`) pour pouvoir y revenir
   directement ; pas de dépendance de routage, un petit routeur maison suffit.
 - **Quitter l’éditeur** avec des changements non enregistrés : confirmation
@@ -32,8 +33,9 @@ avant de les construire.
 
 - En-tête : logo pixel menu-forge, nom de l’espace actif.
 - **Actions rapides** (grandes cases façon inventaire) : Nouveau menu, Nouvel
-  asset, Importer un écran depuis une police, Ouvrir un espace de travail.
-- **Documents récents** de l’espace actif : menus et assets triés par date,
+  asset, Nouvelle image, Importer un écran depuis une police, Ouvrir un espace
+  de travail.
+- **Documents récents** de l’espace actif : menus, assets et images de pixels triés par date,
   avec vignette (rendu du fond ou de l’asset), type, nom, date relative ;
   clic = ouvrir dans l’éditeur.
 - **Espaces récents** (3 à 5), clic = basculer.
@@ -69,6 +71,16 @@ décalage), cliquer un sprite (zone détectée sur les pixels opaques reliés).
 - Assets : l’image garde la texture entière et n’en affiche que la zone source.
 - `Ctrl+D` duplique la couche ou l’élément sélectionné.
 
+**Éditeur de pixels** (`#/editeur/pixels/<id>`, troisième mode après Menus et
+Assets). Pour dessiner une texture au pixel près : couleurs à gauche (principale
+et secondaire, palette, récentes, couleurs du document), outils et toile au
+centre, calques et propriétés de l’image à droite. Chaque enregistrement écrit
+le document `pixels/<id>.pixel.json` (calques) et un PNG aplati dans
+`textures/`, utilisable tel quel dans les menus et les assets. « Ouvrir dans
+l’éditeur de pixels » (menu contextuel d’une vignette de bibliothèque ou d’une
+couche) crée une image depuis une texture ; celle d’un pack n’est jamais
+modifiée (copie). Format, outils et raccourcis : [`pixels.md`](pixels.md).
+
 La fenêtre descend à 1180 × 700 : en dessous, rail d’écrans et trois colonnes
 ne laissent plus à la toile la place de ses outils.
 
@@ -103,4 +115,4 @@ ne laissent plus à la toile la place de ses outils.
 ### Aide-mémoire des raccourcis (`?`)
 
 Fenêtre modale au style infobulle Deepslate, regroupée par contexte :
-navigation, éditeur de menus, éditeur d’assets, toile.
+navigation, éditeur de menus, éditeur d’assets, éditeur de pixels, toile.

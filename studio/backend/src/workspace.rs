@@ -1,6 +1,8 @@
 //! Routes de l’espace de travail : `/workspace`, `/menus/:id`, `/assets/:id`,
-//! `/textures/<chemin>` (portage de l’ancien `workspace.ts`).
+//! `/textures/<chemin>` (portage de l’ancien `workspace.ts`), et les images de
+//! l’éditeur de pixels : `/pixels`, `/pixels/:id` (format dans `docs/pixels.md`).
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
@@ -10,10 +12,20 @@ use crate::error::{fs_error, HttpError};
 use crate::fsutil::{ensure_parent, list_files};
 use crate::js::{parse_lossy, stringify, stringify_pretty};
 use crate::paths::{decode_component, decode_path, inside_root, join};
+use crate::settings::{iso_utc, write_atomic};
 use crate::{Request, Response};
 
 const MENU_SUFFIX: &str = ".menu.json";
 const ASSET_SUFFIX: &str = ".asset.json";
+const PIXEL_SUFFIX: &str = ".pixel.json";
+
+/// Côté maximal d’une image de pixels, en pixels (comme les assets).
+pub const MAX_PIXEL_SIZE: u64 = 1024;
+/// Nombre maximal de calques d’une image de pixels.
+pub const MAX_PIXEL_LAYERS: usize = 64;
+
+/// Espace insécable, avant « : » dans les messages affichés.
+const NBSP: char = 0xa0_u8 as char;
 
 /// Signature d’un PNG (4 premiers octets), vérifiée à l’écriture.
 pub const PNG_SIGNATURE: [u8; 4] = [0x89, 0x50, 0x4e, 0x47];
@@ -31,12 +43,186 @@ pub fn has_png_signature(data: &[u8]) -> bool {
 /// Document de l’espace de travail, pour la liste des récents.
 #[derive(Clone, Debug)]
 pub struct RecentDocument {
-    /// `menu` ou `asset`.
+    /// `menu`, `asset` ou `pixel`.
     pub kind: &'static str,
     pub id: String,
     /// Champ `name` du document, sinon son identifiant.
     pub name: String,
     pub modified: std::time::SystemTime,
+    /// Image de pixels : texture exportée (`export.texture`), pour la vignette.
+    pub texture: Option<String>,
+}
+
+/// Décode le début d’un texte base64 (au moins `count` octets) ; `None` si le
+/// texte est trop court ou contient un caractère étranger au base64.
+fn base64_head(text: &str, count: usize) -> Option<Vec<u8>> {
+    fn value(byte: u8) -> Option<u32> {
+        match byte {
+            b'A'..=b'Z' => Some(u32::from(byte - b'A')),
+            b'a'..=b'z' => Some(u32::from(byte - b'a') + 26),
+            b'0'..=b'9' => Some(u32::from(byte - b'0') + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    }
+    let mut out = Vec::with_capacity(count + 2);
+    for chunk in text.as_bytes().chunks(4) {
+        if out.len() >= count {
+            break;
+        }
+        if chunk.len() < 4 {
+            return None;
+        }
+        // Bourrage final (`=`, deux au plus) : ces positions ne portent aucun octet.
+        let padding = chunk.iter().rev().take_while(|&&byte| byte == b'=').count();
+        if padding > 2 {
+            return None;
+        }
+        let mut group = 0u32;
+        for &byte in &chunk[..4 - padding] {
+            group = (group << 6) | value(byte)?;
+        }
+        group <<= 6 * padding;
+        out.extend_from_slice(&group.to_be_bytes()[1..4 - padding]);
+    }
+    (out.len() >= count).then(|| {
+        out.truncate(count);
+        out
+    })
+}
+
+/// Texte base64 bien formé : alphabet standard, longueur multiple de 4,
+/// bourrage `=` seulement à la fin (deux au plus).
+fn is_base64(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    if bytes.is_empty() || !bytes.len().is_multiple_of(4) {
+        return false;
+    }
+    let padding = bytes.iter().rev().take_while(|&&byte| byte == b'=').count();
+    padding <= 2
+        && bytes[..bytes.len() - padding]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'+' || *byte == b'/')
+}
+
+/// Dimensions d’un PNG encodé en base64, lues dans son en-tête `IHDR`.
+fn png_size_from_base64(text: &str) -> Option<(u32, u32)> {
+    if !is_base64(text) {
+        return None;
+    }
+    let head = base64_head(text, 24)?;
+    if head[..8] != [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a] || &head[12..16] != b"IHDR" {
+        return None;
+    }
+    let width = u32::from_be_bytes([head[16], head[17], head[18], head[19]]);
+    let height = u32::from_be_bytes([head[20], head[21], head[22], head[23]]);
+    Some((width, height))
+}
+
+/// Entier positif d’un objet JSON (`size.width`…), s’il est dans `range`.
+fn integer_in(map: &Map<String, Value>, key: &str, range: std::ops::RangeInclusive<u64>) -> Option<u64> {
+    map.get(key).and_then(Value::as_u64).filter(|value| range.contains(value))
+}
+
+/// Vérifie une image de pixels avant de l’écrire (voir `docs/pixels.md`) ;
+/// `textures_dir` borne la texture d’export.
+fn validate_pixel_document(document: &Map<String, Value>, id: &str, textures_dir: &str) -> Result<(), HttpError> {
+    let invalid = |message: String| Err(HttpError::new(400, message));
+    let quoted = |key: &str| format!("«{NBSP}{key}{NBSP}»");
+    if document.get("id").and_then(Value::as_str) != Some(id) {
+        return invalid("L’identifiant du document ne correspond pas à l’URL".into());
+    }
+    if document.get("formatVersion").and_then(Value::as_u64) != Some(1) {
+        return invalid(format!("{} doit valoir 1", quoted("formatVersion")));
+    }
+    if document.get("name").and_then(Value::as_str).is_none_or(|name| name.trim().is_empty()) {
+        return invalid(format!("{} doit être un texte non vide", quoted("name")));
+    }
+    let size = document.get("size").and_then(Value::as_object);
+    let width = size.and_then(|size| integer_in(size, "width", 1..=MAX_PIXEL_SIZE));
+    let height = size.and_then(|size| integer_in(size, "height", 1..=MAX_PIXEL_SIZE));
+    let (Some(width), Some(height)) = (width, height) else {
+        return invalid(format!("{} doit contenir width et height, entiers de 1 à {MAX_PIXEL_SIZE}", quoted("size")));
+    };
+
+    let Some(layers) = document.get("layers").and_then(Value::as_array) else {
+        return invalid(format!("{} doit être une liste de calques", quoted("layers")));
+    };
+    if layers.is_empty() || layers.len() > MAX_PIXEL_LAYERS {
+        return invalid(format!("{} doit contenir de 1 à {MAX_PIXEL_LAYERS} calques", quoted("layers")));
+    }
+    let mut seen = HashSet::new();
+    for (index, layer) in layers.iter().enumerate() {
+        let key = |field: &str| quoted(&format!("layers[{index}].{field}"));
+        let Some(layer) = layer.as_object() else {
+            return invalid(format!("{} doit être un objet", quoted(&format!("layers[{index}]"))));
+        };
+        match layer.get("id").and_then(Value::as_str) {
+            Some(layer_id) if is_valid_document_id(layer_id) => {
+                if !seen.insert(layer_id) {
+                    return invalid(format!("{}{NBSP}: identifiant en double ({layer_id})", key("id")));
+                }
+            }
+            _ => return invalid(format!("{} doit être fait de lettres minuscules, chiffres et _", key("id"))),
+        }
+        if !layer.get("name").is_some_and(Value::is_string) {
+            return invalid(format!("{} doit être un texte", key("name")));
+        }
+        if !layer.get("visible").is_some_and(Value::is_boolean) {
+            return invalid(format!("{} doit valoir true ou false", key("visible")));
+        }
+        if integer_in(layer, "opacity", 0..=100).is_none() {
+            return invalid(format!("{} doit être un entier de 0 à 100", key("opacity")));
+        }
+        match layer.get("png").and_then(Value::as_str).and_then(png_size_from_base64) {
+            None => return invalid(format!("{} doit être un PNG encodé en base64", key("png"))),
+            Some((w, h)) if (u64::from(w), u64::from(h)) != (width, height) => {
+                return invalid(format!("{}{NBSP}: PNG de {w} × {h} px, {width} × {height} attendus", key("png")));
+            }
+            Some(_) => {}
+        }
+    }
+
+    let texture = document.get("export").and_then(Value::as_object).and_then(|export| export.get("texture"));
+    let Some(texture) = texture.and_then(Value::as_str).filter(|path| !path.is_empty()) else {
+        return invalid(format!("{} doit être le chemin d’un PNG sous textures/", quoted("export.texture")));
+    };
+    if !texture.to_lowercase().ends_with(".png") || texture.starts_with('/') || texture.starts_with('\\') {
+        return invalid(format!("{} doit être le chemin d’un PNG sous textures/", quoted("export.texture")));
+    }
+    if inside_root(textures_dir, texture).is_err() {
+        return invalid(format!("{}{NBSP}: chemin en dehors du dossier textures/", quoted("export.texture")));
+    }
+    if let Some(source) = document.get("source") {
+        if !source.is_object() && !source.is_null() {
+            return invalid(format!("{} doit être un objet", quoted("source")));
+        }
+    }
+    Ok(())
+}
+
+/// Résumé d’une image de pixels (sans les calques), pour `GET /pixels`.
+fn pixel_summary(id: &str, document: &Value, modified: std::time::SystemTime) -> Value {
+    let size = document.get("size");
+    let dimension = |key: &str| size.and_then(|size| size.get(key)).and_then(Value::as_u64).unwrap_or(0);
+    let mut map = Map::new();
+    map.insert("id".into(), Value::String(id.to_owned()));
+    let name = document.get("name").and_then(Value::as_str).unwrap_or(id);
+    map.insert("name".into(), Value::String(name.to_owned()));
+    map.insert("width".into(), Value::from(dimension("width")));
+    map.insert("height".into(), Value::from(dimension("height")));
+    let layers = document.get("layers").and_then(Value::as_array).map_or(0, Vec::len);
+    map.insert("layers".into(), Value::from(layers));
+    let texture = export_texture(document).unwrap_or_default();
+    map.insert("texture".into(), Value::String(texture));
+    map.insert("modified".into(), Value::String(iso_utc(modified)));
+    Value::Object(map)
+}
+
+/// `export.texture` d’une image de pixels.
+fn export_texture(document: &Value) -> Option<String> {
+    document.get("export")?.get("texture")?.as_str().map(str::to_owned)
 }
 
 /// Crée `menus/`, `assets/` et `textures/` sous `root` s’ils manquent
@@ -52,6 +238,7 @@ pub struct Workspace {
     root: String,
     menus_dir: String,
     assets_dir: String,
+    pixels_dir: String,
     textures_dir: String,
     templates_root: String,
 }
@@ -76,6 +263,7 @@ impl Workspace {
         Self {
             menus_dir: join(&root, "menus"),
             assets_dir: join(&root, "assets"),
+            pixels_dir: join(&root, "pixels"),
             textures_dir: join(&root, "textures"),
             root,
             templates_root,
@@ -102,10 +290,15 @@ impl Workspace {
         )
     }
 
-    /// Menus et assets de l’espace, du plus récemment modifié au plus ancien.
+    /// Menus, assets et images de pixels de l’espace, du plus récemment modifié
+    /// au plus ancien.
     pub fn recent_documents(&self) -> Vec<RecentDocument> {
         let mut documents = Vec::new();
-        for (kind, dir, suffix) in [("menu", &self.menus_dir, MENU_SUFFIX), ("asset", &self.assets_dir, ASSET_SUFFIX)] {
+        for (kind, dir, suffix) in [
+            ("menu", &self.menus_dir, MENU_SUFFIX),
+            ("asset", &self.assets_dir, ASSET_SUFFIX),
+            ("pixel", &self.pixels_dir, PIXEL_SUFFIX),
+        ] {
             for entry in list_files(Path::new(dir), suffix) {
                 if entry.contains('/') {
                     continue;
@@ -116,13 +309,14 @@ impl Workspace {
                     continue;
                 }
                 let id = entry[..entry.len() - suffix.len()].to_owned();
-                let name = fs::read(&file)
-                    .ok()
-                    .and_then(|bytes| parse_lossy(&bytes))
+                let document = fs::read(&file).ok().and_then(|bytes| parse_lossy(&bytes));
+                let name = document
+                    .as_ref()
                     .and_then(|document| document.get("name").and_then(Value::as_str).map(str::to_owned))
                     .unwrap_or_else(|| id.clone());
+                let texture = if kind == "pixel" { document.as_ref().and_then(export_texture) } else { None };
                 let modified = metadata.modified().unwrap_or(std::time::UNIX_EPOCH);
-                documents.push(RecentDocument { kind, id, name, modified });
+                documents.push(RecentDocument { kind, id, name, modified, texture });
             }
         }
         documents.sort_by(|a, b| b.modified.cmp(&a.modified).then_with(|| a.id.cmp(&b.id)));
@@ -145,6 +339,18 @@ impl Workspace {
         if let Some((is_asset, raw_id)) = document_route(pathname) {
             if method == "PUT" {
                 return self.save_document(is_asset, raw_id, &request.body);
+            }
+        }
+
+        // Images de l’éditeur de pixels : liste, lecture, enregistrement.
+        if pathname == "/pixels" && method == "GET" {
+            return Ok(self.list_pixels());
+        }
+        if let Some(raw_id) = pixel_route(pathname) {
+            match method {
+                "GET" => return self.read_pixel(raw_id),
+                "PUT" => return self.save_pixel(raw_id, &request.body),
+                _ => {}
             }
         }
 
@@ -193,6 +399,64 @@ impl Workspace {
         fs::write(&file, content).map_err(|error| fs_error(&error, "open", &file))?;
         Ok(Response::no_content())
     }
+
+    /// Identifiant d’image décodé et validé, et son fichier (toujours sous `pixels/`).
+    fn pixel_file(&self, raw_id: &str) -> Result<(String, String), HttpError> {
+        let id = decode_component(raw_id)?;
+        if !is_valid_document_id(&id) {
+            return Err(HttpError::new(400, format!("Identifiant invalide{NBSP}: {id}")));
+        }
+        let file = join(&self.pixels_dir, &format!("{id}{PIXEL_SUFFIX}"));
+        Ok((id, file))
+    }
+
+    /// `GET /pixels`  résumés des images, par identifiant.
+    fn list_pixels(&self) -> Response {
+        let mut list = Vec::new();
+        for entry in list_files(Path::new(&self.pixels_dir), PIXEL_SUFFIX) {
+            if entry.contains('/') {
+                continue;
+            }
+            let file = join(&self.pixels_dir, &entry);
+            let Ok(metadata) = fs::metadata(&file) else { continue };
+            let Some(document) = fs::read(&file).ok().and_then(|bytes| parse_lossy(&bytes)) else {
+                eprintln!("[menu-forge] {entry} est illisible");
+                continue;
+            };
+            let id = &entry[..entry.len() - PIXEL_SUFFIX.len()];
+            list.push(pixel_summary(id, &document, metadata.modified().unwrap_or(std::time::UNIX_EPOCH)));
+        }
+        Response::json(stringify(&Value::Array(list)).into_bytes())
+    }
+
+    /// `GET /pixels/:id`  le document complet, calques compris.
+    fn read_pixel(&self, raw_id: &str) -> Result<Response, HttpError> {
+        let (id, file) = self.pixel_file(raw_id)?;
+        let bytes = fs::read(&file).map_err(|_| HttpError::new(404, format!("Image introuvable{NBSP}: {id}")))?;
+        let document =
+            parse_lossy(&bytes).ok_or_else(|| HttpError::new(500, format!("Image illisible{NBSP}: {id}")))?;
+        Ok(Response::json(stringify(&document).into_bytes()))
+    }
+
+    /// `PUT /pixels/:id`  document validé puis écrit d’un bloc (écriture atomique).
+    fn save_pixel(&self, raw_id: &str, body: &[u8]) -> Result<Response, HttpError> {
+        let (id, file) = self.pixel_file(raw_id)?;
+        let document = match parse_lossy(body) {
+            Some(Value::Object(map)) => map,
+            Some(_) => return Err(HttpError::new(400, "Le corps de la requête doit être un objet JSON")),
+            None => return Err(HttpError::new(400, "JSON invalide")),
+        };
+        validate_pixel_document(&document, &id, &self.textures_dir)?;
+        let content = format!("{}\n", stringify_pretty(&Value::Object(document)));
+        write_atomic(&file, content.as_bytes()).map_err(|error| fs_error(&error, "open", &file))?;
+        Ok(Response::no_content())
+    }
+}
+
+/// `^\/pixels\/([^/]+)$`  identifiant encodé.
+fn pixel_route(pathname: &str) -> Option<&str> {
+    let rest = pathname.strip_prefix("/pixels/")?;
+    (!rest.is_empty() && !rest.contains('/')).then_some(rest)
 }
 
 /// `^\/(menus|assets)\/([^/]+)$` : (asset ?, identifiant encodé).
@@ -230,6 +494,107 @@ mod tests {
         assert!(has_png_signature(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a]));
         assert!(!has_png_signature(&[0x89, b'P', b'N']));
         assert!(!has_png_signature(b"GIF89a"));
+    }
+
+    /// Encodage base64 standard (tests seulement).
+    fn encode_base64(data: &[u8]) -> String {
+        const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::new();
+        for chunk in data.chunks(3) {
+            let group = chunk.iter().enumerate().fold(0u32, |group, (index, &byte)| group | u32::from(byte) << (16 - 8 * index));
+            for index in 0..4 {
+                if index <= chunk.len() {
+                    out.push(ALPHABET[(group >> (18 - 6 * index) & 63) as usize] as char);
+                } else {
+                    out.push('=');
+                }
+            }
+        }
+        out
+    }
+
+    /// En-tête PNG (signature + IHDR) de `width` × `height`, suivi d’octets quelconques.
+    fn png_head(width: u32, height: u32) -> Vec<u8> {
+        let mut data = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, b'I', b'H', b'D', b'R'];
+        data.extend_from_slice(&width.to_be_bytes());
+        data.extend_from_slice(&height.to_be_bytes());
+        data.extend_from_slice(&[8, 6, 0, 0, 0]);
+        data
+    }
+
+    #[test]
+    fn base64_png_header() {
+        assert_eq!(encode_base64(b"Man"), "TWFu");
+        assert_eq!(encode_base64(b"Ma"), "TWE=");
+        assert_eq!(base64_head("TWFuTWE=", 5).as_deref(), Some(&b"ManMa"[..]));
+        assert_eq!(base64_head("TWFu", 4), None);
+        assert_eq!(base64_head("TW*u", 3), None);
+        assert!(is_base64("TWE=") && !is_base64("TWE") && !is_base64("T=E=") && !is_base64("TW E") && !is_base64(""));
+        assert_eq!(png_size_from_base64(&encode_base64(&png_head(16, 8))), Some((16, 8)));
+        assert_eq!(png_size_from_base64(&encode_base64(&png_head(1024, 1))), Some((1024, 1)));
+        assert_eq!(png_size_from_base64(&encode_base64(b"GIF89a, pas un PNG du tout...")), None);
+        assert_eq!(png_size_from_base64("iVBORw0KGgo="), None, "trop court pour l’en-tête IHDR");
+    }
+
+    fn pixel_document(width: u32, height: u32) -> Map<String, Value> {
+        let png = encode_base64(&png_head(width, height));
+        let value = serde_json::json!({
+            "formatVersion": 1, "id": "epee", "name": "Épée",
+            "size": { "width": width, "height": height },
+            "layers": [
+                { "id": "fond", "name": "Fond", "visible": true, "opacity": 100, "png": png },
+                { "id": "lame", "name": "Lame", "visible": false, "opacity": 40, "png": png }
+            ],
+            "export": { "texture": "pixels/epee.png" }
+        });
+        value.as_object().unwrap().clone()
+    }
+
+    #[test]
+    fn pixel_documents_are_validated() {
+        let root = r"C:\ws\textures";
+        assert!(validate_pixel_document(&pixel_document(16, 8), "epee", root).is_ok());
+        type Mutation = fn(&mut Map<String, Value>);
+        let refused: [(&str, Mutation); 14] = [
+            ("identifiant", |doc| put_key(doc, "id", "autre")),
+            ("formatVersion", |doc| put_key(doc, "formatVersion", 2)),
+            ("name", |doc| put_key(doc, "name", " ")),
+            ("taille nulle", |doc| put_key(doc, "size", serde_json::json!({ "width": 0, "height": 8 }))),
+            ("taille énorme", |doc| put_key(doc, "size", serde_json::json!({ "width": 2048, "height": 8 }))),
+            ("sans calque", |doc| put_key(doc, "layers", serde_json::json!([]))),
+            ("calque en double", |doc| {
+                let layers = doc.get_mut("layers").unwrap().as_array_mut().unwrap();
+                layers[1]["id"] = "fond".into();
+            }),
+            ("opacité", |doc| doc.get_mut("layers").unwrap()[0]["opacity"] = 101.into()),
+            ("pas un PNG", |doc| doc.get_mut("layers").unwrap()[0]["png"] = "R0lGODlhAQABAAAAACw=".into()),
+            ("PNG d’une autre taille", |doc| {
+                doc.get_mut("layers").unwrap()[0]["png"] = encode_base64(&png_head(8, 8)).into();
+            }),
+            ("export absolu", |doc| put_key(doc, "export", serde_json::json!({ "texture": "C:/x.png" }))),
+            ("export hors de textures", |doc| put_key(doc, "export", serde_json::json!({ "texture": "../menus/x.png" }))),
+            ("export pas PNG", |doc| put_key(doc, "export", serde_json::json!({ "texture": "pixels/x.json" }))),
+            ("source", |doc| put_key(doc, "source", "library")),
+        ];
+        for (case, mutate) in refused {
+            let mut document = pixel_document(16, 8);
+            mutate(&mut document);
+            let error = validate_pixel_document(&document, "epee", root).expect_err(case);
+            assert_eq!(error.status, 400, "{case}");
+        }
+    }
+
+    fn put_key(document: &mut Map<String, Value>, key: &str, value: impl Into<Value>) {
+        document.insert(key.into(), value.into());
+    }
+
+    #[test]
+    fn pixel_routes() {
+        assert_eq!(pixel_route("/pixels/epee"), Some("epee"));
+        assert_eq!(pixel_route("/pixels/..%2Fx"), Some("..%2Fx"));
+        assert_eq!(pixel_route("/pixels/"), None);
+        assert_eq!(pixel_route("/pixels"), None);
+        assert_eq!(pixel_route("/pixels/a/b"), None);
     }
 
     #[test]

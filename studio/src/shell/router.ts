@@ -6,7 +6,7 @@ import { useMemo, useSyncExternalStore } from 'react';
  * directement, avec les boutons Précédent / Suivant.
  */
 
-export type EditorMode = 'menus' | 'assets';
+export type EditorMode = 'menus' | 'assets' | 'pixels';
 export type PlainScreen = 'home' | 'workspaces' | 'libraries' | 'settings' | 'about';
 export type ScreenId = PlainScreen | 'editor';
 export type Route = { screen: PlainScreen } | { screen: 'editor'; mode: EditorMode; id: string | null };
@@ -24,7 +24,7 @@ export function parseRoute(hash: string): Route | null {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (parts.length === 0) return null;
   if (parts[0] === 'editeur') {
-    const mode: EditorMode = parts[1] === 'assets' ? 'assets' : 'menus';
+    const mode: EditorMode = parts[1] === 'assets' || parts[1] === 'pixels' ? parts[1] : 'menus';
     let id: string | null = null;
     if (parts[2]) {
       try {

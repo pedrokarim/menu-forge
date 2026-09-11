@@ -18,6 +18,8 @@ interface LibraryPanelProps {
   /** Crée un nouveau menu à partir d’une police du pack. */
   onImportFont: (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => Promise<void>;
   canAddLayer: boolean;
+  /** Ouvre une copie de la texture dans l’éditeur de pixels (le pack n’est jamais modifié). */
+  onOpenInPixels?: (source: LibrarySourceInfo, texture: LibraryTexture) => void;
   /** Libellé de l’ajout dans le menu contextuel (« Ajouter comme couche », « Insérer dans l’asset »). */
   addLabel?: string;
 }
@@ -55,7 +57,14 @@ function PixelPreview({ src, width, height }: { src: string; width: number; heig
  * bas de la colonne ; clic droit sur une vignette pour ses actions, double-clic
  * pour l’ajouter.
  */
-export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLayer, addLabel = 'Ajouter comme couche' }: LibraryPanelProps) {
+export function LibraryPanel({
+  onAddLayer,
+  onAddRegion,
+  onImportFont,
+  canAddLayer,
+  addLabel = 'Ajouter comme couche',
+  onOpenInPixels,
+}: LibraryPanelProps) {
   const [cropping, setCropping] = useState(false);
   const [sources, setSources] = useState<LibrarySourceInfo[] | null>(null);
   const [sourceId, setSourceId] = useState('');
@@ -162,6 +171,9 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
       { label: addLabel, icon: 'plus', disabled: busy || !canAddLayer, onSelect: () => addTexture(texture) },
       ...(onAddRegion
         ? [{ label: 'Rogner…', icon: 'crop' as const, disabled: !canAddLayer, onSelect: () => setCropping(true) }]
+        : []),
+      ...(onOpenInPixels && source
+        ? [{ label: 'Ouvrir dans l’éditeur de pixels', icon: 'pencil' as const, onSelect: () => onOpenInPixels(source, texture) }]
         : []),
       ...(fonts.length > 0 ? [{ separator: true as const }] : []),
       ...fonts.map((usage) => ({

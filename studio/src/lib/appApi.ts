@@ -115,10 +115,12 @@ export interface WorkspaceList {
 }
 
 export interface RecentDocument {
-  type: 'menu' | 'asset';
+  type: 'menu' | 'asset' | 'pixel';
   id: string;
   name: string;
   modified: string;
+  /** Image de pixels : PNG exporté (relatif à `textures/`), pour la vignette. */
+  texture?: string;
 }
 
 export interface LibraryCounts {
