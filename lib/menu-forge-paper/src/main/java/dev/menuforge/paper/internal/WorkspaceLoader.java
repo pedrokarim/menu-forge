@@ -77,7 +77,8 @@ final class WorkspaceLoader {
     final TemplateResolver resolver = new TemplateResolver(definitions::get);
     final Map<String, CompiledMenu> menus = new TreeMap<>();
     for (final MenuDefinition definition : definitions.values()) {
-      if (definition.template()) {
+      // Gabarits et composants : des pièces assemblées dans les menus, jamais ouvertes seules.
+      if (definition.partial()) {
         continue;
       }
       try {

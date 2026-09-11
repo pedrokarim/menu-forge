@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pedrokarim.github.io/menu-forge/menu.schema.json",
+  "title": "Menu menu-forge (*.menu.json, version 1)",
+  "description": "Contrat entre le studio (qui l’écrit) et la lib Java (qui le lit) ; spécification lisible : docs/format.md. Le schéma décrit ce que le studio écrit : il refuse les clés inconnues, que la lib se contente d’ignorer. Les règles qui croisent plusieurs fichiers (gabarits, composants, états cités par les conditions et les actions) sont vérifiées par la lib après résolution (MenuValidator).",
+  "type": "object",
+  "required": ["id"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "formatVersion": { "const": 1, "description": "Version du format ; 1 si absente." },
+    "id": { "$ref": "#/$defs/menuId", "description": "Identifiant unique, sert aussi de nom de police." },
+    "name": { "type": "string", "description": "Nom lisible (outil, journaux) ; l’identifiant si absent." },
+    "template": { "type": "boolean", "description": "Gabarit partiel, hérité via extends ; jamais ouvert seul." },
+    "component": { "type": "boolean", "description": "Composant réutilisable, inclus via includes ; jamais ouvert seul." },
+    "extends": {
+      "type": "array",
+      "description": "Gabarits hérités, appliqués dans l’ordre (§ Gabarits).",
+      "items": { "$ref": "#/$defs/menuId" }
+    },
+    "includes": {
+      "type": "array",
+      "description": "Instances de composants, sous les éléments propres du menu (§ Composants).",
+      "items": { "$ref": "#/$defs/include" }
+    },
+    "container": { "$ref": "#/$defs/container" },
+    "state": {
+      "type": "object",
+      "description": "Variables d’état du menu, par nom (§ État).",
+      "propertyNames": { "pattern": "^[A-Za-z0-9_]+$" },
+      "additionalProperties": { "$ref": "#/$defs/stateDefinition" }
+    },
+    "layers": { "type": "array", "description": "Images du titre, de bas en haut.", "items": { "$ref": "#/$defs/layer" } },
+    "texts": { "type": "array", "description": "Textes dynamiques du titre.", "items": { "$ref": "#/$defs/text" } },
+    "slots": { "type": "array", "description": "Zones de slots et leur comportement.", "items": { "$ref": "#/$defs/slot" } }
+  },
+  "$defs": {
+    "menuId": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "elementId": { "type": "string", "minLength": 1 },
+    "stateValue": { "type": ["string", "number", "boolean"] },
+    "hexColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "container": {
+      "type": "object",
+      "required": ["rows"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "chest" },
+        "rows": { "type": "integer", "minimum": 1, "maximum": 6 }
+      }
+    },
+    "stateDefinition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Une valeur parmi values.",
+          "required": ["type", "values", "default"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "enum" },
+            "values": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+            "default": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Vrai ou faux.",
+          "required": ["type", "default"],
+          "additionalProperties": false,
+          "properties": { "type": { "const": "bool" }, "default": { "type": "boolean" } }
+        },
+        {
+          "type": "object",
+          "description": "Entier, ramené dans [min, max] quand ils sont donnés.",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "int" },
+            "default": { "type": "integer" },
+            "min": { "type": "integer" },
+            "max": { "type": "integer" }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Page courante de la liste list ; expose <nom>.number, <nom>.count, <nom>.hasPrev, <nom>.hasNext.",
+          "required": ["type", "list"],
+          "additionalProperties": false,
+          "properties": { "type": { "const": "page" }, "list": { "type": "string", "minLength": 1 } }
+        }
+      ]
+    },
+    "condition": {
+      "description": "Condition d’affichage ou d’activation (§ Conditions).",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["state", "is"],
+          "additionalProperties": false,
+          "properties": { "state": { "type": "string", "minLength": 1 }, "is": { "$ref": "#/$defs/stateValue" } }
+        },
+        {
+          "type": "object",
+          "required": ["state", "in"],
+          "additionalProperties": false,
+          "properties": {
+            "state": { "type": "string", "minLength": 1 },
+            "in": { "type": "array", "items": { "$ref": "#/$defs/stateValue" } }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["flag"],
+          "additionalProperties": false,
+          "properties": { "flag": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "required": ["all"],
+          "additionalProperties": false,
+          "properties": { "all": { "type": "array", "items": { "$ref": "#/$defs/condition" } } }
+        },
+        {
+          "type": "object",
+          "required": ["any"],
+          "additionalProperties": false,
+          "properties": { "any": { "type": "array", "items": { "$ref": "#/$defs/condition" } } }
+        },
+        {
+          "type": "object",
+          "required": ["not"],
+          "additionalProperties": false,
+          "properties": { "not": { "$ref": "#/$defs/condition" } }
+        }
+      ]
+    },
+    "editorFlags": {
+      "type": "object",
+      "description": "Métadonnée du studio, ignorée par la lib.",
+      "additionalProperties": false,
+      "properties": { "locked": { "type": "boolean" }, "hidden": { "type": "boolean" } }
+    },
+    "slotArea": {
+      "type": "object",
+      "required": ["col", "row"],
+      "additionalProperties": false,
+      "properties": {
+        "col": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "row": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "width": { "type": "integer", "minimum": 1, "maximum": 9 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 6 }
+      }
+    },
+    "generator": {
+      "type": "object",
+      "description": "Paramètres d’une texture générée par le studio (métadonnée libre, ignorée par la lib ; forme écrite par le studio ci-dessous).",
+      "properties": {
+        "style": { "enum": ["panel", "button", "cell", "veil", "flat"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "color": { "type": "string" },
+        "cells": { "type": "array", "items": { "$ref": "#/$defs/slotArea" } },
+        "cellColor": { "type": "string" }
+      }
+    },
+    "layer": {
+      "type": "object",
+      "required": ["id", "texture", "x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "texture": { "type": "string", "pattern": "\\.png$", "description": "Chemin relatif au dossier textures/." },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
+        "generator": { "$ref": "#/$defs/generator" },
+        "editor": { "$ref": "#/$defs/editorFlags" }
+      }
+    },
+    "text": {
+      "type": "object",
+      "description": "Texte du titre ; en jeu, y doit valoir au moins 5 (règle vérifiée par la lib après résolution).",
+      "required": ["id", "x", "y", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "align": { "enum": ["left", "center", "right"] },
+        "color": { "$ref": "#/$defs/hexColor" },
+        "value": { "type": "string", "description": "Texte avec variables {…}." },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
+        "editor": { "$ref": "#/$defs/editorFlags" }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "invisible": { "type": "boolean", "description": "Item sans rendu : le bouton est dessiné par une couche." },
+        "material": { "type": "string", "description": "Matériau Bukkit (DIAMOND, PLAYER_HEAD…)." },
+        "name": { "type": "string", "description": "MiniMessage, variables acceptées." },
+        "lore": { "type": "array", "items": { "type": "string" } },
+        "head": { "type": "string", "description": "Tête de joueur : {viewer}, pseudo ou UUID." },
+        "ref": { "type": "string", "description": "Item créé par l’adaptateur du serveur (ItemFactory)." }
+      }
+    },
+    "action": {
+      "description": "Action au clic (§ Actions).",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "menu"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "open" },
+            "menu": { "$ref": "#/$defs/menuId" },
+            "state": { "type": "object", "additionalProperties": { "$ref": "#/$defs/stateValue" } }
+          }
+        },
+        { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "const": "back" } } },
+        { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "const": "close" } } },
+        {
+          "type": "object",
+          "required": ["type", "state", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "setState" },
+            "state": { "type": "string", "minLength": 1 },
+            "value": { "$ref": "#/$defs/stateValue" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "list"],
+          "additionalProperties": false,
+          "properties": { "type": { "const": "nextPage" }, "list": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "required": ["type", "list"],
+          "additionalProperties": false,
+          "properties": { "type": { "const": "prevPage" }, "list": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "required": ["type", "sound"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "sound" },
+            "sound": { "type": "string", "minLength": 1 },
+            "volume": { "type": "number", "minimum": 0 },
+            "pitch": { "type": "number", "minimum": 0, "maximum": 2 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "command"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "command" },
+            "command": { "type": "string", "minLength": 1 },
+            "as": { "enum": ["player", "console"] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "id"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "custom" },
+            "id": { "type": "string", "minLength": 1 },
+            "args": { "type": "object" }
+          }
+        }
+      ]
+    },
+    "slot": {
+      "type": "object",
+      "required": ["id", "kind", "area"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "kind": { "enum": ["button", "list", "input", "decoration"] },
+        "area": { "$ref": "#/$defs/slotArea" },
+        "item": { "$ref": "#/$defs/item" },
+        "list": { "type": "string", "minLength": 1, "description": "Source de données d’un slot list." },
+        "onClick": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
+        "enabledWhen": { "$ref": "#/$defs/condition" },
+        "editor": { "$ref": "#/$defs/editorFlags" }
+      },
+      "if": { "properties": { "kind": { "const": "list" } } },
+      "then": { "required": ["list"] }
+    },
+    "include": {
+      "type": "object",
+      "description": "Instance d’un composant : ses éléments décalés de col / row cases (18 px par case pour couches et textes, plus x / y), préfixés par prefix, soumis en plus à visibleWhen.",
+      "required": ["component"],
+      "additionalProperties": false,
+      "properties": {
+        "component": { "$ref": "#/$defs/menuId" },
+        "prefix": { "type": "string", "pattern": "^[a-z0-9_]*$" },
+        "col": { "type": "integer", "minimum": -8, "maximum": 8 },
+        "row": { "type": "integer", "minimum": -5, "maximum": 5 },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "visibleWhen": { "$ref": "#/$defs/condition" }
+      }
+    }
+  }
+}

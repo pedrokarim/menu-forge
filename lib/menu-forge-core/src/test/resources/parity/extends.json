@@ -1,0 +1,282 @@
+{
+  "description": "Gabarits (extends) : ordre d’application, remplacement par id à la position du gabarit, gabarits imbriqués, état fusionné clé par clé.",
+  "cases": [
+    {
+      "name": "gabarits appliqués dans l’ordre de la liste",
+      "resolve": "menu",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "first",
+          "template": true,
+          "container": {
+            "rows": 3
+          },
+          "state": {
+            "tab": {
+              "type": "enum",
+              "values": [
+                "a"
+              ],
+              "default": "a"
+            }
+          },
+          "layers": [
+            {
+              "id": "a",
+              "texture": "first_a.png",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "b",
+              "texture": "first_b.png",
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "second",
+          "template": true,
+          "container": {
+            "rows": 4
+          },
+          "state": {
+            "count": {
+              "type": "int",
+              "default": 1
+            },
+            "tab": {
+              "type": "bool",
+              "default": true
+            }
+          },
+          "layers": [
+            {
+              "id": "b",
+              "texture": "second_b.png",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "c",
+              "texture": "second_c.png",
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "menu",
+          "extends": [
+            "first",
+            "second"
+          ],
+          "layers": [
+            {
+              "id": "a",
+              "texture": "menu_a.png",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "d",
+              "texture": "menu_d.png",
+              "x": 0,
+              "y": 0
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "state": [
+          [
+            "tab",
+            "bool"
+          ],
+          [
+            "count",
+            "int"
+          ]
+        ],
+        "layers": [
+          {
+            "id": "a",
+            "texture": "menu_a.png",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "id": "b",
+            "texture": "second_b.png",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "id": "c",
+            "texture": "second_c.png",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "id": "d",
+            "texture": "menu_d.png",
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "texts": [],
+        "slots": []
+      }
+    },
+    {
+      "name": "gabarits imbriqués résolus d’abord",
+      "resolve": "menu",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "base",
+          "template": true,
+          "texts": [
+            {
+              "id": "t",
+              "x": 8,
+              "y": 6,
+              "value": "base"
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "middle",
+          "template": true,
+          "extends": [
+            "base"
+          ],
+          "texts": [
+            {
+              "id": "t",
+              "x": 8,
+              "y": 6,
+              "value": "middle"
+            },
+            {
+              "id": "u",
+              "x": 8,
+              "y": 20,
+              "value": "u"
+            }
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "menu",
+          "extends": [
+            "middle"
+          ],
+          "slots": [
+            {
+              "id": "s",
+              "kind": "decoration",
+              "area": {
+                "col": 4,
+                "row": 2,
+                "width": 2
+              },
+              "visibleWhen": {
+                "any": [
+                  {
+                    "flag": "viewer.isStaff"
+                  },
+                  {
+                    "state": "x",
+                    "in": [
+                      1,
+                      2
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "state": [],
+        "layers": [],
+        "texts": [
+          {
+            "id": "t",
+            "x": 8,
+            "y": 6,
+            "value": "middle"
+          },
+          {
+            "id": "u",
+            "x": 8,
+            "y": 20,
+            "value": "u"
+          }
+        ],
+        "slots": [
+          {
+            "id": "s",
+            "kind": "decoration",
+            "col": 4,
+            "row": 2,
+            "width": 2,
+            "height": 1,
+            "actions": [],
+            "visibleWhen": {
+              "any": [
+                {
+                  "flag": "viewer.isStaff"
+                },
+                {
+                  "state": "x",
+                  "in": [
+                    1,
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "cycle de gabarits",
+      "resolve": "menu",
+      "error": "cycle",
+      "menus": [
+        {
+          "formatVersion": 1,
+          "id": "a",
+          "template": true,
+          "extends": [
+            "b"
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "b",
+          "template": true,
+          "extends": [
+            "a"
+          ]
+        },
+        {
+          "formatVersion": 1,
+          "id": "menu",
+          "extends": [
+            "a"
+          ]
+        }
+      ]
+    }
+  ]
+}

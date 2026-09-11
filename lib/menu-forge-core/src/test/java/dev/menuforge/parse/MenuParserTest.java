@@ -3,6 +3,7 @@ package dev.menuforge.parse;
 import dev.menuforge.TestMenus;
 import dev.menuforge.model.Action;
 import dev.menuforge.model.Condition;
+import dev.menuforge.model.Include;
 import dev.menuforge.model.MenuDefinition;
 import dev.menuforge.model.Slot;
 import dev.menuforge.model.SlotKind;
@@ -132,6 +133,36 @@ class MenuParserTest {
     final Action.Custom custom = (Action.Custom) slot.onClick().get(6);
     assertEquals(3L, custom.args().get("amount"));
     assertEquals(List.of("a", "b"), custom.args().get("tags"));
+  }
+
+  @Test
+  void parsesComponentsAndIncludes() {
+    final MenuDefinition menu = TestMenus.parse("""
+      { "formatVersion": 1, "id": "shop", "component": true,
+        "includes": [
+          { "component": "pager", "prefix": "p_", "col": 1, "row": -2, "x": 3, "y": 4,
+            "visibleWhen": { "flag": "viewer.isStaff" } },
+          { "component": "back_button" }
+        ] }
+      """);
+    assertTrue(menu.component());
+    assertTrue(menu.partial());
+    assertFalse(menu.template());
+    assertEquals(new Include("pager", "p_", 1, -2, 3, 4, new Condition.Flag("viewer.isStaff")), menu.includes().get(0));
+    assertEquals(Include.of("back_button"), menu.includes().get(1));
+    assertTrue(TestMenus.menu("badges").includes().isEmpty());
+  }
+
+  @Test
+  void reportsInvalidIncludes() {
+    assertEquals("$.includes[0].component", assertThrows(MenuFormatException.class,
+      () -> TestMenus.parse("{ \"id\": \"x\", \"includes\": [{ \"prefix\": \"a_\" }] }")).path());
+    assertEquals("$.includes[0].component", assertThrows(MenuFormatException.class,
+      () -> TestMenus.parse("{ \"id\": \"x\", \"includes\": [{ \"component\": \"Pager\" }] }")).path());
+    assertEquals("$.includes[1].prefix", assertThrows(MenuFormatException.class, () -> TestMenus.parse(
+      "{ \"id\": \"x\", \"includes\": [{ \"component\": \"a\" }, { \"component\": \"b\", \"prefix\": \"B-\" }] }")).path());
+    assertEquals("$.includes[0].col", assertThrows(MenuFormatException.class,
+      () -> TestMenus.parse("{ \"id\": \"x\", \"includes\": [{ \"component\": \"a\", \"col\": 1.5 }] }")).path());
   }
 
   @Test
