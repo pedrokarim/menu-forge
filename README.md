@@ -29,6 +29,9 @@ menu-forge est né pour **Enderium**, un serveur Minecraft : son plugin
 actions, ses conditions et son pipeline de resource pack par un adaptateur.
 La lib, elle, ne dépend d’aucun type d’Enderium et sert n’importe quel serveur
 Paper.
+Son écran `/profile` est le premier vrai menu recréé dans le studio, avec des
+textures générées : le serveur de test d’Enderium le charge, en attendant sa
+validation en jeu avec un client.
 
 ## Pourquoi
 
@@ -72,6 +75,33 @@ menu-forge automatise toute la chaîne :
   héritage (`extends`).
 - **Mode libre** : un éditeur d’assets (encarts, bulles de touche, badges…)
   exportés en PNG et en glyphe, prêts à glisser dans un texte.
+- **Éditeur de pixels** (mode « Pixels ») : crayon, gomme, pot de peinture,
+  pipette, ligne, rectangle, ellipse, sélection rectangulaire, lasso, baguette
+  magique, palette et couleurs du document, calques (opacité, fusion),
+  symétrie, zoom de ×1 à ×64 ; le PNG exporté sert tel quel dans les menus et
+  les assets.
+- **Gestes d’édition** : sélection multiple (Maj ou Ctrl + clic, rectangle,
+  `Ctrl+A`), copier / couper / coller par le presse-papiers du système,
+  aligner et répartir, groupes (assets), verrouiller et masquer, renommer,
+  dupliquer ou mettre à la corbeille un document, glisser-déposer d’un PNG
+  depuis l’explorateur.
+- **Éditer sans JSON** : éditeurs visuels des actions au clic (réordonnables),
+  des conditions (arbre « toutes », « au moins une », « pas »), des variables
+  d’état et des items (MiniMessage avec aperçu).
+- **Mode « Essayer »** (`E`) : un clic sur un slot exécute ses actions comme en
+  jeu (état, pages, `open` et `back`, fermeture) ; commandes et sons sont
+  écrits au journal, le document n’est jamais modifié.
+- **Composants** réutilisables (`component`, `includes`) : une pagination ou
+  un bouton retour dessinés une fois, posés dans plusieurs menus, décalés ou
+  préfixés ; créés depuis une sélection, détachables.
+- **Export** : « Exporter vers le plugin » (`Ctrl+E`, menus résolus et
+  textures dans le dossier réglé) et « Pack ZIP » de test (`Ctrl+Maj+E`,
+  polices, textures, `pack.mcmeta`) ; polices identiques, octet pour octet,
+  à celles de la lib.
+- **Schémas JSON** des menus et des assets
+  ([`docs/menu.schema.json`](docs/menu.schema.json),
+  [`docs/asset.schema.json`](docs/asset.schema.json)) pour valider un fichier
+  écrit à la main ou généré.
 - Bibliothèques de packs branchées en local (lecture seule, jamais publiées),
   annuler / rétablir, raccourcis clavier partout, aide-mémoire `?`.
 - Style « Deepslate » : ardoise, biseaux de 2 px, or pour la sélection,
@@ -86,18 +116,31 @@ menu-forge automatise toute la chaîne :
   points d’extension (`ListProvider`, `FlagProvider`, `PlaceholderResolver`,
   `ItemFactory`, `CustomActionHandler`), une session par joueur avec pile pour
   `back`, et les commandes `/menuforge open`, `reload`, `calibrate`.
+- Espaces de travail supplémentaires (`addWorkspace`) : un plugin embarque ses
+  propres menus. C’est ainsi que l’**adaptateur d’Enderium** (dans
+  enderium-core) fournit les siens, branche les actions `custom` sur ses
+  ClickActions et les drapeaux sur ses conditions, et fusionne les polices
+  générées dans son pack.
+- Testée : 46 tests du noyau, dont les cas de parité partagés avec le studio,
+  et 28 tests du plugin sur un serveur simulé (MockBukkit).
 
 ## Captures
 
 | | |
 |---|---|
+| ![Éditeur de pixels : une texture d’onglet en calques](site/assets/screens/pixel-editor.png) | ![Mode « Essayer » : clics simulés et journal](site/assets/screens/try-mode.png) |
+| **Éditeur de pixels** : calques, symétrie, palette, zoom jusqu’à ×64. | **Essayer** : les actions s’exécutent comme en jeu, le journal les suit. |
+| ![Éditeurs visuels des actions et des conditions d’un slot](site/assets/screens/visual-editors.png) | ![Sélection multiple et barre d’alignement](site/assets/screens/multi-select.png) |
+| **Sans JSON** : actions au clic et conditions en arbre, dans l’inspecteur. | **Gestes d’édition** : sélection multiple, aligner et répartir. |
+| ![Un composant réutilisable et son instance](site/assets/screens/components.png) | ![Export vers le plugin et menu des exports](site/assets/screens/export.png) |
+| **Composants** : dessinés une fois, inclus dans plusieurs menus. | **Export** : vers le plugin (`Ctrl+E`) ou en pack ZIP de test. |
 | ![Accueil : actions rapides et documents récents](site/assets/screens/home.png) | ![Une modale de confirmation dans l’éditeur](site/assets/screens/modal-editor.png) |
 | **Accueil** : actions rapides, documents récents avec vignettes. | **Modales** : voile, panneau centré, boutons câblés sur des actions. |
 | ![Éditeur d’assets : un encart d’aide](site/assets/screens/asset-editor.png) | ![Aide-mémoire des raccourcis clavier](site/assets/screens/shortcuts.png) |
 | **Mode libre** : composer un asset et l’exporter en glyphe. | **Raccourcis** : tout se fait aussi au clavier. |
 
 Toutes les captures sont produites par un script, sur un espace de
-démonstration fait **uniquement** de textures générées par le studio : voir
+démonstration fait **uniquement** de textures générées ou dessinées par le studio : voir
 [`site/README.md`](site/README.md).
 
 ## Comment ça marche
@@ -182,11 +225,27 @@ Le visuel « cases seules » du coffre n’est pas fourni : c’est au pack d
 serveur de le porter. API, points d’extension et configuration :
 [`lib/README.md`](lib/README.md).
 
+### Du studio au serveur
+
+Dans l’éditeur de menus, **Exporter** (`Ctrl+E`) enregistre le menu ouvert,
+puis écrit tous les menus de l’espace, gabarits appliqués, et les PNG qu’ils
+utilisent dans `<dossier réglé>/menuforge/` (`menus/`, `textures/`), avec un
+manifeste : un export suivant ne retire que ce que le précédent avait écrit.
+Le dossier se règle dans **Paramètres › Export vers le plugin**. Pour le
+plugin MenuForge autonome, copiez `menus/` et `textures/` dans
+`plugins/MenuForge/workspace/` ; un plugin qui embarque ses menus les déclare
+avec `addWorkspace`, comme Enderium.
+
+**Pack ZIP** (`Ctrl+Maj+E`) écrit `exports/<namespace>-pack.zip` dans
+l’espace de travail : polices et textures générées avec le même algorithme
+que la lib (parité vérifiée octet pour octet par une fixture partagée) et
+`pack.mcmeta`, à essayer sans serveur.
+
 ## Structure du dépôt
 
 | Dossier | Rôle |
 |---|---|
-| [`docs/`](docs/) | Spécification du format, modèle de rendu, écrans, feuille de route (source de vérité) |
+| [`docs/`](docs/) | Spécification des formats et schémas JSON, modèle de rendu, écrans, feuille de route (source de vérité) |
 | [`studio/`](studio/) | Studio : interface Vite + React + TypeScript (`src/`), backend Rust (`backend/`), coquille Tauri 2 (`src-tauri/`) |
 | [`lib/`](lib/) | Lib Java : noyau autonome `menu-forge-core` et plugin `menu-forge-paper` |
 | [`templates/`](templates/) | Gabarits fournis (coffre, modale, onglets, liste paginée) |
@@ -200,6 +259,11 @@ serveur de le porter. API, points d’extension et configuration :
 - [`docs/format.md`](docs/format.md) : le format `*.menu.json` (couches, textes,
   slots, état, conditions, actions, gabarits).
 - [`docs/assets.md`](docs/assets.md) : le format `*.asset.json` du mode libre.
+- [`docs/pixels.md`](docs/pixels.md) : le format `*.pixel.json` de l’éditeur de
+  pixels, ses outils et ses raccourcis.
+- [`docs/menu.schema.json`](docs/menu.schema.json) et
+  [`docs/asset.schema.json`](docs/asset.schema.json) : les schémas JSON des
+  deux formats.
 - [`docs/screens.md`](docs/screens.md) : les écrans de l’application.
 - [`docs/discord.md`](docs/discord.md) : la Rich Presence Discord (facultative).
 - [`studio/README.md`](studio/README.md) : lancer, construire, API locale.
@@ -207,12 +271,19 @@ serveur de le porter. API, points d’extension et configuration :
 
 ## Feuille de route
 
-Détail vivant dans [`docs/roadmap.md`](docs/roadmap.md). Prochaines étapes :
+Détail vivant dans [`docs/roadmap.md`](docs/roadmap.md).
+Arrivés récemment : l’éditeur de pixels, les gestes d’édition, les éditeurs
+visuels et le mode « Essayer », les composants, l’export vers le plugin et le
+pack ZIP, les schémas JSON. Prochaines étapes :
 
-- premier vrai menu en production, recréé avec des textures générées ;
-- éditeur visuel des états et des actions, sans passer par le JSON ;
-- export d’un pack ZIP pour tester sans serveur ;
-- copier / coller, multi-sélection, repères ;
+- valider en jeu, avec un client, l’écran `/profile` d’Enderium, puis migrer
+  ses autres écrans (succès, royaumes, maisons) ;
+- studio : police pixel fidèle pour l’aperçu des textes, repères posés à la
+  main, restaurer un document depuis la corbeille ;
+- composants : surcharger un seul champ d’un élément d’instance ; aperçu des
+  slots « liste » en mode « Essayer » ;
+- éditeur de pixels : animations et planches de sprites, palettes
+  enregistrées, dégradés ;
 - décider du sort de la texture globale du coffre (`generic_54.png`).
 
 ## Contribuer
