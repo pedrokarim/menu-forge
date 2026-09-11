@@ -16,6 +16,8 @@ interface ElementListProps {
   onDelete: (id: string) => void;
   onAddBox: (presetId: string) => void;
   onAddText: () => void;
+  /** Clic droit sur un élément (il est d’abord sélectionné). */
+  onItemContextMenu?: (id: string, event: MouseEvent) => void;
 }
 
 function stop(action: () => void) {
@@ -98,6 +100,11 @@ export function ElementList(props: ElementListProps) {
                 tabIndex={0}
                 aria-current={isSelected || undefined}
                 onClick={() => props.onSelect(element.id)}
+                onContextMenu={(event: MouseEvent) => {
+                  if (!props.onItemContextMenu) return;
+                  props.onSelect(element.id);
+                  props.onItemContextMenu(element.id, event);
+                }}
                 onKeyDown={(event: KeyboardEvent) => {
                   if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
                   event.preventDefault();

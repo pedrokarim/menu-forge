@@ -3,7 +3,8 @@ import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
-import type { JSX, ReactNode } from 'react';
+import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { useContextMenu } from '../ui/menuContext';
 import type { LoadedTexture } from '../lib/textures';
 import { canvasToBlob } from '../model/generator';
 import { sanitizeId, uniqueId } from '../model/menu';
@@ -300,6 +301,30 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     }
   };
 
+  /* Menu contextuel d’un élément (clic droit dans la liste) */
+
+  const openContextMenu = useContextMenu();
+  const openElementMenu = (id: string, event: ReactMouseEvent) => {
+    const index = asset.elements.findIndex((element) => element.id === id);
+    const element = asset.elements[index];
+    if (!element) return;
+    const noun = element.type === 'box' ? 'Box' : element.type === 'image' ? 'Image' : 'Texte';
+    openContextMenu(event, [
+      { heading: `${noun} « ${id} »` },
+      { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => duplicateElement(id) },
+      {
+        label: element.hidden ? 'Afficher' : 'Masquer',
+        icon: element.hidden ? 'eye' : 'eye-off',
+        onSelect: () => toggleHidden(id),
+      },
+      { separator: true },
+      { label: 'Monter', icon: 'chevron-up', disabled: index === asset.elements.length - 1, onSelect: () => reorder(id, 1) },
+      { label: 'Descendre', icon: 'chevron-down', disabled: index === 0, onSelect: () => reorder(id, -1) },
+      { separator: true },
+      { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteElement(id) },
+    ]);
+  };
+
   /* Clavier */
 
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -411,6 +436,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
               onSelect={setSelectedId}
               onReorder={reorder}
               onToggleHidden={toggleHidden}
+              onItemContextMenu={openElementMenu}
               onDelete={deleteElement}
               onAddBox={addBoxPreset}
               onAddText={() => createText({ x: 4, y: 4 })}

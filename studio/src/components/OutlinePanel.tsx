@@ -23,6 +23,8 @@ interface OutlinePanelProps {
   onAddText: () => void;
   onOpenGenerator: () => void;
   onImport: (file: File) => void;
+  /** Clic droit sur un élément modifiable (l’élément est d’abord sélectionné). */
+  onItemContextMenu?: (selection: Selection, event: MouseEvent) => void;
 }
 
 /** Nom affiché de chaque type de slot (la valeur du format reste en anglais). */
@@ -68,6 +70,11 @@ export function OutlinePanel(props: OutlinePanelProps) {
         tabIndex={isInherited ? undefined : 0}
         aria-current={isSelected || undefined}
         onClick={choose}
+        onContextMenu={(event: MouseEvent) => {
+          if (isInherited || !props.onItemContextMenu) return;
+          props.onSelect({ kind, id });
+          props.onItemContextMenu({ kind, id }, event);
+        }}
         onKeyDown={(event: KeyboardEvent) => {
           if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
           event.preventDefault();

@@ -1,23 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Region } from '../asset/model';
 import { fetchLibraries, fetchLibraryIndex, libraryRawUrl, looksLikeInterface, suggestedTop } from '../lib/libraryApi';
 import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from '../lib/libraryApi';
 import { ID_PATTERN, sanitizeId } from '../model/menu';
+import { useContextMenu } from '../ui/menuContext';
+import type { MenuEntry } from '../ui/menuContext';
 import { Icon } from '../ui/Icon';
+import { IconButton } from '../ui/IconButton';
 import { Tooltip } from '../ui/Tooltip';
 import { CropDialog } from './CropDialog';
 
 interface LibraryPanelProps {
-  /** Ajoute une texture de la bibliothèque comme couche du menu ouvert. */
+  /** Ajoute une texture de la bibliothèque (couche du menu, image de l’asset). */
   onAddLayer: (source: LibrarySourceInfo, texture: LibraryTexture, top: number | null) => Promise<void>;
   /** Ajoute une partie seulement de la texture (sprite d’un atlas) ; absent = pas de rognage. */
   onAddRegion?: (source: LibrarySourceInfo, texture: LibraryTexture, region: Region) => Promise<void>;
   /** Crée un nouveau menu à partir d’une police du pack. */
   onImportFont: (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => Promise<void>;
   canAddLayer: boolean;
+  /** Libellé de l’ajout dans le menu contextuel (« Ajouter comme couche », « Insérer dans l’asset »). */
+  addLabel?: string;
 }
 
 const PAGE_SIZE = 240;
+/** Côté utile de l’aperçu du volet (px). */
+const PREVIEW_SIDE = 64;
 
 function folderOf(path: string): string {
   return path.replace(/^assets\/[^/]+\/textures\//, '').split('/').slice(0, -1).join('/') || '(racine)';
@@ -27,8 +34,28 @@ function fileNameOf(path: string): string {
   return (path.split('/').pop() ?? path).replace(/\.png$/i, '');
 }
 
-/** Navigation dans les packs branchés : vignettes, recherche, import de couches et de menus entiers. */
-export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLayer }: LibraryPanelProps) {
+function menuIdFor(fontId: string): string {
+  return sanitizeId(fontId.split(/[:/]/).slice(-2).join('_'));
+}
+
+/** Aperçu net : agrandi d’un nombre entier de fois (×8 au plus), réduit s’il est plus grand que le cadre. */
+function PixelPreview({ src, width, height }: { src: string; width: number; height: number }) {
+  const ratio = Math.min(PREVIEW_SIDE / Math.max(width, 1), PREVIEW_SIDE / Math.max(height, 1));
+  const scale = ratio >= 1 ? Math.min(8, Math.floor(ratio)) : ratio;
+  return (
+    <span className="pixel-preview">
+      <img src={src} alt="" style={{ width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }} />
+    </span>
+  );
+}
+
+/**
+ * Navigation dans les packs branchés : vignettes, recherche, import de couches
+ * et de menus entiers. La texture choisie s’affiche dans un volet épinglé en
+ * bas de la colonne ; clic droit sur une vignette pour ses actions, double-clic
+ * pour l’ajouter.
+ */
+export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLayer, addLabel = 'Ajouter comme couche' }: LibraryPanelProps) {
   const [cropping, setCropping] = useState(false);
   const [sources, setSources] = useState<LibrarySourceInfo[] | null>(null);
   const [sourceId, setSourceId] = useState('');
@@ -42,6 +69,8 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
   const [fontId, setFontId] = useState('');
   const [menuId, setMenuId] = useState('');
   const [busy, setBusy] = useState(false);
+  const importRef = useRef<HTMLElement>(null);
+  const openMenu = useContextMenu();
 
   useEffect(() => {
     fetchLibraries()
@@ -98,6 +127,7 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
     () => (index?.fonts ?? []).filter((font) => font.glyphs.some((glyph) => glyph.found && glyph.height >= 64)),
     [index],
   );
+  const menuFontIds = useMemo(() => new Set(menuFonts.map((font) => font.id)), [menuFonts]);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -111,16 +141,48 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
     }
   };
 
+  const addTexture = (texture: LibraryTexture) => {
+    if (!source || busy || !canAddLayer) return;
+    void run(() => onAddLayer(source, texture, suggestedTop(texture)));
+  };
+
+  /** Prépare l’import d’un menu depuis une police, et amène la section à l’écran. */
+  const prepareFontImport = (font: string) => {
+    setFontId(font);
+    setMenuId(menuIdFor(font));
+    window.setTimeout(() => importRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
+  };
+
+  const thumbMenu = (texture: LibraryTexture): MenuEntry[] => {
+    const fonts = texture.usages.filter((usage) => menuFontIds.has(usage.font)).slice(0, 3);
+    return [
+      { heading: fileNameOf(texture.path) },
+      { label: addLabel, icon: 'plus', disabled: busy || !canAddLayer, onSelect: () => addTexture(texture) },
+      ...(onAddRegion
+        ? [{ label: 'Rogner…', icon: 'crop' as const, disabled: !canAddLayer, onSelect: () => setCropping(true) }]
+        : []),
+      ...(fonts.length > 0 ? [{ separator: true as const }] : []),
+      ...fonts.map((usage) => ({
+        label: `Importer le menu « ${usage.font} »`,
+        icon: 'chest' as const,
+        onSelect: () => prepareFontImport(usage.font),
+      })),
+      { separator: true },
+      {
+        label: 'Copier le chemin',
+        icon: 'copy',
+        onSelect: () => void navigator.clipboard?.writeText(texture.path).catch(() => undefined),
+      },
+    ];
+  };
+
   if (sources && sources.length === 0) {
     return (
       <section className="panel-section">
         <h3>Bibliothèque</h3>
         <p className="empty-hint">
           <Icon name="info" />
-          <span>
-            Aucune bibliothèque. Déclare des packs extraits dans <code>libraries.local.json</code> (modèle :{' '}
-            <code>libraries.example.json</code>), puis relance le studio.
-          </span>
+          <span>Aucune bibliothèque branchée. Ajoute un pack depuis l’écran Bibliothèques (Ctrl+3).</span>
         </p>
       </section>
     );
@@ -176,7 +238,7 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
           <input type="checkbox" checked={interfaceOnly} onChange={(event) => setInterfaceOnly(event.target.checked)} />
           Assets d’interface seulement
         </label>
-        {error && (
+        {error && !selected && (
           <p className="field-error">
             <Icon name="alert" />
             {error}
@@ -190,7 +252,8 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
         )}
         {index && (
           <p className="muted small">
-            {visible.length} texture{visible.length > 1 ? 's' : ''} sur {index.textures.length}
+            {visible.length} texture{visible.length > 1 ? 's' : ''} sur {index.textures.length} · clic droit pour les actions,
+            double-clic pour ajouter
           </p>
         )}
       </section>
@@ -219,6 +282,11 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
                     aria-label={texture.path}
                     aria-pressed={isSelected}
                     onClick={() => setSelected(texture)}
+                    onDoubleClick={() => addTexture(texture)}
+                    onContextMenu={(event) => {
+                      setSelected(texture);
+                      openMenu(event, thumbMenu(texture));
+                    }}
                   >
                     <span className="thumb-image">
                       <img src={libraryRawUrl(sourceId, texture.path)} alt="" loading="lazy" />
@@ -238,73 +306,8 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
         </section>
       )}
 
-      {selected && source && (
-        <section className="panel-section">
-          <header className="section-header">
-            <h3>Texture</h3>
-            <span className="count">
-              {selected.width} × {selected.height} px
-            </span>
-          </header>
-          <div className="thumb-preview">
-            <img src={libraryRawUrl(sourceId, selected.path)} alt="" />
-          </div>
-          <p className="small mono-break">{selected.path}</p>
-          {top !== null && <p className="muted small">Placée à y = {top} (ascent {13 - top})</p>}
-          {selected.usages.length > 0 && (
-            <ul className="usage-list small">
-              {selected.usages.slice(0, 6).map((usage) => (
-                <li key={`${usage.font}@${usage.ascent}`}>
-                  <button
-                    type="button"
-                    className="link"
-                    onClick={() => {
-                      setFontId(usage.font);
-                      setMenuId(sanitizeId(usage.font.split(/[:/]/).slice(-2).join('_')));
-                    }}
-                  >
-                    {usage.font}
-                  </button>{' '}
-                  <span className="muted">ascent {usage.ascent} · hauteur {usage.height}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="button-row">
-            <button
-              type="button"
-              className="primary"
-              disabled={busy || !canAddLayer}
-              onClick={() => void run(() => onAddLayer(source, selected, top))}
-            >
-              <Icon name={busy ? 'loader' : 'plus'} />
-              Ajouter
-            </button>
-            {onAddRegion && (
-              <Tooltip label="Rogner et ajouter" hint="Une partie seulement : un sprite d’un atlas, une case, une zone">
-                <button type="button" disabled={busy || !canAddLayer} onClick={() => setCropping(true)}>
-                  <Icon name="crop" />
-                  Rogner…
-                </button>
-              </Tooltip>
-            )}
-          </div>
-          {!canAddLayer && <p className="field-hint">Ouvre d’abord un menu.</p>}
-        </section>
-      )}
-
-      {cropping && selected && source && onAddRegion && (
-        <CropDialog
-          title={`Rogner « ${fileNameOf(selected.path)} »`}
-          url={libraryRawUrl(sourceId, selected.path)}
-          primary={{ label: 'Ajouter', run: (region) => onAddRegion(source, selected, region) }}
-          secondary={{ label: 'Ajouter et continuer', run: (region) => onAddRegion(source, selected, region) }}
-          onClose={() => setCropping(false)}
-        />
-      )}
-
       {index && menuFonts.length > 0 && source && (
-        <section className="panel-section">
+        <section className="panel-section" ref={importRef}>
           <h3>Importer un menu depuis une police</h3>
           <p className="muted small">
             Chaque image de la police devient une couche à sa place. La première image de chaque police (fond, barre de
@@ -314,7 +317,7 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
             value={fontId}
             onChange={(event) => {
               setFontId(event.target.value);
-              setMenuId(sanitizeId(event.target.value.split(/[:/]/).slice(-2).join('_')));
+              setMenuId(menuIdFor(event.target.value));
             }}
             aria-label="Police"
           >
@@ -351,6 +354,77 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
             </>
           )}
         </section>
+      )}
+
+      {selected && source && (
+        <section className="library-dock" aria-label="Texture sélectionnée">
+          <div className="library-dock-head">
+            <PixelPreview src={libraryRawUrl(sourceId, selected.path)} width={selected.width} height={selected.height} />
+            <div className="library-dock-info">
+              <strong title={selected.path}>{fileNameOf(selected.path)}</strong>
+              <span className="muted small" title={selected.path}>
+                {selected.width} × {selected.height} px · {folderOf(selected.path)}
+              </span>
+              {top !== null && (
+                <span className="muted small">
+                  Placée à y = {top} (ascent {13 - top})
+                </span>
+              )}
+            </div>
+            <IconButton icon="close" label="Désélectionner" variant="ghost" onClick={() => setSelected(null)} />
+          </div>
+          {error && (
+            <p className="field-error">
+              <Icon name="alert" />
+              {error}
+            </p>
+          )}
+          <div className="button-row">
+            <button type="button" className="primary" disabled={busy || !canAddLayer} onClick={() => addTexture(selected)}>
+              <Icon name={busy ? 'loader' : 'plus'} />
+              Ajouter
+            </button>
+            {onAddRegion && (
+              <Tooltip label="Rogner et ajouter" hint="Une partie seulement : un sprite d’un atlas, une case, une zone">
+                <button type="button" disabled={busy || !canAddLayer} onClick={() => setCropping(true)}>
+                  <Icon name="crop" />
+                  Rogner…
+                </button>
+              </Tooltip>
+            )}
+          </div>
+          {!canAddLayer && <p className="field-hint">Ouvre d’abord un menu.</p>}
+          {selected.usages.length > 0 && (
+            <details className="library-dock-more">
+              <summary>
+                Polices qui l’utilisent ({selected.usages.length})
+              </summary>
+              <ul className="usage-list small">
+                {selected.usages.slice(0, 6).map((usage) => (
+                  <li key={`${usage.font}@${usage.ascent}`}>
+                    <button type="button" className="link" onClick={() => prepareFontImport(usage.font)}>
+                      {usage.font}
+                    </button>{' '}
+                    <span className="muted">
+                      ascent {usage.ascent} · hauteur {usage.height}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="small mono-break">{selected.path}</p>
+            </details>
+          )}
+        </section>
+      )}
+
+      {cropping && selected && source && onAddRegion && (
+        <CropDialog
+          title={`Rogner « ${fileNameOf(selected.path)} »`}
+          url={libraryRawUrl(sourceId, selected.path)}
+          primary={{ label: 'Ajouter', run: (region) => onAddRegion(source, selected, region) }}
+          secondary={{ label: 'Ajouter et continuer', run: (region) => onAddRegion(source, selected, region) }}
+          onClose={() => setCropping(false)}
+        />
       )}
     </div>
   );

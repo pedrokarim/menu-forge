@@ -1902,3 +1902,162 @@ select {
 .button-row > * {
   flex: 1;
 }
+
+/* ---------- Menus contextuels ---------- */
+
+.context-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  display: grid;
+  min-width: 208px;
+  max-width: 340px;
+  padding: 4px;
+  background: var(--ds-panel-raised);
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-panel), 0 8px 0 rgba(0, 0, 0, 0.35);
+}
+
+.context-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: stretch;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ds-ink);
+  text-shadow: none;
+  background: transparent;
+  /* Une ligne de menu reste plate : ni bordure ni relief de bouton. */
+  border: 0;
+  box-shadow: none;
+}
+
+.context-item:where(:hover:not(:disabled)),
+.context-item:focus-visible,
+.context-item:focus {
+  color: var(--ds-gold);
+  background: var(--ds-sel-bg);
+  box-shadow: none;
+  outline: none;
+}
+
+.context-item:where(:active:not(:disabled)) {
+  padding: 0 8px;
+}
+
+.context-item:disabled {
+  color: var(--ds-faint);
+  background: transparent;
+  box-shadow: none;
+}
+
+.context-item.is-danger {
+  color: #ffb4b4;
+}
+
+.context-item.is-danger:where(:hover:not(:disabled)),
+.context-item.is-danger:focus {
+  color: #ffd0d0;
+  background: var(--ds-danger-bg);
+}
+
+.context-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context-icon {
+  display: grid;
+  place-items: center;
+}
+
+.context-separator {
+  height: 2px;
+  margin: 4px 2px;
+  background: var(--ds-divider);
+  box-shadow: 0 1px 0 #3a3b44;
+}
+
+.context-heading {
+  padding: 4px 8px 3px;
+  overflow: hidden;
+  font: 11px/1.3 var(--font-mono);
+  color: var(--ds-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Texture sélectionnée (volet épinglé en bas de la bibliothèque) ---------- */
+
+.library-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 12px 12px;
+  background: var(--ds-panel-raised);
+  border-top: 2px solid var(--ds-edge);
+  box-shadow: inset 0 2px 0 #44454f, 0 -8px 14px rgba(0, 0, 0, 0.35);
+}
+
+.library-dock-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Aperçu au pixel près, agrandi d’un nombre entier de fois : il ne sort jamais de son cadre. */
+.pixel-preview {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  background-color: #1c1d22;
+  background-image: conic-gradient(#2a2b31 0 25%, #1f2025 0 50%, #2a2b31 0 75%, #1f2025 0);
+  background-size: 12px 12px;
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-sunken);
+}
+
+.pixel-preview img {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.library-dock-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.library-dock-info > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-dock-info strong {
+  color: var(--ds-ink-strong);
+}
+
+.library-dock-more summary {
+  font-size: 12px;
+  color: var(--ds-muted);
+  cursor: pointer;
+}
+
+.library-dock-more[open] summary {
+  margin-bottom: 6px;
+}

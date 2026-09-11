@@ -98,6 +98,8 @@ interface MenuCanvasProps {
   /** Paliers de zoom parcourus au Ctrl + molette. */
   zoomLevels?: readonly number[];
   onZoomChange?: (zoom: number) => void;
+  /** Clic droit : l’élément sous le pointeur (sélectionné au passage), ou `null` sur une zone vide. */
+  onContextMenu?: (target: Selection | null, event: ReactMouseEvent<HTMLCanvasElement>) => void;
 }
 
 /** Glisser d’une couche ou d’un texte. */
@@ -797,6 +799,18 @@ export function MenuCanvas(props: MenuCanvasProps) {
       onPointerLeave={() => {
         pointerInsideRef.current = false;
         if (!sameHover(hover, NO_HOVER)) setHover(NO_HOVER);
+      }}
+      onContextMenu={(event: ReactMouseEvent<HTMLCanvasElement>) => {
+        event.preventDefault();
+        if (!props.onContextMenu) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const point = {
+          x: (event.clientX - rect.left) / zoom - MARGIN_X,
+          y: (event.clientY - rect.top) / zoom - MARGIN_TOP,
+        };
+        const { target } = pick(hitStack(point));
+        if (target) props.onSelect(target);
+        props.onContextMenu(target, event);
       }}
       // Empêche le défilement automatique du clic molette sous Windows.
       onMouseDown={(event: ReactMouseEvent<HTMLCanvasElement>) => {

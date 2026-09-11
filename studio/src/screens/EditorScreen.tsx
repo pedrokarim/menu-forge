@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { EditorMode } from '../shell/router';
+import { useContextMenu } from '../ui/menuContext';
+import type { MenuEntry } from '../ui/menuContext';
 import { GeneratorDialog } from '../components/GeneratorDialog';
 import type { GeneratorResult } from '../components/GeneratorDialog';
 import { Inspector } from '../components/Inspector';
@@ -133,6 +135,7 @@ export function EditorScreen({
   onDocumentChange,
 }: EditorScreenProps) {
   const [workspace, setWorkspace] = useState<WorkspaceSnapshot | null>(null);
+  const openContextMenu = useContextMenu();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editor, dispatch] = useReducer(editorReducer, INITIAL_EDITOR);
   const [textureVersions, setTextureVersions] = useState<Record<string, number>>({});
@@ -667,6 +670,54 @@ export function EditorScreen({
 
   const cropLayer = dialog?.kind === 'crop-layer' ? (menu?.layers.find((layer) => layer.id === dialog.layerId) ?? null) : null;
 
+  /** Actions d’un élément du menu (clic droit dans la liste ou sur la toile). */
+  const elementMenu = (target: Selection): MenuEntry[] => {
+    if (target.kind === 'layer') {
+      const layer = menu?.layers.find((candidate) => candidate.id === target.id);
+      return [
+        { heading: `Couche « ${target.id} »` },
+        { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => void duplicateLayer(target.id) },
+        {
+          label: 'Rogner…',
+          icon: 'crop',
+          disabled: Boolean(layer?.generator),
+          onSelect: () => setDialog({ kind: 'crop-layer', layerId: target.id }),
+        },
+        ...(layer?.generator
+          ? [
+              {
+                label: 'Modifier la texture générée…',
+                icon: 'sparkles' as const,
+                onSelect: () => setDialog({ kind: 'generator', mode: 'edit', layerId: target.id }),
+              },
+            ]
+          : []),
+        { separator: true },
+        { label: 'Monter', icon: 'chevron-up', onSelect: () => handleReorderLayer(target.id, 1) },
+        { label: 'Descendre', icon: 'chevron-down', onSelect: () => handleReorderLayer(target.id, -1) },
+        { separator: true },
+        { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteElement(target) },
+      ];
+    }
+    return [
+      { heading: `${target.kind === 'text' ? 'Texte' : 'Slot'} « ${target.id} »` },
+      { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteElement(target) },
+    ];
+  };
+
+  /** Clic droit sur une zone vide de la toile. */
+  const canvasMenu = (): MenuEntry[] => [
+    { heading: menu ? `Menu « ${menu.name} »` : 'Toile' },
+    { label: 'Ajouter un texte', icon: 'text', disabled: !menu, onSelect: handleAddText },
+    { label: 'Générer une texture…', icon: 'sparkles', disabled: !menu, onSelect: () => setDialog({ kind: 'generator', mode: 'create' }) },
+    { separator: true },
+    { label: 'Ajuster le zoom', icon: 'expand', shortcut: 'Ctrl+0', onSelect: () => setZoomMode('fit') },
+  ];
+
+  const openElementMenu = (target: Selection, event: ReactMouseEvent) => openContextMenu(event, elementMenu(target));
+  const openCanvasMenu = (target: Selection | null, event: ReactMouseEvent) =>
+    openContextMenu(event, target ? elementMenu(target) : canvasMenu());
+
   // Taille de la zone de la toile, suivie en continu pour le zoom « Ajuster ».
   const observeStage = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
@@ -848,6 +899,7 @@ export function EditorScreen({
               onAddText={handleAddText}
               onOpenGenerator={() => setDialog({ kind: 'generator', mode: 'create' })}
               onImport={(file) => void handleImport(file)}
+              onItemContextMenu={openElementMenu}
             />
           )}
         </aside>
@@ -980,6 +1032,7 @@ export function EditorScreen({
               onSlotAreaChange={handleSlotAreaChange}
               zoomLevels={ZOOM_LEVELS}
               onZoomChange={setManualZoom}
+              onContextMenu={openCanvasMenu}
             />
           ) : (
             <div className="empty-state">
@@ -1038,6 +1091,7 @@ export function EditorScreen({
               librarySlot={
                 <LibraryPanel
                   key={librariesVersion}
+                  addLabel="Insérer dans l’asset"
                   canAddLayer
                   onAddLayer={handleLibraryToAsset}
                   onAddRegion={handleLibraryRegionToAsset}

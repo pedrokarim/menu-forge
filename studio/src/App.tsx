@@ -26,6 +26,7 @@ import { isTauri } from './lib/native';
 import { SCREEN_TITLES, describeActivity } from './shell/activity';
 import type { OpenDocument } from './shell/activity';
 import { TitleBar } from './shell/TitleBar';
+import { ContextMenuProvider } from './ui/ContextMenu';
 import { AboutScreen } from './screens/AboutScreen';
 import { EditorScreen } from './screens/EditorScreen';
 import type { EditorPreferences, EditorRequest } from './screens/EditorScreen';
@@ -252,6 +253,7 @@ export default function App() {
   );
 
   return (
+    <ContextMenuProvider>
     <div className={isTauri ? 'app-frame has-titlebar' : 'app-frame'}>
       {isTauri && <TitleBar context={titleContext} confirmClose={confirmClose} />}
       <div className="shell">
@@ -336,5 +338,6 @@ export default function App() {
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
       </div>
     </div>
+    </ContextMenuProvider>
   );
 }

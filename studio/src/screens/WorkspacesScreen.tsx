@@ -5,6 +5,7 @@ import { NBSP, formatDate, formatRelative, plural } from '../lib/format';
 import { isTauri, pickFolder, revealInExplorer } from '../lib/native';
 import { Notice, ScreenFrame } from '../shell/ScreenFrame';
 import { Field } from '../components/fields';
+import { useContextMenu } from '../ui/menuContext';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 
@@ -26,6 +27,7 @@ interface WorkspacesScreenProps {
 
 /** Sélection de l’espace de travail : espaces connus, ouverture d’un dossier. */
 export function WorkspacesScreen({ pill, list, welcome, confirmRemoval, onOpen, onForget, onContinue }: WorkspacesScreenProps) {
+  const openMenu = useContextMenu();
   const [path, setPath] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
@@ -137,6 +139,40 @@ export function WorkspacesScreen({ pill, list, welcome, confirmRemoval, onOpen, 
               <div
                 key={candidate.path}
                 className={['row-card', candidate.active ? 'is-active' : '', candidate.exists ? '' : 'is-missing'].join(' ').trim()}
+                onContextMenu={(event) =>
+                  openMenu(event, [
+                    { heading: candidate.name },
+                    {
+                      label: 'Ouvrir',
+                      icon: 'folder',
+                      disabled: busy || candidate.active || !candidate.exists,
+                      onSelect: () => void run(() => onOpen(candidate.path), 'Impossible d’ouvrir cet espace'),
+                    },
+                    ...(isTauri
+                      ? [
+                          {
+                            label: 'Afficher dans l’explorateur',
+                            icon: 'open' as const,
+                            disabled: !candidate.exists,
+                            onSelect: () => void run(() => revealInExplorer(candidate.path), 'Explorateur indisponible'),
+                          },
+                        ]
+                      : []),
+                    {
+                      label: 'Copier le chemin',
+                      icon: 'copy',
+                      onSelect: () => void navigator.clipboard?.writeText(candidate.path).catch(() => undefined),
+                    },
+                    { separator: true },
+                    {
+                      label: 'Retirer de la liste',
+                      icon: 'trash',
+                      danger: true,
+                      disabled: busy || candidate.active,
+                      onSelect: () => forget(candidate.path, candidate.name),
+                    },
+                  ])
+                }
               >
                 <span className="row-icon">
                   <Icon name="folder" size={24} />

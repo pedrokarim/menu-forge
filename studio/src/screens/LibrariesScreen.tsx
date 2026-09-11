@@ -8,6 +8,7 @@ import type { LibraryOwnership } from '../lib/libraryApi';
 import { isTauri, pickFolder, revealInExplorer } from '../lib/native';
 import { Field, FieldError } from '../components/fields';
 import { Notice, ScreenFrame } from '../shell/ScreenFrame';
+import { useContextMenu } from '../ui/menuContext';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 
@@ -53,6 +54,7 @@ interface LibrariesScreenProps {
 
 /** Bibliothèques : packs branchés en lecture seule, ajout, réindexation, retrait. */
 export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemoval, onPatch, onChanged }: LibrariesScreenProps) {
+  const openMenu = useContextMenu();
   const libraries = settings?.libraries;
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -202,7 +204,33 @@ export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemova
               const count = counts[library.id];
               const isEditing = editing?.id === library.id;
               return (
-                <div key={library.id} className="row-card">
+                <div
+                  key={library.id}
+                  className="row-card"
+                  onContextMenu={(event) =>
+                    openMenu(event, [
+                      { heading: library.name },
+                      { label: 'Modifier le nom et la propriété', icon: 'pencil', onSelect: () => setEditing(library) },
+                      { label: 'Réindexer', icon: 'reload', disabled: busy !== null, onSelect: () => reindex(library) },
+                      ...(isTauri
+                        ? [
+                            {
+                              label: 'Afficher dans l’explorateur',
+                              icon: 'open' as const,
+                              onSelect: () => void run(library.id, () => revealInExplorer(library.root), 'Explorateur indisponible'),
+                            },
+                          ]
+                        : []),
+                      {
+                        label: 'Copier le chemin',
+                        icon: 'copy',
+                        onSelect: () => void navigator.clipboard?.writeText(library.root).catch(() => undefined),
+                      },
+                      { separator: true },
+                      { label: 'Débrancher', icon: 'trash', danger: true, disabled: busy !== null, onSelect: () => remove(library) },
+                    ])
+                  }
+                >
                   <span className="row-icon">
                     <Icon name="library" size={24} />
                   </span>
