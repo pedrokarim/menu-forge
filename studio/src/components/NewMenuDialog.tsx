@@ -17,10 +17,12 @@ interface NewMenuDialogProps {
   existingIds: string[];
   onCancel: () => void;
   onCreate: (input: NewMenuInput) => Promise<void>;
+  /** Propose de décrire le menu à une IA plutôt que de partir d’un gabarit. */
+  onGenerateWithAi?: () => void;
 }
 
 /** Création d’un menu, vierge ou à partir d’un gabarit fourni. */
-export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: NewMenuDialogProps) {
+export function NewMenuDialog({ templates, existingIds, onCancel, onCreate, onGenerateWithAi }: NewMenuDialogProps) {
   const [name, setName] = useState('Mon menu');
   // Identifiant proposé toujours libre : le dialogue ne s’ouvre jamais sur une erreur.
   const [id, setId] = useState(() => uniqueId('mon_menu', existingIds));
@@ -74,6 +76,12 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
       footer={
         <>
           {error && <FieldError>{error}</FieldError>}
+          {onGenerateWithAi && (
+            <button type="button" className="ghost" onClick={onGenerateWithAi}>
+              <Icon name="sparkles" />
+              Générer par IA…
+            </button>
+          )}
           <button type="button" onClick={onCancel}>
             Annuler
           </button>

@@ -1,6 +1,8 @@
 import { Suspense, lazy, useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { navigate } from '../shell/router';
 import type { EditorMode } from '../shell/router';
+import type { AiTextureReference, AiTextureResult } from '../ai/AiTextureDialog';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 import { overlayOpen } from '../ui/overlay';
@@ -100,6 +102,8 @@ type DialogState =
   | { kind: 'new-pixel' }
   | { kind: 'rename'; type: DocumentType; id: string; name: string }
   | { kind: 'new-component'; targets: Selection[] }
+  | { kind: 'ai-texture'; reference: AiTextureReference | null }
+  | { kind: 'ai-interface' }
   | null;
 
 type Recipe = (draft: MenuDefinition) => void;
@@ -115,6 +119,9 @@ const AssetEditor = lazy(() => import('../asset/AssetEditor').then((module) => (
 /** Bibliothèque et rognage (sélecteur de zones, détection des sprites) : chargés à leur premier affichage. */
 const LibraryPanel = lazy(() => import('../components/LibraryPanel').then((module) => ({ default: module.LibraryPanel })));
 const CropDialog = lazy(() => import('../components/CropDialog').then((module) => ({ default: module.CropDialog })));
+/** Génération par IA (textures, interfaces) : chargée à la première ouverture d’un de ses dialogues. */
+const AiTextureDialog = lazy(() => import('../ai/AiTextureDialog').then((module) => ({ default: module.AiTextureDialog })));
+const AiInterfaceDialog = lazy(() => import('../ai/AiInterfaceDialog').then((module) => ({ default: module.AiInterfaceDialog })));
 
 const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8];
 
@@ -148,7 +155,7 @@ async function bakeTexture(path: string, spec: GeneratorSpec, origin: Point) {
 
 /** Demande venue d’un autre écran (actions rapides de l’accueil) ; `nonce` change à chaque demande. */
 export interface EditorRequest {
-  kind: 'new-menu' | 'new-asset' | 'new-pixel' | 'import-font';
+  kind: 'new-menu' | 'new-asset' | 'new-pixel' | 'import-font' | 'ai-interface';
   nonce: number;
 }
 
@@ -939,6 +946,7 @@ export function EditorScreen({
       if (switchMode('pixels')) setDialog({ kind: 'new-pixel' });
     } else if (switchMode('menus')) {
       if (kind === 'new-menu') setDialog({ kind: 'new-menu' });
+      else if (kind === 'ai-interface') setDialog({ kind: 'ai-interface' });
       else setLeftTab('library');
     }
   };
@@ -1250,6 +1258,46 @@ export function EditorScreen({
     void refreshWorkspace();
   };
 
+  /** « Générer une texture… » ; `reference` : texture dont le dialogue reprend la taille et la palette. */
+  const openAiTexture = (reference: AiTextureReference | null) => setDialog({ kind: 'ai-texture', reference });
+
+  const libraryAiTexture = (source: LibrarySourceInfo | null, texture: LibraryTexture | null) =>
+    openAiTexture(source && texture ? { url: libraryRawUrl(source.id, texture.path), name: textureBaseName(texture.path) } : null);
+
+  /** Texture générée et contrainte : nouvelle image de pixels (PNG exporté), ouverte pour retouche. */
+  const handleAiTexture = async ({ id, name, bitmap }: AiTextureResult) => {
+    if (!confirmLeaveDocument()) return;
+    const blank = createState(bitmap.width, bitmap.height);
+    const state: PixelState = { ...blank, layers: [{ ...blank.layers[0], data: bitmap.data }] };
+    await createPixel({ id, name, texture: defaultTexture(id) }, state, true);
+    setDialog(null);
+    setStatus(`Image «${NBSP}${id}${NBSP}» générée et exportée dans textures/${defaultTexture(id)}${NBSP}: retouche-la ici`);
+  };
+
+  /** Menu produit par l’IA : textures dessinées par le studio écrites, menu ouvert **non enregistré** (à relire). */
+  const handleAiInterface = async (generated: MenuDefinition) => {
+    if (!confirmDiscard()) return;
+    const baked: string[] = [];
+    for (const layer of generated.layers) {
+      if (!layer.generator) continue;
+      await bakeTexture(layer.texture, layer.generator, layer);
+      baked.push(layer.texture);
+    }
+    bumpTextures(baked);
+    await refreshWorkspace();
+    dispatch({ type: 'load', menu: generated });
+    // Pas encore sur le disque : marqué modifié, l’enregistrement (Ctrl+S) reste à faire après relecture.
+    dispatch({ type: 'saved', json: '' });
+    setPreview(DEFAULT_PREVIEW);
+    setDialog(null);
+    setStatus(`Menu «${NBSP}${generated.id}${NBSP}» généré${NBSP}: relis-le, puis enregistre-le (Ctrl+S)`);
+  };
+
+  const openAiSettings = () => {
+    setDialog(null);
+    navigate({ screen: 'settings' });
+  };
+
   const handleLibraryToAsset = async (source: LibrarySourceInfo, texture: LibraryTexture) => {
     const imported = await importFromLibrary(source.id, texture.path);
     bumpTextures([imported]);
@@ -1512,6 +1560,7 @@ export function EditorScreen({
     { separator: true },
     { label: 'Ajouter un texte', icon: 'text', disabled: !menu, onSelect: handleAddText },
     { label: 'Générer une texture…', icon: 'sparkles', disabled: !menu, onSelect: () => setDialog({ kind: 'generator', mode: 'create' }) },
+    { label: 'Générer une interface par IA…', icon: 'sparkles', onSelect: () => setDialog({ kind: 'ai-interface' }) },
     { separator: true },
     { label: 'Renommer le menu…', icon: 'pencil', disabled: !menuIsOnDisk, onSelect: () => startRename('menu') },
     { label: 'Ajuster le zoom', icon: 'expand', shortcut: 'Ctrl+0', onSelect: () => setZoomMode('fit') },
@@ -1661,6 +1710,13 @@ export function EditorScreen({
                   Nouveau
                 </button>
               </Tooltip>
+              <IconButton
+                icon="sparkles"
+                label="Générer une interface…"
+                hint="Décrite à une IA, validée par le schéma, à relire avant enregistrement"
+                size={24}
+                onClick={() => setDialog({ kind: 'ai-interface' })}
+              />
               <Tooltip label={dirty ? 'Enregistrer le menu' : 'Tout est enregistré'} shortcut="Ctrl+S">
                 <button
                   type="button"
@@ -1782,6 +1838,19 @@ export function EditorScreen({
                 Nouvelle image
               </button>
             </Tooltip>
+            <IconButton
+              icon="sparkles"
+              label="Générer une texture…"
+              hint="Par IA, ramenée sur la grille et la palette, puis ouverte ici pour retouche"
+              size={24}
+              onClick={() =>
+                openAiTexture(
+                  currentPixel
+                    ? { url: textureUrl(currentPixel.texture, textureVersions[currentPixel.texture] ?? 0), name: currentPixel.name }
+                    : null,
+                )
+              }
+            />
             <Tooltip label={pixelDirty ? 'Enregistrer et exporter l’image' : 'Tout est enregistré'} shortcut="Ctrl+S">
               <button
                 type="button"
@@ -1851,6 +1920,7 @@ export function EditorScreen({
                 onAddRegion={handleLibraryRegion}
                 onImportFont={handleImportFont}
                 onOpenInPixels={openLibraryInPixels}
+                onGenerateTexture={libraryAiTexture}
               />
             </Suspense>
           </div>
@@ -2036,6 +2106,10 @@ export function EditorScreen({
                 <Icon name="plus" />
                 Nouveau menu
               </button>
+              <button type="button" onClick={() => setDialog({ kind: 'ai-interface' })}>
+                <Icon name="sparkles" />
+                Générer une interface…
+              </button>
             </div>
           )}
           {dropActive && (
@@ -2129,6 +2203,7 @@ export function EditorScreen({
                     onAddRegion={handleLibraryRegionToAsset}
                     onImportFont={handleImportFontFromAssets}
                     onOpenInPixels={openLibraryInPixels}
+                    onGenerateTexture={libraryAiTexture}
                   />
                   </Suspense>
                 }
@@ -2190,6 +2265,10 @@ export function EditorScreen({
                   <Icon name="plus" />
                   Nouvelle image
                 </button>
+                <button type="button" onClick={() => openAiTexture(null)}>
+                  <Icon name="sparkles" />
+                  Générer une texture…
+                </button>
               </div>
             </section>
           )}
@@ -2235,6 +2314,7 @@ export function EditorScreen({
           existingIds={knownMenus.map((candidate) => candidate.id)}
           onCancel={() => setDialog(null)}
           onCreate={handleNewMenu}
+          onGenerateWithAi={() => setDialog({ kind: 'ai-interface' })}
         />
       )}
       {dialog?.kind === 'new-asset' && (
@@ -2270,6 +2350,29 @@ export function EditorScreen({
           secondary={{ label: 'Extraire en nouvelle couche', run: (region) => handleExtractLayer(cropLayer.id, region) }}
           onClose={() => setDialog(null)}
         />
+        </Suspense>
+      )}
+      {dialog?.kind === 'ai-texture' && (
+        <Suspense fallback={null}>
+          <AiTextureDialog
+            existingIds={pixelList.map((candidate) => candidate.id)}
+            reference={dialog.reference}
+            onCancel={() => setDialog(null)}
+            onOpenSettings={openAiSettings}
+            onCreate={handleAiTexture}
+          />
+        </Suspense>
+      )}
+      {dialog?.kind === 'ai-interface' && (
+        <Suspense fallback={null}>
+          <AiInterfaceDialog
+            menus={knownMenus}
+            textures={workspace?.textures ?? []}
+            initialRows={menu?.container.rows ?? 6}
+            onCancel={() => setDialog(null)}
+            onOpenSettings={openAiSettings}
+            onOpen={handleAiInterface}
+          />
         </Suspense>
       )}
       {renameDialog && (
