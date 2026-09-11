@@ -93,6 +93,8 @@ Routes de l’application :
 | `POST /api/documents/rename` | `{ type, from, to, name? }` : change l’identifiant d’un menu ou d’un asset (fichier et champ `id`) ; 404 si `from` manque, 409 si `to` existe ; textures copiées sous le nouveau nom, jamais déplacées |
 | `POST /api/documents/duplicate` | même corps : copie sous `to`, l’original reste |
 | `POST /api/documents/trash` | `{ type, id }` : déplace le document dans `<espace>/.trash/<date>/`, **ne supprime jamais rien** ; renvoie `{ type, id, trashed }` |
+| `GET /api/export/bedrock` | `{ directory, version }` : dossier d’export Bedrock et version du pack déjà exporté (`null` s’il n’y en a pas) ; 409 si le dossier n’est pas réglé |
+| `POST /api/export/bedrock` | `{ files: [{ path, data }] }` (base64) : écrit `pack/…` et `runtime.json` dans le dossier d’export Bedrock ; 409 si la version du pack n’augmente pas ; voir l’en-tête de `backend/src/app.rs` |
 | `POST /api/libraries` | `{ id, name, root, ownership }` : `root` absolu, contenant `assets/` |
 | `DELETE /api/libraries/:id` | débranche le pack (rien n’est supprimé sur le disque) |
 | `POST /api/libraries/:id/reindex` | reconstruit l’index sans cache ; renvoie `{ id, textures, fonts }` |
@@ -106,7 +108,7 @@ Forme des réglages :
   "workspaces": [{ "path": "C:\\…\\menu-forge", "name": "menu-forge", "lastOpened": "2026-09-10T08:00:00.000Z" }],
   "libraries": [{ "id": "vanilla", "name": "Minecraft 1.21.5", "root": "C:\\…\\vanilla-1.21.5", "ownership": "third-party" }],
   "ui": { "defaultZoom": 0, "showGrid": true, "confirmations": { "delete": true, "discardChanges": true } },
-  "export": { "enderiumResources": null, "namespace": "menuforge", "packFormat": 46 }
+  "export": { "enderiumResources": null, "namespace": "menuforge", "packFormat": 46, "bedrockDirectory": null }
 }
 ```
 
@@ -124,8 +126,9 @@ intersites).
 
 ## Export
 
-Deux exports, depuis l’éditeur de menus : boutons **Exporter** et **Pack ZIP**
-de la barre d’outils, menu contextuel de la toile, Ctrl+E et Ctrl+Maj+E. Le
+Trois exports, depuis l’éditeur de menus : boutons **Exporter**, **Pack ZIP**
+et **Bedrock** de la barre d’outils, menu contextuel de la toile, Ctrl+E et
+Ctrl+Maj+E (les deux premiers). Le
 menu ouvert est d’abord enregistré s’il a changé ; tous les menus de l’espace
 sont exportés, **gabarits appliqués** (les gabarits eux-mêmes ne le sont pas).
 
@@ -133,6 +136,7 @@ sont exportés, **gabarits appliqués** (les gabarits eux-mêmes ne le sont pas)
 |---|---|---|
 | Vers le plugin | Menus résolus (sans `extends`, `template` ni métadonnées `generator`) et PNG qu’ils utilisent | `<dossier des paramètres « Export vers le plugin »>/menuforge/` (`menus/`, `textures/`) et le manifeste `.menu-forge-export.json` |
 | Pack ZIP de test | Polices et textures générées (même algorithme que la lib), `pack.mcmeta` (`pack_format` des paramètres) | `<espace>/exports/<namespace>-pack.zip` |
+| Pour Bedrock (bouton **Bedrock**) | Pack de ressources Bedrock (dispositions JSON UI, textures recadrées, manifest dont la version s’incrémente seule) et descripteur d’exécution `runtime.json`, voir [`../docs/bedrock.md`](../docs/bedrock.md) | `<dossier des paramètres « Export pour Bedrock »>/` (`pack/`, `runtime.json`) et le manifeste `.menu-forge-bedrock-export.json` |
 
 Un export vers le plugin ne supprime que les fichiers listés par le manifeste
 du précédent et absents du nouveau : un fichier déposé à la main n’est jamais
