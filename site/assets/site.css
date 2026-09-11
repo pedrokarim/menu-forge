@@ -1105,7 +1105,8 @@ h3 {
   color: var(--ds-ink-strong);
 }
 
-.doc-link span {
+/* Les textes seulement : la case d’icône, elle aussi un span, garde sa grille qui centre l’icône. */
+.doc-link span:not(.slot-icon) {
   display: block;
   font-size: 14.5px;
   color: var(--ds-muted);
