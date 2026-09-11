@@ -1,4 +1,4 @@
-// Site menu-forge : visionneuse des captures, boutons « Copier » et section
+// Site de Menu Forge : visionneuse des captures, boutons « Copier » et section
 // courante dans la navigation. Sans JavaScript, tout reste utilisable (les
 // vignettes ouvrent l’image, les commandes se sélectionnent à la main).
 (() => {

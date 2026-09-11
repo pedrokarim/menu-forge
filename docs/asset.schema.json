@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pedrokarim.github.io/menu-forge/asset.schema.json",
-  "title": "Asset menu-forge (*.asset.json, version 1)",
+  "title": "Asset de Menu Forge (*.asset.json, version 1)",
   "description": "Image composée librement (boîtes, images, textes), exportée en un PNG ; spécification lisible : docs/assets.md. Le schéma décrit ce que le studio écrit et refuse les clés inconnues.",
   "type": "object",
   "required": ["formatVersion", "id", "name", "size", "background", "elements", "export"],

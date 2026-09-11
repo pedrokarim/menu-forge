@@ -1,6 +1,6 @@
-# menu-forge – lib Java
+# Menu Forge – lib Java
 
-Côté serveur de menu-forge : lecture du format `*.menu.json`, génération des
+Côté serveur de Menu Forge : lecture du format `*.menu.json`, génération des
 polices du resource pack et ouverture des menus en jeu. La source de vérité
 reste [`../docs/format.md`](../docs/format.md) (le format) et
 [`../docs/rendering.md`](../docs/rendering.md) (le modèle de rendu).

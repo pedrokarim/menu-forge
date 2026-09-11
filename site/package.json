@@ -2,7 +2,7 @@
   "name": "menu-forge-site",
   "private": true,
   "version": "0.0.0",
-  "description": "Site vitrine de menu-forge (GitHub Pages) et captures reproductibles du studio.",
+  "description": "Site vitrine de Menu Forge (GitHub Pages) et captures reproductibles du studio.",
   "type": "module",
   "scripts": {
     "capture": "node scripts/capture.mjs",

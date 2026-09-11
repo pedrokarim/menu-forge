@@ -2,7 +2,7 @@
   <img src="site/assets/logo.svg" alt="" width="96" height="96">
 </p>
 
-<h1 align="center">menu-forge</h1>
+<h1 align="center">Menu Forge</h1>
 
 <p align="center"><a href="README.md">Français</a> · <strong>English</strong></p>
 
@@ -18,7 +18,7 @@
   <a href="docs/roadmap.md">Roadmap</a>
 </p>
 
-![The menu-forge menu editor: a tabbed shop, a selected slot and its inspector](site/assets/screens/menu-editor.png)
+![The Menu Forge menu editor: a tabbed shop, a selected slot and its inspector](site/assets/screens/menu-editor.png)
 
 > **Status: young project, under active development.** The rendering model has
 > been validated in game (Paper 1.20.6) and the studio and the library work end
@@ -26,7 +26,7 @@
 >
 > The documentation in `docs/` and the code comments are written in French.
 
-menu-forge was born for **Enderium**, a Minecraft server: its plugin
+Menu Forge was born for **Enderium**, a Minecraft server: its plugin
 (`enderium-core`) is the library's first consumer, wired to its actions,
 requirements and resource-pack pipeline through an adapter. The library itself
 depends on no Enderium type and works with any Paper server.
@@ -43,7 +43,7 @@ pack. The result looks great, but building it by hand is painful: every layer
 is a glyph, every glyph has its own `ascent` and advance, and one pixel off
 shifts everything that follows.
 
-menu-forge automates the whole chain:
+Menu Forge automates the whole chain:
 
 1. **Studio** (`studio/`): draw the menu on a canvas snapped to the slot grid,
    starting from templates; place layers, dynamic texts, clickable areas and
@@ -144,7 +144,7 @@ French).
 
 ![The shop canvas and its composed title, token by token](site/assets/screens/title-composition.png)
 
-A menu-forge menu is an ordinary `generic_9xN` chest. Two resource-pack tricks
+A Menu Forge menu is an ordinary `generic_9xN` chest. Two resource-pack tricks
 do the rest:
 
 1. the chest texture is replaced by a "slots only" image: the frame disappears,
@@ -155,7 +155,7 @@ do the rest:
 For each visible layer, the library writes a **negative or positive space**
 that moves the cursor to the right x position, then the layer's **glyph**,
 whose `ascent` sets its height (`ascent = 13 − y`). The catch: Minecraft moves
-the cursor by the image's last opaque column + 2, not by its width. menu-forge
+the cursor by the image's last opaque column + 2, not by its width. Menu Forge
 crops every layer and **measures its advance from the pixels**, in the studio
 as in the library.
 
@@ -298,7 +298,7 @@ change. A few repository rules (details in [`AGENTS.md`](AGENTS.md)):
 
 ## License
 
-menu-forge is released under the **MIT** license, © 2026 Karim (pedrokarim): see [`LICENSE`](LICENSE).
+Menu Forge is released under the **MIT** license, © 2026 Karim (pedrokarim): see [`LICENSE`](LICENSE).
 Third-party components keep their own licenses (below).
 
 ## Credits
@@ -319,7 +319,7 @@ them in `site/assets/fonts/`, each with its license.
 
 ## Notices
 
-menu-forge is not affiliated with or endorsed by Mojang; Minecraft is a
+Menu Forge is not affiliated with or endorsed by Mojang; Minecraft is a
 trademark of Mojang AB. The repository contains no Minecraft asset: the game
 font and third-party packs are only read from the user's machine and remain the
 property of their authors.

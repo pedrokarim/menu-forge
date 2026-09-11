@@ -1,4 +1,4 @@
-# menu-forge – contexte pour les assistants
+# Menu Forge – contexte pour les assistants
 
 Point d’entrée **indépendant de l’outil** pour tout assistant qui travaille sur
 ce dépôt (Claude le lit via `CLAUDE.md`).

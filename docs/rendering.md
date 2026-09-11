@@ -95,7 +95,7 @@ décalé.
 - **Pack de référence** : chaque couche est une toile 256×256 avec un **pixel témoin**
   en colonne 175 (souvent en (175, 143), caché sous le cadre). Toutes les couches
   avancent donc de 177, et un caractère d’espace d’avance −177 les sépare.
-- **menu-forge** : chaque couche est **recadrée** sur son contenu, et la lib
+- **Menu Forge** : chaque couche est **recadrée** sur son contenu, et la lib
   calcule l’avance réelle depuis les pixels au moment de générer la police.
   Plus léger dans le pack, et aucun pixel témoin à cacher.
 

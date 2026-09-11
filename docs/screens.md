@@ -31,7 +31,7 @@ avant de les construire.
 
 ### Accueil (`#/accueil`)
 
-- En-tête : logo pixel menu-forge, nom de l’espace actif.
+- En-tête : logo pixel de Menu Forge, nom de l’espace actif.
 - **Actions rapides** (grandes cases façon inventaire) : Nouveau menu, Nouvel
   asset, Nouvelle image, Importer un écran depuis une police, Ouvrir un espace
   de travail.
@@ -149,7 +149,7 @@ ne laissent plus à la toile la place de ses outils.
 - Logo, version, mode (appli ou navigateur), chemin des réglages.
 - **Licences** : Pixelarticons (MIT), Pixelify Sans, Atkinson Hyperlegible,
   JetBrains Mono (OFL 1.1), React, Tauri.
-- Mention : « menu-forge n’est ni affilié à Mojang ni approuvé par Mojang ;
+- Mention : « Menu Forge n’est ni affilié à Mojang ni approuvé par Mojang ;
   Minecraft est une marque de Mojang AB. Les assets de packs tiers affichés dans
   la bibliothèque restent la propriété de leurs auteurs. »
 

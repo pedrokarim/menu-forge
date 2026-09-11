@@ -1,7 +1,7 @@
 # Rich Presence Discord
 
 Le studio peut afficher sur le profil Discord ce que l’on y fait (« Joue à
-menu-forge », document ouvert, espace de travail, temps écoulé). C’est le
+Menu Forge », document ouvert, espace de travail, temps écoulé). C’est le
 backend qui parle au client Discord, par son canal IPC local
 (`studio/backend/src/presence.rs`) : cela marche dans l’appli Tauri comme en
 mode navigateur, et une requête HTTP n’attend jamais Discord.
@@ -18,7 +18,7 @@ réglages) :
 | Réglage | Rôle |
 |---|---|
 | `enabled` | active la présence (vrai par défaut) |
-| `clientId` | *Application ID* d’une autre application Discord (17 à 20 chiffres) ; `null` (défaut) = l’application officielle **menu-forge**, `1370756359037124698` |
+| `clientId` | *Application ID* d’une autre application Discord (17 à 20 chiffres) ; `null` (défaut) = l’application officielle **Menu Forge**, `1370756359037124698` |
 | `showDocument` | affiche le nom du document ouvert et l’espace de travail ; sinon un texte générique (« Édite un menu ») et **aucune** seconde ligne |
 
 Une section `discord` invalide dans le fichier de réglages est ignorée seule
@@ -46,7 +46,7 @@ renvoie `enabled: false`. Les tests de bout en bout lancent `studio-api
 
 ## Mise en place dans le portail développeur
 
-L’application officielle **menu-forge** (`1370756359037124698`, constante
+L’application officielle **Menu Forge** (`1370756359037124698`, constante
 `DEFAULT_CLIENT_ID` de `presence.rs`) est utilisée par défaut par l’appli et
 par `npm run dev` : sans réglage, la présence marche dès que ses images sont
 téléversées. Pour une autre application :
@@ -69,7 +69,7 @@ art agrandi au plus proche voisin.
 
 | Clé | Fichier | Taille | Usage |
 |---|---|---|---|
-| `logo` | `logo.png` | 1024 × 1024 | grande image, toujours envoyée (survol : « menu-forge ») |
+| `logo` | `logo.png` | 1024 × 1024 | grande image, toujours envoyée (survol : « Menu Forge ») |
 | `menu` | `menu.png` | 512 × 512 | petite image : coffre, or – édition d’un menu |
 | `asset` | `asset.png` | 512 × 512 | petite image : tableau, bleu – composition d’un asset |
 | `home` | `home.png` | 512 × 512 | petite image : maison, vert – accueil |
@@ -81,7 +81,7 @@ art agrandi au plus proche voisin.
 **Image de couverture** : `cover.png` (1024 × 576, 16:9), à téléverser dans
 *Rich Presence → Image d’invitation Rich Presence → Image de couverture*. Elle
 n’a pas de clé : c’est l’image par défaut des invitations. Logo, mot-symbole
-« menu-forge » et rangée des médaillons, sans petit texte (l’invitation la
+« Menu Forge » et rangée des médaillons, sans petit texte (l’invitation la
 montre en réduction).
 
 Le backend refuse toute autre clé de petite image (liste `SMALL_IMAGES` de
@@ -147,7 +147,7 @@ Efface l’activité tout de suite → `204` (même s’il n’y en avait pas). 
 présence est désactivée dans les réglages **ou** coupée par `--no-discord` ;
 `error` explique pourquoi elle n’est pas connectée (« Discord n’est pas
 lancé », canal occupé, « Discord ne répond pas », « Une autre instance de
-menu-forge affiche déjà la présence Discord »…), ou vaut `null`.
+Menu Forge affiche déjà la présence Discord »…), ou vaut `null`.
 
 ## Ce que le backend envoie à Discord
 
@@ -158,7 +158,7 @@ menu-forge affiche déjà la présence Discord »…), ou vaut `null`.
   "timestamps": { "start": 1789000000 },
   "assets": {
     "large_image": "logo",
-    "large_text": "menu-forge",
+    "large_text": "Menu Forge",
     "small_image": "menu",
     "small_text": "Menu"
   }
@@ -192,7 +192,7 @@ efface lui-même l’activité à la fermeture du canal IPC.
 
 ### Une seule instance à la fois
 
-Plusieurs processus menu-forge peuvent tourner (appli, `npm run dev`,
+Plusieurs processus de Menu Forge peuvent tourner (appli, `npm run dev`,
 tests…) : un seul pilote Discord. Avant de se connecter, le backend prend un
 verrou exclusif sur `menu-forge-discord.lock` dans le dossier temporaire du
 système (`std::env::temp_dir()`). Le verrou est gardé tant que la connexion

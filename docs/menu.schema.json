@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pedrokarim.github.io/menu-forge/menu.schema.json",
-  "title": "Menu menu-forge (*.menu.json, version 1)",
+  "title": "Menu de Menu Forge (*.menu.json, version 1)",
   "description": "Contrat entre le studio (qui l’écrit) et la lib Java (qui le lit) ; spécification lisible : docs/format.md. Le schéma décrit ce que le studio écrit : il refuse les clés inconnues, que la lib se contente d’ignorer. Les règles qui croisent plusieurs fichiers (gabarits, composants, états cités par les conditions et les actions) sont vérifiées par la lib après résolution (MenuValidator).",
   "type": "object",
   "required": ["id"],

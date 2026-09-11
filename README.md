@@ -2,7 +2,7 @@
   <img src="site/assets/logo.svg" alt="" width="96" height="96">
 </p>
 
-<h1 align="center">menu-forge</h1>
+<h1 align="center">Menu Forge</h1>
 
 <p align="center"><strong>Français</strong> · <a href="README.en.md">English</a></p>
 
@@ -18,13 +18,13 @@
   <a href="docs/roadmap.md">Feuille de route</a>
 </p>
 
-![L’éditeur de menus de menu-forge : une boutique à onglets, un slot sélectionné et son inspecteur](site/assets/screens/menu-editor.png)
+![L’éditeur de menus de Menu Forge : une boutique à onglets, un slot sélectionné et son inspecteur](site/assets/screens/menu-editor.png)
 
 > **État : jeune projet, en développement actif.** Le modèle de rendu est validé
 > en jeu (Paper 1.20.6), le studio et la lib fonctionnent de bout en bout, mais
 > il n’y a pas encore de version publiée : on construit depuis les sources.
 
-menu-forge est né pour **Enderium**, un serveur Minecraft : son plugin
+Menu Forge est né pour **Enderium**, un serveur Minecraft : son plugin
 (`enderium-core`) est le premier consommateur de la lib, branchée sur ses
 actions, ses conditions et son pipeline de resource pack par un adaptateur.
 La lib, elle, ne dépend d’aucun type d’Enderium et sert n’importe quel serveur
@@ -42,7 +42,7 @@ dessinées par une police custom du resource pack. Le résultat est superbe, mai
 le fabriquer à la main est pénible : chaque couche est un glyphe, chaque glyphe
 a son `ascent` et son avance, et un pixel de travers décale tout ce qui suit.
 
-menu-forge automatise toute la chaîne :
+Menu Forge automatise toute la chaîne :
 
 1. **Studio** (`studio/`) : on dessine le menu sur une toile calée sur la grille
    des slots, à partir de gabarits ; on place les couches, les textes
@@ -147,7 +147,7 @@ démonstration fait **uniquement** de textures générées ou dessinées par le 
 
 ![La toile de la boutique et son titre composé, jeton par jeton](site/assets/screens/title-composition.png)
 
-Un menu menu-forge est un coffre `generic_9xN` ordinaire. Deux astuces de
+Un menu de Menu Forge est un coffre `generic_9xN` ordinaire. Deux astuces de
 resource pack font le reste :
 
 1. la texture du coffre est remplacée par une image « cases seules » : le cadre
@@ -159,7 +159,7 @@ Pour chaque couche visible, la lib écrit un **espace négatif ou positif** qui
 amène le curseur à la bonne abscisse, puis le **glyphe** de la couche, dont
 l’`ascent` fixe la hauteur (`ascent = 13 − y`). Le piège : Minecraft fait
 avancer le curseur de la dernière colonne opaque de l’image + 2, pas de sa
-largeur. menu-forge recadre chaque couche et **mesure son avance sur les
+largeur. Menu Forge recadre chaque couche et **mesure son avance sur les
 pixels**, dans le studio comme dans la lib.
 
 Les slots restent de vrais slots : un bouton, c’est une image dans le titre
@@ -304,7 +304,7 @@ changement important. Quelques règles du dépôt (détail dans
 
 ## Licence
 
-menu-forge est distribué sous licence **MIT**, © 2026 Karim (pedrokarim) : voir [`LICENSE`](LICENSE).
+Menu Forge est distribué sous licence **MIT**, © 2026 Karim (pedrokarim) : voir [`LICENSE`](LICENSE).
 Les composants tiers gardent leur propre licence (ci-dessous).
 
 ## Crédits
@@ -325,7 +325,7 @@ auto-héberge dans `site/assets/fonts/`, chacune avec sa licence.
 
 ## Mentions
 
-menu-forge n’est ni affilié à Mojang ni approuvé par Mojang ; Minecraft est une
+Menu Forge n’est ni affilié à Mojang ni approuvé par Mojang ; Minecraft est une
 marque de Mojang AB. Le dépôt ne contient aucun asset de Minecraft : la police
 du jeu et les packs tiers ne sont lus que depuis le poste de l’utilisateur, et
 restent la propriété de leurs auteurs.

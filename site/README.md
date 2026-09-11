@@ -1,4 +1,4 @@
-# Site de menu-forge
+# Site de Menu Forge
 
 Le site du projet, publié sur GitHub Pages par le workflow
 [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) : une page

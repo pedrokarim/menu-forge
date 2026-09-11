@@ -1,4 +1,4 @@
-# Studio menu-forge
+# Studio Menu Forge
 
 Éditeur local des menus : interface React (`src/`), backend Rust
 (`backend/`, crate `studio-backend`) et coquille de bureau Tauri 2
@@ -52,7 +52,7 @@ npm run tauri:build
 ```
 
 Produit `src-tauri/target/release/menu-forge.exe` et l’installateur NSIS
-`src-tauri/target/release/bundle/nsis/menu-forge_<version>_x64-setup.exe`.
+`src-tauri/target/release/bundle/nsis/Menu Forge_<version>_x64-setup.exe`.
 
 En production, l’appli choisit un port libre, sert l’interface embarquée et
 l’API depuis le même serveur (`http://127.0.0.1:<port>/`), et écrit le port
