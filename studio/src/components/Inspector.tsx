@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { AlignMode, AlignReference, DistributeAxis } from '../model/arrange';
 import { MAX_ROWS } from '../model/geometry';
@@ -27,12 +27,20 @@ import { CommitField, Field, NumberField } from './fields';
 import { SLOT_COLORS } from './slotColors';
 import './visual/visual.css';
 
-// Éditeurs visuels chargés au premier affichage de l’inspecteur : leur code n’alourdit pas le démarrage du studio.
-const ActionListEditor = lazy(() => import('./visual/ActionListEditor').then((module) => ({ default: module.ActionListEditor })));
-const ConditionEditor = lazy(() => import('./visual/ConditionEditor').then((module) => ({ default: module.ConditionEditor })));
-const IncludesEditor = lazy(() => import('./visual/IncludesEditor').then((module) => ({ default: module.IncludesEditor })));
-const ItemEditor = lazy(() => import('./visual/ItemEditor').then((module) => ({ default: module.ItemEditor })));
-const StateEditor = lazy(() => import('./visual/StateEditor').then((module) => ({ default: module.StateEditor })));
+// Éditeurs visuels chargés à part : leur code n’alourdit pas le démarrage du studio. L’inspecteur les
+// précharge dès son apparition, et chacun a sa propre attente : la sélection reste toujours affichée.
+const VISUAL_EDITORS = {
+  actions: () => import('./visual/ActionListEditor'),
+  conditions: () => import('./visual/ConditionEditor'),
+  includes: () => import('./visual/IncludesEditor'),
+  item: () => import('./visual/ItemEditor'),
+  states: () => import('./visual/StateEditor'),
+};
+const ActionListEditor = lazy(() => VISUAL_EDITORS.actions().then((module) => ({ default: module.ActionListEditor })));
+const ConditionEditor = lazy(() => VISUAL_EDITORS.conditions().then((module) => ({ default: module.ConditionEditor })));
+const IncludesEditor = lazy(() => VISUAL_EDITORS.includes().then((module) => ({ default: module.IncludesEditor })));
+const ItemEditor = lazy(() => VISUAL_EDITORS.item().then((module) => ({ default: module.ItemEditor })));
+const StateEditor = lazy(() => VISUAL_EDITORS.states().then((module) => ({ default: module.StateEditor })));
 
 type Recipe = (draft: MenuDefinition) => void;
 
@@ -130,7 +138,9 @@ function ConditionField({
 }) {
   return (
     <div className="field-group">
-      <ConditionEditor label={label} value={value} states={states} flags={flags} hint={hint} onCommit={onCommit} />
+      <Suspense fallback={<EditorLoading />}>
+        <ConditionEditor label={label} value={value} states={states} flags={flags} hint={hint} onCommit={onCommit} />
+      </Suspense>
     </div>
   );
 }
@@ -210,21 +220,21 @@ function ArrangeSection({ props, targets }: { props: InspectorProps; targets: Se
   );
 }
 
-/** Inspecteur de la sélection (ou du menu) ; ses éditeurs visuels arrivent à la demande. */
+/** Inspecteur de la sélection (ou du menu) ; ses éditeurs visuels, chargés à part, sont préchargés dès son apparition. */
 export function Inspector(props: InspectorProps) {
+  useEffect(() => {
+    for (const load of Object.values(VISUAL_EDITORS)) void load();
+  }, []);
+  return <InspectorContent {...props} />;
+}
+
+/** Place d’un éditeur visuel pendant son chargement (le reste de l’inspecteur reste affiché). */
+function EditorLoading() {
   return (
-    <Suspense
-      fallback={
-        <section className="panel-section inspector">
-          <p className="muted small loading-line">
-            <Icon name="loader" />
-            Chargement de l’inspecteur…
-          </p>
-        </section>
-      }
-    >
-      <InspectorContent {...props} />
-    </Suspense>
+    <p className="muted small loading-line">
+      <Icon name="loader" />
+      Chargement…
+    </p>
   );
 }
 
@@ -415,32 +425,36 @@ function InspectorContent(props: InspectorProps) {
         </Field>
       ) : (
         <div className="field-group">
-          <ItemEditor
-            item={slot.item}
-            variables={props.variables}
-            onChange={(item) =>
-              update((target) => {
-                if (item) target.item = item;
-                else delete target.item;
-              })
-            }
-          />
+          <Suspense fallback={<EditorLoading />}>
+            <ItemEditor
+              item={slot.item}
+              variables={props.variables}
+              onChange={(item) =>
+                update((target) => {
+                  if (item) target.item = item;
+                  else delete target.item;
+                })
+              }
+            />
+          </Suspense>
         </div>
       )}
       {(slot.kind !== 'decoration' || (slot.onClick?.length ?? 0) > 0) && (
         <div className="field-group">
-          <ActionListEditor
-            actions={slot.onClick}
-            context={props.actionContext}
-            menuId={menu.id}
-            onOpenMenu={props.onOpenMenu}
-            onChange={(actions) =>
-              update((target) => {
-                if (actions) target.onClick = actions;
-                else delete target.onClick;
-              })
-            }
-          />
+          <Suspense fallback={<EditorLoading />}>
+            <ActionListEditor
+              actions={slot.onClick}
+              context={props.actionContext}
+              menuId={menu.id}
+              onOpenMenu={props.onOpenMenu}
+              onChange={(actions) =>
+                update((target) => {
+                  if (actions) target.onClick = actions;
+                  else delete target.onClick;
+                })
+              }
+            />
+          </Suspense>
         </div>
       )}
       <ConditionField
@@ -581,24 +595,28 @@ function MenuProperties(props: InspectorProps) {
         }
       />
       <div className="field-group">
-        <StateEditor menu={menu} resolvedStates={props.states} lists={props.lists} onChange={onChange} />
+        <Suspense fallback={<EditorLoading />}>
+          <StateEditor menu={menu} resolvedStates={props.states} lists={props.lists} onChange={onChange} />
+        </Suspense>
       </div>
       <div className="field-group">
-        <IncludesEditor
-          includes={menu.includes}
-          components={props.components}
-          menuId={menu.id}
-          states={props.states}
-          flags={props.flags}
-          onOpenComponent={props.onOpenMenu}
-          onDetach={props.onDetachInclude}
-          onChange={(includes) =>
-            onChange((draft) => {
-              if (includes) draft.includes = includes;
-              else delete draft.includes;
-            })
-          }
-        />
+        <Suspense fallback={<EditorLoading />}>
+          <IncludesEditor
+            includes={menu.includes}
+            components={props.components}
+            menuId={menu.id}
+            states={props.states}
+            flags={props.flags}
+            onOpenComponent={props.onOpenMenu}
+            onDetach={props.onDetachInclude}
+            onChange={(includes) =>
+              onChange((draft) => {
+                if (includes) draft.includes = includes;
+                else delete draft.includes;
+              })
+            }
+          />
+        </Suspense>
       </div>
       <p className="field-hint">
         Sélectionne un élément sur la toile ou dans la liste pour le modifier ; Maj ou Ctrl + clic, ou un rectangle tracé
