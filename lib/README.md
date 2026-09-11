@@ -10,7 +10,7 @@ reste [`../docs/format.md`](../docs/format.md) (le format) et
 | Module | Java | Rôle |
 |---|---|---|
 | `menu-forge-core` | 17 | Noyau autonome, **sans Bukkit** (seul Gson) : modèle, parseur, gabarits, conditions, mesure des images, composition du titre, génération du pack |
-| `menu-forge-paper` | 21 | Plugin Paper autonome **MenuForge** (Paper API 1.21.4) : chargement de l’espace de travail, sessions, clics, actions, commandes, API publique |
+| `menu-forge-paper` | 21 | Plugin Paper autonome **MenuForge** (Paper 1.20.6 minimum, `api-version` 1.20 ; le modèle d’item de 1.21.4 est utilisé par réflexion s’il existe) : chargement de l’espace de travail, sessions, clics, actions, commandes, API publique |
 
 Paquetage racine : `dev.menuforge`.
 
