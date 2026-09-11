@@ -853,3 +853,21 @@ button.row-card:where(:active:not(:disabled)) {
 .titlebar-close:where(:active:not(:disabled)) {
   background: #9e2621;
 }
+
+/* Carte de document de l’accueil : bouton « … » (renommer, dupliquer, corbeille), visible au survol ou au focus. */
+.doc-card-wrap {
+  position: relative;
+  display: grid;
+}
+
+.doc-card-more {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  opacity: 0;
+}
+
+.doc-card-wrap:hover .doc-card-more,
+.doc-card-wrap:focus-within .doc-card-more {
+  opacity: 1;
+}

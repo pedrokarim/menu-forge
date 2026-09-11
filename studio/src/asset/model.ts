@@ -27,7 +27,22 @@ interface ElementBase {
   id: string;
   x: number;
   y: number;
+  /** Masqué : ni affiché ni exporté. */
   hidden?: boolean;
+  /** Verrouillé : non sélectionnable sur la toile (toujours dans la liste). */
+  locked?: boolean;
+  /** Groupe de l’élément (`groups[].id`) ; absent = hors de tout groupe. */
+  group?: string;
+}
+
+/**
+ * Groupe d’éléments : ses membres se sélectionnent et se déplacent ensemble.
+ * Replier un groupe dans la liste est un état d’affichage de l’éditeur, pas du format.
+ */
+export interface AssetGroup {
+  id: string;
+  /** Nom lisible (liste des éléments) ; l’identifiant sinon. */
+  name?: string;
 }
 
 export interface BoxElement extends ElementBase {
@@ -64,6 +79,8 @@ export interface AssetDefinition {
   /** Couleur de fond `#rrggbbaa`, ou `null` pour un fond transparent (cas normal). */
   background: string | null;
   elements: AssetElement[];
+  /** Groupes d’éléments (facultatif) ; les membres restent dans `elements`, contigus. */
+  groups?: AssetGroup[];
   export: { ascent: number };
 }
 

@@ -181,6 +181,12 @@ fn open_windows(app: &AppHandle, origin: &Url) -> Result<(), BoxError> {
         // L’interface ne quitte jamais son origine (l’IPC des plugins n’est
         // autorisé que pour elle).
         .on_navigation(move |url| same_origin(url, &main_origin))
+        // Glisser-déposer : sans cela, le webview garde pour lui les fichiers
+        // lâchés depuis l’explorateur (événements `tauri://drag-drop`, avec
+        // des chemins) et la page ne reçoit rien. Désactivé, les événements
+        // HTML5 (`dragover`, `drop`, fichiers compris) arrivent à la page,
+        // exactement comme en mode navigateur : un seul code pour les deux.
+        .disable_drag_drop_handler()
         .on_page_load(move |window, payload| {
             if matches!(payload.event(), PageLoadEvent::Finished) {
                 let delay = SPLASH_MIN.saturating_sub(started.elapsed());

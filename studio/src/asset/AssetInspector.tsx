@@ -1,12 +1,18 @@
 import { useRef } from 'react';
+import { AlignBar } from '../components/AlignBar';
 import { CommitField, Field, NumberField } from '../components/fields';
+import type { AlignMode, AlignReference, DistributeAxis } from '../model/arrange';
 import { PANEL_STYLE_LABELS } from '../model/generator';
 import { ID_PATTERN } from '../model/menu';
 import type { PanelStyle } from '../model/menu';
+import { Icon } from '../ui/Icon';
+import { Tooltip } from '../ui/Tooltip';
 import { ColorField, Segmented, StaticField, TextureField } from './AssetFields';
 import { RegionPicker } from './RegionPicker';
+import type { ElementFlag } from './assetEdit';
 import { clamp, clampInsets, clampRegion } from './geometry';
 import type { Rect } from './geometry';
+import { findGroup, groupLabel, selectedGroups } from './groups';
 import type { Recipe } from './history';
 import { DEFAULT_LINE_HEIGHT, IMAGE_SCALES, MAX_ASSET_SIZE } from './model';
 import type {
@@ -37,14 +43,29 @@ interface EditingProps<T extends AssetElement> {
 
 interface AssetInspectorProps {
   asset: AssetDefinition;
-  selected: AssetElement | null;
-  selectedBounds: Rect | null;
+  /** Éléments sélectionnés, dans l’ordre du fichier. */
+  selected: AssetElement[];
+  /** Rectangle englobant de la sélection (pixels d’asset). */
+  selectionBounds: Rect | null;
   textures: readonly string[];
   resources: RenderResources;
   onChange: (recipe: Recipe, coalesce?: string) => void;
   onLive: (recipe: Recipe) => void;
   onCheckpoint: () => void;
   onRename: (from: string, to: string) => void;
+  alignReference: AlignReference;
+  onAlignReferenceChange: (reference: AlignReference) => void;
+  onAlign: (mode: AlignMode) => void;
+  onDistribute: (axis: DistributeAxis) => void;
+  /** Déplace toute la sélection (éléments verrouillés exceptés). */
+  onMoveSelection: (dx: number, dy: number) => void;
+  onSetFlag: (ids: string[], flag: ElementFlag, value: boolean) => void;
+  onGroup: () => void;
+  onUngroup: (groupIds: string[]) => void;
+  onRenameGroup: (groupId: string, name: string) => void;
+  onDuplicate: () => void;
+  onCopy: () => void;
+  onDelete: () => void;
 }
 
 const TYPE_LABELS: Record<AssetElement['type'], string> = {
@@ -53,27 +74,101 @@ const TYPE_LABELS: Record<AssetElement['type'], string> = {
   text: 'Texte',
 };
 
+const TYPE_WORDS: Record<AssetElement['type'], [string, string]> = {
+  box: ['box', 'box'],
+  image: ['image', 'images'],
+  text: ['texte', 'textes'],
+};
+
 const MAX_OFFSET = MAX_ASSET_SIZE * 2;
 
-/** Inspecteur : réglages de l’asset (rien de sélectionné) ou de l’élément sélectionné. */
-export function AssetInspector(props: AssetInspectorProps) {
-  const { asset, selected, selectedBounds, textures, resources, onChange, onLive, onCheckpoint } = props;
-  if (!selected) return <AssetSettings asset={asset} onChange={onChange} />;
+/** Case à cocher d’un drapeau (masqué, verrouillé), à trois états pour une sélection multiple. */
+function FlagCheckbox({
+  label,
+  title,
+  flag,
+  elements,
+  onSetFlag,
+}: {
+  label: string;
+  title: string;
+  flag: ElementFlag;
+  elements: AssetElement[];
+  onSetFlag: AssetInspectorProps['onSetFlag'];
+}) {
+  const all = elements.length > 0 && elements.every((element) => element[flag]);
+  const some = elements.some((element) => element[flag]);
+  return (
+    <label className="checkbox" title={title}>
+      <input
+        type="checkbox"
+        checked={all}
+        ref={(node) => {
+          if (node) node.indeterminate = some && !all;
+        }}
+        onChange={(event) => onSetFlag(elements.map((element) => element.id), flag, event.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
 
-  const id = selected.id;
+/** Aligner, verrouiller / masquer : partagé par un élément seul (sur la toile) et une sélection. */
+function ArrangeSection({ props }: { props: AssetInspectorProps }) {
+  const multiple = props.selected.length > 1;
+  return (
+    <div className="field-group arrange-section">
+      <span className="field-label">{multiple ? 'Aligner et répartir' : 'Aligner sur l’asset'}</span>
+      <AlignBar
+        count={props.selected.length}
+        reference={multiple ? props.alignReference : 'canvas'}
+        onReferenceChange={multiple ? props.onAlignReferenceChange : undefined}
+        onAlign={props.onAlign}
+        onDistribute={props.onDistribute}
+      />
+      <div className="flag-row">
+        <FlagCheckbox
+          label="Masqué"
+          title="Ni affiché ni exporté"
+          flag="hidden"
+          elements={props.selected}
+          onSetFlag={props.onSetFlag}
+        />
+        <FlagCheckbox
+          label="Verrouillé"
+          title="Ne se sélectionne plus sur la toile (reste dans la liste)"
+          flag="locked"
+          elements={props.selected}
+          onSetFlag={props.onSetFlag}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Inspecteur : réglages de l’asset (rien de sélectionné), d’un élément, ou d’une sélection multiple. */
+export function AssetInspector(props: AssetInspectorProps) {
+  const { asset, selected, textures, resources, onChange, onLive, onCheckpoint } = props;
+  if (selected.length === 0) return <AssetSettings asset={asset} onChange={onChange} />;
+  if (selected.length > 1) return <SelectionInspector props={props} />;
+  const [element] = selected;
+  const selectedBounds = props.selectionBounds;
+
+  const id = element.id;
   const recipeFor =
     <T extends AssetElement>(mutate: (draft: T) => void): Recipe =>
     (draft) => {
-      const element = draft.elements.find((candidate) => candidate.id === id);
-      if (element && element.type === selected.type) mutate(element as T);
+      const target = draft.elements.find((candidate) => candidate.id === id);
+      if (target && target.type === element.type) mutate(target as T);
     };
   const update = <T extends AssetElement>(mutate: (draft: T) => void, key: string) =>
     onChange(recipeFor(mutate), `${id}.${key}`);
   const live = <T extends AssetElement>(mutate: (draft: T) => void) => onLive(recipeFor(mutate));
+  const group = element.group ? findGroup(asset, element.group) : undefined;
 
   const validateId = (value: string): string | null => {
     if (!ID_PATTERN.test(value)) return 'Lettres minuscules, chiffres et _ uniquement';
-    if (asset.elements.some((element) => element.id === value && element.id !== id)) return 'Identifiant déjà utilisé';
+    if (asset.elements.some((candidate) => candidate.id === value && candidate.id !== id)) return 'Identifiant déjà utilisé';
     return null;
   };
 
@@ -81,51 +176,43 @@ export function AssetInspector(props: AssetInspectorProps) {
     <>
       <section className="panel-section">
         <header className="section-header">
-          <h3>{TYPE_LABELS[selected.type]}</h3>
-          <span className="badge">{selected.id}</span>
+          <h3>{TYPE_LABELS[element.type]}</h3>
+          <span className="badge">{element.id}</span>
         </header>
-        <CommitField label="Identifiant" value={selected.id} validate={validateId} onCommit={(value) => props.onRename(id, value)} />
+        <CommitField label="Identifiant" value={element.id} validate={validateId} onCommit={(value) => props.onRename(id, value)} />
         <div className="field-row">
           <NumberField
             label="x"
-            value={selected.x}
+            value={element.x}
             min={-MAX_OFFSET}
             max={MAX_OFFSET}
             onChange={(value) => update((draft) => void (draft.x = value), 'x')}
           />
           <NumberField
             label="y"
-            value={selected.y}
+            value={element.y}
             min={-MAX_OFFSET}
             max={MAX_OFFSET}
             onChange={(value) => update((draft) => void (draft.y = value), 'y')}
           />
         </div>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={Boolean(selected.hidden)}
-            onChange={(event) => {
-              const hidden = event.target.checked;
-              update((draft) => {
-                if (hidden) draft.hidden = true;
-                else delete draft.hidden;
-              }, 'hidden');
-            }}
-          />
-          Masqué (ni affiché ni exporté)
-        </label>
         {selectedBounds && (
           <p className="muted small">
             Occupe {selectedBounds.width} × {selectedBounds.height} px à partir de ({selectedBounds.x}, {selectedBounds.y}).
           </p>
         )}
+        {group && (
+          <p className="muted small group-note">
+            <Icon name="group" /> Membre du groupe « {groupLabel(group)} » (double-clic sur la toile pour le prendre seul).
+          </p>
+        )}
+        <ArrangeSection props={props} />
       </section>
       <section className="panel-section">
-        {selected.type === 'box' && (
+        {element.type === 'box' && (
           <BoxInspector
             key={id}
-            element={selected}
+            element={element}
             textures={textures}
             resources={resources}
             update={update}
@@ -133,10 +220,10 @@ export function AssetInspector(props: AssetInspectorProps) {
             checkpoint={onCheckpoint}
           />
         )}
-        {selected.type === 'image' && (
+        {element.type === 'image' && (
           <ImageInspector
             key={id}
-            element={selected}
+            element={element}
             textures={textures}
             resources={resources}
             update={update}
@@ -144,10 +231,10 @@ export function AssetInspector(props: AssetInspectorProps) {
             checkpoint={onCheckpoint}
           />
         )}
-        {selected.type === 'text' && (
+        {element.type === 'text' && (
           <TextInspector
             key={id}
-            element={selected}
+            element={element}
             textures={textures}
             resources={resources}
             update={update}
@@ -155,6 +242,98 @@ export function AssetInspector(props: AssetInspectorProps) {
             checkpoint={onCheckpoint}
           />
         )}
+      </section>
+    </>
+  );
+}
+
+/** Sélection multiple : résumé, position de l’ensemble, disposition, groupe. */
+function SelectionInspector({ props }: { props: AssetInspectorProps }) {
+  const { asset, selected, selectionBounds } = props;
+  const ids = selected.map((element) => element.id);
+  const counts = (Object.keys(TYPE_WORDS) as AssetElement['type'][])
+    .map((type) => [type, selected.filter((element) => element.type === type).length] as const)
+    .filter(([, count]) => count > 0);
+  const whole = selectedGroups(asset, ids);
+  const touched = [...new Set(selected.map((element) => element.group).filter((group): group is string => Boolean(group)))];
+  // La sélection est exactement un groupe : on peut le nommer.
+  const onlyGroup =
+    whole.length === 1 && touched.length === 1 && selected.every((element) => element.group === whole[0])
+      ? findGroup(asset, whole[0])
+      : undefined;
+  return (
+    <>
+      <section className="panel-section">
+        <header className="section-header">
+          <h3>{onlyGroup ? 'Groupe' : 'Sélection'}</h3>
+          <span className="badge">{onlyGroup ? onlyGroup.id : `${selected.length} éléments`}</span>
+        </header>
+        <ul className="selection-summary">
+          {counts.map(([type, count]) => (
+            <li key={type}>
+              <span className={`kind-dot asset-kind-${type}`} />
+              {count} {TYPE_WORDS[type][count > 1 ? 1 : 0]}
+            </li>
+          ))}
+        </ul>
+        {onlyGroup && (
+          <CommitField
+            label="Nom du groupe"
+            value={groupLabel(onlyGroup)}
+            validate={(value) => (value.trim() ? null : 'Nom requis')}
+            onCommit={(value) => props.onRenameGroup(onlyGroup.id, value.trim())}
+          />
+        )}
+        {selectionBounds && (
+          <>
+            <div className="field-row">
+              <NumberField label="x" value={selectionBounds.x} onChange={(value) => props.onMoveSelection(value - selectionBounds.x, 0)} />
+              <NumberField label="y" value={selectionBounds.y} onChange={(value) => props.onMoveSelection(0, value - selectionBounds.y)} />
+            </div>
+            <p className="muted small">
+              Ensemble de {selectionBounds.width} × {selectionBounds.height} px.
+            </p>
+          </>
+        )}
+        <ArrangeSection props={props} />
+        <div className="button-row wrap">
+          {!onlyGroup && (
+            <Tooltip label="Grouper la sélection" shortcut="Ctrl+G" hint="Les éléments se sélectionnent et se déplacent ensemble">
+              <button type="button" className="sm" onClick={props.onGroup}>
+                <Icon name="group" />
+                Grouper
+              </button>
+            </Tooltip>
+          )}
+          {touched.length > 0 && (
+            <Tooltip label="Dégrouper" shortcut="Ctrl+Maj+G">
+              <button type="button" className="sm" onClick={() => props.onUngroup(touched)}>
+                <Icon name="ungroup" />
+                Dégrouper
+              </button>
+            </Tooltip>
+          )}
+        </div>
+        <div className="button-row wrap">
+          <Tooltip label="Dupliquer la sélection" shortcut="Ctrl+D">
+            <button type="button" className="sm" onClick={props.onDuplicate}>
+              <Icon name="copy" />
+              Dupliquer
+            </button>
+          </Tooltip>
+          <Tooltip label="Copier la sélection" shortcut="Ctrl+C">
+            <button type="button" className="sm" onClick={props.onCopy}>
+              <Icon name="clipboard" />
+              Copier
+            </button>
+          </Tooltip>
+          <Tooltip label="Supprimer la sélection" shortcut="Suppr">
+            <button type="button" className="sm danger" onClick={props.onDelete}>
+              <Icon name="trash" />
+              Supprimer
+            </button>
+          </Tooltip>
+        </div>
       </section>
     </>
   );
@@ -209,8 +388,8 @@ function AssetSettings({ asset, onChange }: { asset: AssetDefinition; onChange: 
         />
       )}
       <p className="muted small">
-        Identifiant fixé à la création : <code>{asset.id}</code>. Sélectionne un élément sur la toile ou dans la liste pour le
-        modifier.
+        Identifiant : <code>{asset.id}</code> (renommer : bouton à côté du sélecteur d’asset). Sélectionne un élément sur la
+        toile ou dans la liste pour le modifier ; Maj ou Ctrl + clic, ou un rectangle, pour en prendre plusieurs.
       </p>
     </section>
   );
@@ -283,7 +462,7 @@ function BoxInspector({ element, textures, resources, update, live, checkpoint }
           value={style.kind}
           options={[
             { value: 'procedural', label: 'Procédural', title: 'Dessiné par le studio (panneau, bouton, aplat…)' },
-            { value: 'slice', label: 'Nine-slice', title: 'Découpé dans une texture : coins copiés, bords répétés' },
+            { value: 'slice', label: 'Nine-slice', title: 'Découpé dans une texture : coins copiés, bords répétés' },
           ]}
           onChange={(kind) => {
             if (kind === style.kind) return;
@@ -426,7 +605,7 @@ function ImageInspector({ element, textures, resources, update, live, checkpoint
           onRegionChange={setRegion}
         />
       </StaticField>
-      <Field label="Échelle" hint="Rendu au plus proche voisin : pixels nets, aucun lissage.">
+      <Field label="Échelle" hint="Rendu au plus proche voisin : pixels nets, aucun lissage.">
         <select
           value={element.scale ?? 1}
           onChange={(event) => {
@@ -470,7 +649,7 @@ function TextInspector({ element, update }: EditingProps<AssetTextElement>) {
 
   return (
     <>
-      <Field label="Texte" hint="Une ligne par ligne de texte ; codes « § » acceptés.">
+      <Field label="Texte" hint="Une ligne par ligne de texte ; codes « § » acceptés.">
         <textarea
           ref={areaRef}
           className="code"
@@ -483,7 +662,7 @@ function TextInspector({ element, update }: EditingProps<AssetTextElement>) {
           }}
         />
       </Field>
-      <StaticField label="Codes de format" hint="Clic : insère le code au curseur. Une couleur annule aussi le gras, « §r » revient au style de l’élément.">
+      <StaticField label="Codes de format" hint="Clic : insère le code au curseur. Une couleur annule aussi le gras, « §r » revient au style de l’élément.">
         <div className="asset-code-palette">
           {FORMAT_CODES.map((format) => (
             <button key={format.code} type="button" title={format.label} onClick={() => insertCode(`§${format.code}`)}>

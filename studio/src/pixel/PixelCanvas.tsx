@@ -1,3 +1,4 @@
+import { shortcutLetter } from '../lib/shortcuts';
 import { useCallback, useEffect, useEffectEvent, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, Ref } from 'react';
 import { isEditableTarget } from '../canvas/viewport';
@@ -958,7 +959,7 @@ export function PixelCanvas(props: PixelCanvasProps) {
       cancelSession();
       return;
     }
-    if ((event.ctrlKey || event.metaKey) && (event.code === 'KeyZ' || event.code === 'KeyY')) {
+    if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(shortcutLetter(event) ?? '')) {
       event.preventDefault();
       event.stopImmediatePropagation();
     }

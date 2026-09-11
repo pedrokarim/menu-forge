@@ -1,15 +1,19 @@
 //! Routes de l’espace de travail : `/workspace`, `/menus/:id`, `/assets/:id`,
-//! `/textures/<chemin>` (portage de l’ancien `workspace.ts`), et les images de
-//! l’éditeur de pixels : `/pixels`, `/pixels/:id` (format dans `docs/pixels.md`).
+//! `/textures/<chemin>` (portage de l’ancien `workspace.ts`), les images de
+//! l’éditeur de pixels : `/pixels`, `/pixels/:id` (format dans `docs/pixels.md`),
+//! et la gestion des documents (renommer, dupliquer, mettre à la corbeille),
+//! exposée par [`crate::app`].
 
 use std::collections::HashSet;
 use std::fs;
+use std::io::Write;
 use std::path::Path;
+use std::time::SystemTime;
 
 use serde_json::{Map, Value};
 
 use crate::error::{fs_error, HttpError};
-use crate::fsutil::{ensure_parent, list_files};
+use crate::fsutil::{copy_dir, ensure_parent, list_files};
 use crate::js::{parse_lossy, stringify, stringify_pretty};
 use crate::paths::{decode_component, decode_path, inside_root, join};
 use crate::settings::{iso_utc, write_atomic};
@@ -26,6 +30,89 @@ pub const MAX_PIXEL_LAYERS: usize = 64;
 
 /// Espace insécable, avant « : » dans les messages affichés.
 const NBSP: char = 0xa0_u8 as char;
+/// Corbeille de l’espace de travail : rien n’y est jamais supprimé.
+pub const TRASH_DIR: &str = ".trash";
+
+/// Nature d’un document de l’espace de travail.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DocumentKind {
+    Menu,
+    Asset,
+}
+
+impl DocumentKind {
+    /// Champ `type` des routes de documents : `"menu"` ou `"asset"`.
+    pub fn parse(value: Option<&Value>) -> Result<Self, HttpError> {
+        match value.and_then(Value::as_str) {
+            Some("menu") => Ok(Self::Menu),
+            Some("asset") => Ok(Self::Asset),
+            _ => Err(HttpError::new(400, "« type » doit valoir « menu » ou « asset »")),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Menu => "menu",
+            Self::Asset => "asset",
+        }
+    }
+
+    /// Dossier du document dans l’espace (et dans la corbeille).
+    fn folder(self) -> &'static str {
+        match self {
+            Self::Menu => "menus",
+            Self::Asset => "assets",
+        }
+    }
+
+    fn suffix(self) -> &'static str {
+        match self {
+            Self::Menu => MENU_SUFFIX,
+            Self::Asset => ASSET_SUFFIX,
+        }
+    }
+
+    /// Nom commun, avec majuscule, pour les messages (« Menu », « Asset »).
+    fn title(self) -> &'static str {
+        match self {
+            Self::Menu => "Menu",
+            Self::Asset => "Asset",
+        }
+    }
+}
+
+/// Identifiant de document lu dans le corps d’une requête.
+fn body_id(body: &Map<String, Value>, key: &str) -> Result<String, HttpError> {
+    match body.get(key) {
+        Some(Value::String(id)) if is_valid_document_id(id) => Ok(id.clone()),
+        Some(Value::String(id)) => Err(HttpError::new(
+            400,
+            format!("« {key} » : identifiant invalide « {id} » (lettres minuscules, chiffres et _ uniquement)"),
+        )),
+        _ => Err(HttpError::new(400, format!("« {key} » doit être un identifiant (texte)"))),
+    }
+}
+
+/// Nom lisible facultatif (`name`) : texte non vide de 200 caractères au plus.
+fn body_name(body: &Map<String, Value>) -> Result<Option<String>, HttpError> {
+    match body.get("name") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(name)) if !name.trim().is_empty() && name.trim().chars().count() <= 200 => {
+            Ok(Some(name.trim().to_owned()))
+        }
+        Some(_) => Err(HttpError::new(400, "« name » doit être un texte non vide (200 caractères au plus)")),
+    }
+}
+
+/// Réponse des routes de documents : `{ type, id, name }`.
+fn document_summary(kind: DocumentKind, id: &str, document: &Map<String, Value>) -> Value {
+    let name = document.get("name").and_then(Value::as_str).unwrap_or(id);
+    let mut map = Map::new();
+    map.insert("type".into(), Value::String(kind.as_str().into()));
+    map.insert("id".into(), Value::String(id.to_owned()));
+    map.insert("name".into(), Value::String(name.to_owned()));
+    Value::Object(map)
+}
 
 /// Signature d’un PNG (4 premiers octets), vérifiée à l’écriture.
 pub const PNG_SIGNATURE: [u8; 4] = [0x89, 0x50, 0x4e, 0x47];
@@ -321,6 +408,173 @@ impl Workspace {
         }
         documents.sort_by(|a, b| b.modified.cmp(&a.modified).then_with(|| a.id.cmp(&b.id)));
         documents
+    }
+
+    fn document_path(&self, kind: DocumentKind, id: &str) -> String {
+        let dir = match kind {
+            DocumentKind::Menu => &self.menus_dir,
+            DocumentKind::Asset => &self.assets_dir,
+        };
+        join(dir, &format!("{id}{}", kind.suffix()))
+    }
+
+    /// Contenu d’un document existant (objet JSON).
+    fn read_document(&self, kind: DocumentKind, id: &str) -> Result<Map<String, Value>, HttpError> {
+        let file = self.document_path(kind, id);
+        if !Path::new(&file).is_file() {
+            return Err(HttpError::new(404, format!("{} introuvable : {id}", kind.title())));
+        }
+        let bytes = fs::read(&file).map_err(|error| fs_error(&error, "open", &file))?;
+        match parse_lossy(&bytes) {
+            Some(Value::Object(map)) => Ok(map),
+            _ => Err(HttpError::new(
+                400,
+                format!("{id}{} est illisible : corrigez-le ou mettez-le à la corbeille", kind.suffix()),
+            )),
+        }
+    }
+
+    /// Premier dossier `textures/<base>`, `<base>_2`, `<base>_3`… qui n’existe pas.
+    fn free_texture_folder(&self, base: &str) -> String {
+        let mut candidate = base.to_owned();
+        let mut index = 2;
+        while Path::new(&join(&self.textures_dir, &candidate)).exists() {
+            candidate = format!("{base}_{index}");
+            index += 1;
+        }
+        candidate
+    }
+
+    /// Textures générées d’un menu (`generated/<from>/…`) recopiées dans un
+    /// dossier libre à son nouveau nom ; les chemins des couches suivent.
+    /// L’original n’est jamais déplacé : d’autres menus peuvent y renvoyer.
+    fn copy_generated_textures(&self, from: &str, to: &str, document: &mut Map<String, Value>) -> Result<(), HttpError> {
+        let prefix = format!("generated/{from}/");
+        let Some(Value::Array(layers)) = document.get_mut("layers") else { return Ok(()) };
+        let uses_generated = layers.iter().any(|layer| {
+            layer.get("texture").and_then(Value::as_str).is_some_and(|texture| texture.starts_with(&prefix))
+        });
+        if !uses_generated {
+            return Ok(());
+        }
+        let folder = self.free_texture_folder(&format!("generated/{to}"));
+        let source = join(&self.textures_dir, &format!("generated/{from}"));
+        if Path::new(&source).is_dir() {
+            let target = join(&self.textures_dir, &folder);
+            copy_dir(Path::new(&source), Path::new(&target)).map_err(|error| fs_error(&error, "copyfile", &target))?;
+        }
+        for layer in layers.iter_mut() {
+            if let Some(Value::String(texture)) = layer.get_mut("texture") {
+                if let Some(rest) = texture.strip_prefix(&prefix) {
+                    *texture = format!("{folder}/{rest}");
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Export PNG d’un asset (`assets/<from>.png`) copié sous `assets/<to>.png`
+    /// s’il n’existe pas encore : l’original reste (un menu peut l’utiliser).
+    fn copy_asset_export(&self, from: &str, to: &str) -> Result<(), HttpError> {
+        let source = join(&self.textures_dir, &format!("assets/{from}.png"));
+        let target = join(&self.textures_dir, &format!("assets/{to}.png"));
+        if Path::new(&source).is_file() && !Path::new(&target).exists() {
+            fs::copy(&source, &target).map_err(|error| fs_error(&error, "copyfile", &target))?;
+        }
+        Ok(())
+    }
+
+    /// Écrit une copie du document `from` sous l’identifiant `to` (jamais
+    /// par-dessus un document existant) et renvoie son contenu.
+    fn copy_document(
+        &self,
+        kind: DocumentKind,
+        from: &str,
+        to: &str,
+        name: Option<String>,
+    ) -> Result<Map<String, Value>, HttpError> {
+        let mut document = self.read_document(kind, from)?;
+        let target = self.document_path(kind, to);
+        if Path::new(&target).exists() {
+            return Err(HttpError::new(409, format!("Un {} « {to} » existe déjà", kind.as_str())));
+        }
+        document.insert("id".into(), Value::String(to.to_owned()));
+        if let Some(name) = name {
+            document.insert("name".into(), Value::String(name));
+        }
+        match kind {
+            DocumentKind::Menu => self.copy_generated_textures(from, to, &mut document)?,
+            DocumentKind::Asset => self.copy_asset_export(from, to)?,
+        }
+        ensure_parent(&target)?;
+        let content = format!("{}\n", stringify_pretty(&Value::Object(document.clone())));
+        let mut file = fs::File::options()
+            .write(true)
+            .create_new(true)
+            .open(&target)
+            .map_err(|error| match error.kind() {
+                std::io::ErrorKind::AlreadyExists => {
+                    HttpError::new(409, format!("Un {} « {to} » existe déjà", kind.as_str()))
+                }
+                _ => fs_error(&error, "open", &target),
+            })?;
+        file.write_all(content.as_bytes()).map_err(|error| fs_error(&error, "write", &target))?;
+        Ok(document)
+    }
+
+    /// `POST /documents/duplicate` : `{ type, from, to, name? }`.
+    pub fn duplicate_document(&self, body: &Map<String, Value>) -> Result<Value, HttpError> {
+        let kind = DocumentKind::parse(body.get("type"))?;
+        let from = body_id(body, "from")?;
+        let to = body_id(body, "to")?;
+        let name = body_name(body)?;
+        let document = self.copy_document(kind, &from, &to, name)?;
+        Ok(document_summary(kind, &to, &document))
+    }
+
+    /// `POST /documents/rename` : `{ type, from, to, name? }`. Le document est
+    /// réécrit sous son nouvel identifiant, puis l’ancien fichier retiré.
+    pub fn rename_document(&self, body: &Map<String, Value>) -> Result<Value, HttpError> {
+        let kind = DocumentKind::parse(body.get("type"))?;
+        let from = body_id(body, "from")?;
+        let to = body_id(body, "to")?;
+        let name = body_name(body)?;
+        let document = self.copy_document(kind, &from, &to, name)?;
+        let old = self.document_path(kind, &from);
+        if let Err(error) = fs::remove_file(&old) {
+            // L’ancien fichier reste : on retire la copie pour ne pas laisser deux documents.
+            let _ = fs::remove_file(self.document_path(kind, &to));
+            return Err(fs_error(&error, "unlink", &old));
+        }
+        Ok(document_summary(kind, &to, &document))
+    }
+
+    /// `POST /documents/trash` : `{ type, id }`. Le fichier est déplacé dans
+    /// `.trash/<date>/<menus|assets>/` ; ses textures restent en place.
+    pub fn trash_document(&self, body: &Map<String, Value>) -> Result<Value, HttpError> {
+        let kind = DocumentKind::parse(body.get("type"))?;
+        let id = body_id(body, "id")?;
+        let file = self.document_path(kind, &id);
+        if !Path::new(&file).is_file() {
+            return Err(HttpError::new(404, format!("{} introuvable : {id}", kind.title())));
+        }
+        // `2026-09-11T10:22:33.123Z` → `2026-09-11T10-22-33-123Z` (« : » interdit sous Windows).
+        let stamp = iso_utc(SystemTime::now()).replace([':', '.'], "-");
+        let mut folder = format!("{TRASH_DIR}/{stamp}");
+        let mut index = 2;
+        while Path::new(&join(&self.root, &folder)).exists() {
+            folder = format!("{TRASH_DIR}/{stamp}-{index}");
+            index += 1;
+        }
+        let relative = format!("{folder}/{}/{id}{}", kind.folder(), kind.suffix());
+        let target = inside_root(&self.root, &relative)?;
+        ensure_parent(&target)?;
+        fs::rename(&file, &target).map_err(|error| fs_error(&error, "rename", &file))?;
+        let mut map = Map::new();
+        map.insert("type".into(), Value::String(kind.as_str().into()));
+        map.insert("id".into(), Value::String(id));
+        map.insert("trashed".into(), Value::String(relative));
+        Ok(Value::Object(map))
     }
 
     pub fn route(&self, request: &Request, pathname: &str, method: &str) -> Result<Response, HttpError> {

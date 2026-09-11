@@ -1,3 +1,4 @@
+import { shortcutLetter } from '../lib/shortcuts';
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { errorMessage, isTypingTarget } from '../asset/canvasUtils';
@@ -570,7 +571,10 @@ function PixelWorkbench(props: WorkbenchProps) {
     // Écran caché, ou menu contextuel / dialogue ouvert : les touches ne sont pas pour la toile.
     if (!active || event.defaultPrevented || overlayOpen()) return;
     const withModifier = event.ctrlKey || event.metaKey;
-    const { code } = event;
+    // Lettres lues sur la touche produite (Ctrl+Z reste sur la touche Z en AZERTY), repli sur la
+    // touche physique ; chiffres et signes restent physiques.
+    const letter = shortcutLetter(event);
+    const code = letter ? `Key${letter.toUpperCase()}` : event.code;
     if (withModifier && code === 'KeyS') {
       event.preventDefault();
       void save();

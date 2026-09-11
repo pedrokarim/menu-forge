@@ -1,5 +1,5 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from 'react';
+import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { EditorMode } from '../shell/router';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
@@ -11,6 +11,7 @@ import { MenuCanvas } from '../components/MenuCanvas';
 import type { BackgroundMode, CanvasTool } from '../components/MenuCanvas';
 import { NewMenuDialog } from '../components/NewMenuDialog';
 import type { NewMenuInput } from '../components/NewMenuDialog';
+import { RenameDocumentDialog } from '../components/DocumentDialogs';
 import { AssetEditor } from '../asset/AssetEditor';
 import { createEmptyAsset } from '../asset/model';
 import type { AssetDefinition, Region } from '../asset/model';
@@ -29,27 +30,60 @@ import { encodeDocument, flattenToBlob, loadBitmap } from '../pixel/io';
 import { NBSP } from '../lib/format';
 import { fetchPixelList, savePixel } from '../lib/pixelApi';
 import type { PixelSummary } from '../lib/pixelApi';
+import { elementRect } from '../canvas/menuRects';
 import { fetchWorkspace, saveAsset, saveMenu, textureUrl, uploadTexture } from '../lib/api';
 import type { WorkspaceSnapshot } from '../lib/api';
+import type { DocumentType } from '../lib/appApi';
+import { menuClipboard, nextPasteShift, readClipboard, writeClipboard } from '../lib/clipboard';
+import type { ClipboardContent, MenuClipboard } from '../lib/clipboard';
+import { duplicateWithFreeId, renameWithReferences, trashWithConfirmation } from '../lib/documents';
+import type { DocumentEvent } from '../lib/documents';
+import { plural } from '../lib/format';
+import { hasDraggedFiles, imageSizeOf, pastedImageName, pngFiles, uniqueTexturePath } from '../lib/imageImport';
 import { importFromLibrary, libraryRawUrl } from '../lib/libraryApi';
 import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from '../lib/libraryApi';
 import { buildMenuFromFont } from '../lib/libraryImport';
+import { arrowDelta, isDeleteKey, shortcutDigit, shortcutLetter, withCommand } from '../lib/shortcuts';
+import { useClipboardShortcuts } from '../lib/useClipboardShortcuts';
 import { loadTexture, useTextures } from '../lib/textures';
+import { ALIGN_LABELS, DISTRIBUTE_LABELS, alignOffsets, distributeOffsets, unionRect } from '../model/arrange';
+import type { AlignMode, AlignReference, DistributeAxis } from '../model/arrange';
 import { composeTitle } from '../model/compose';
+import { evaluateCondition } from '../model/conditions';
 import { GENERATOR_PRESETS, canvasToBlob, renderGenerator } from '../model/generator';
-import { GRID_COLUMNS, SLOT_SIZE, WINDOW_WIDTH, windowHeight } from '../model/geometry';
-import { Icon } from '../ui/Icon';
-import { IconButton } from '../ui/IconButton';
-import { Tooltip } from '../ui/Tooltip';
-import { fitZoom, stepZoom } from '../canvas/viewport';
-import type { Point } from '../model/geometry';
-import { createEmptyMenu, sanitizeId, uniqueId } from '../model/menu';
-import type { GeneratorSpec, MenuDefinition, SlotArea } from '../model/menu';
+import { SLOT_SIZE, WINDOW_WIDTH, windowHeight } from '../model/geometry';
+import type { Point, Rect } from '../model/geometry';
+import { createEmptyMenu, hasEditorFlag, sanitizeId, uniqueId } from '../model/menu';
+import type { EditorFlag, GeneratorSpec, MenuDefinition, SlotArea } from '../model/menu';
+import {
+  allTargets,
+  applyMoves,
+  collectElements,
+  duplicatePlan,
+  findElement,
+  generatedTexturePath,
+  insertElements,
+  nudgeMoves,
+  offsetMoves,
+  pastePlan,
+  planSelection,
+  removeElements,
+  setFlagOn,
+  takenIds,
+  translateMoves,
+} from '../model/menuEdit';
+import type { ElementMove, NewElement } from '../model/menuEdit';
 import { DEFAULT_PREVIEW, buildPreviewContext } from '../model/preview';
 import type { PreviewValues } from '../model/preview';
+import { menuReferences, rewriteMenuReferences } from '../model/references';
 import { resolveMenu } from '../model/resolve';
-import { INITIAL_EDITOR, editorReducer } from '../state/editor';
+import { CANVAS_MARGINS, fitZoom, isEditableTarget, stepZoom } from '../canvas/viewport';
+import { INITIAL_EDITOR, editorReducer, selectionIncludes } from '../state/editor';
 import type { Selection } from '../state/editor';
+import { Icon } from '../ui/Icon';
+import type { IconName } from '../ui/Icon';
+import { IconButton } from '../ui/IconButton';
+import { Tooltip } from '../ui/Tooltip';
 
 type DialogState =
   | { kind: 'new-menu' }
@@ -58,6 +92,7 @@ type DialogState =
   | { kind: 'generator'; mode: 'edit'; layerId: string }
   | { kind: 'crop-layer'; layerId: string }
   | { kind: 'new-pixel' }
+  | { kind: 'rename'; type: DocumentType; id: string; name: string }
   | null;
 
 type Recipe = (draft: MenuDefinition) => void;
@@ -67,22 +102,17 @@ const PixelEditor = lazy(() => import('../pixel/PixelEditor').then((module) => (
 
 const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8];
 
+const ALIGN_ICONS: Record<AlignMode, IconName> = {
+  left: 'arrange-left',
+  center: 'arrange-center',
+  right: 'arrange-right',
+  top: 'arrange-top',
+  middle: 'arrange-middle',
+  bottom: 'arrange-bottom',
+};
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function generatedTexturePath(menuId: string, layerId: string): string {
-  return `generated/${menuId}/${layerId}.png`;
-}
-
-function removeElement(draft: MenuDefinition, target: Selection) {
-  if (target.kind === 'layer') draft.layers = draft.layers.filter((layer) => layer.id !== target.id);
-  else if (target.kind === 'text') draft.texts = (draft.texts ?? []).filter((text) => text.id !== target.id);
-  else draft.slots = (draft.slots ?? []).filter((slot) => slot.id !== target.id);
 }
 
 /** Copie un gabarit sous un nouvel identifiant ; ses textures générées sont rattachées au nouveau menu. */
@@ -114,6 +144,8 @@ export interface EditorPreferences {
   showGrid: boolean;
   /** Demander avant d’abandonner des modifications non enregistrées. */
   confirmDiscard: boolean;
+  /** Demander avant de mettre un document à la corbeille. */
+  confirmDelete: boolean;
 }
 
 export interface EditorScreenProps {
@@ -132,6 +164,8 @@ export interface EditorScreenProps {
   onDirtyChange: (dirty: boolean) => void;
   /** Document ouvert (titre de la fenêtre, Rich Presence Discord). */
   onDocumentChange: (kind: 'menu' | 'asset' | 'pixel' | null, name: string | null) => void;
+  /** Document renommé ou mis à la corbeille depuis un autre écran (accueil) : l’éditeur suit. */
+  documentEvent?: DocumentEvent | null;
 }
 
 /** Éditeur : menus (toile, couches, slots, inspecteur) et assets du mode libre. */
@@ -145,6 +179,7 @@ export function EditorScreen({
   workspacePill,
   onDirtyChange,
   onDocumentChange,
+  documentEvent = null,
 }: EditorScreenProps) {
   const [workspace, setWorkspace] = useState<WorkspaceSnapshot | null>(null);
   const openContextMenu = useContextMenu();
@@ -164,6 +199,9 @@ export function EditorScreen({
   const [dialog, setDialog] = useState<DialogState>(null);
   const [status, setStatus] = useState('');
   const [leftTab, setLeftTab] = useState<'outline' | 'library'>('outline');
+  const [alignReference, setAlignReference] = useState<AlignReference>('selection');
+  // Fichier glissé au-dessus de la toile (repère de dépôt).
+  const [dropActive, setDropActive] = useState(false);
   // Mode libre : édition d’assets (compositions exportées en PNG).
   const [mode, setMode] = useState<EditorMode>('menus');
   const [assetId, setAssetId] = useState<string | null>(null);
@@ -177,6 +215,7 @@ export function EditorScreen({
   const [pixelDirty, setPixelDirty] = useState(false);
   // Compteur des demandes d’enregistrement de l’image (bouton de la barre du haut).
   const [pixelSaveRequest, setPixelSaveRequest] = useState(0);
+  const stageNode = useRef<HTMLDivElement | null>(null);
 
   const menu = editor.menu;
   const dirty = menu !== null && JSON.stringify(menu) !== editor.savedJson;
@@ -257,7 +296,38 @@ export function EditorScreen({
   }, [resolved, context, textures]);
 
   const change = useCallback((recipe: Recipe, record = true) => dispatch({ type: 'change', recipe, record }), []);
-  const select = useCallback((selection: Selection | null) => dispatch({ type: 'select', selection }), []);
+  const select = useCallback((selection: Selection[]) => dispatch({ type: 'select', selection }), []);
+
+  /* Sélection */
+
+  // Seuls les éléments propres au menu (et encore présents) comptent : un élément hérité ne se modifie pas ici.
+  const ownSelection = useMemo(
+    () => (menu ? editor.selection.filter((target) => findElement(menu, target) !== undefined) : []),
+    [menu, editor.selection],
+  );
+  /** Éléments que l’on peut déplacer (un élément verrouillé reste en place). */
+  const movable = (targets: readonly Selection[]) =>
+    menu ? targets.filter((target) => !hasEditorFlag(findElement(menu, target) ?? {}, 'locked')) : [];
+
+  const selectionRects = (targets: readonly Selection[]): Array<Rect | null> =>
+    resolved && context ? targets.map((target) => elementRect(resolved.menu, target, textures, context)) : targets.map(() => null);
+
+  const selectionBounds = (() => {
+    const rects = selectionRects(ownSelection).filter((rect): rect is Rect => rect !== null);
+    return rects.length > 0 ? unionRect(rects) : null;
+  })();
+
+  /** Ctrl+A : tout ce qui se sélectionne sur la toile (ni verrouillé, ni masqué, visible dans l’état d’aperçu). */
+  const selectAll = () => {
+    if (!menu || !context) return;
+    select(
+      allTargets(menu).filter((target) => {
+        const element = findElement(menu, target);
+        if (!element || hasEditorFlag(element, 'locked') || hasEditorFlag(element, 'hidden')) return false;
+        return target.kind === 'slot' ? showSlots : evaluateCondition(element.visibleWhen, context);
+      }),
+    );
+  };
 
   const save = useCallback(async () => {
     if (!menu) return;
@@ -268,43 +338,64 @@ export function EditorScreen({
       setStatus(`« ${menu.id} » enregistré`);
       void refreshWorkspace();
     } catch (error) {
-      setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
+      setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
     }
   }, [menu, refreshWorkspace]);
 
-  const deleteElement = useCallback(
-    (target: Selection) => {
-      change((draft) => removeElement(draft, target));
-      select(null);
-    },
-    [change, select],
-  );
+  /* Modifications de la sélection */
 
-  const nudge = useCallback(
-    (target: Selection, dx: number, dy: number) =>
-      change((draft) => {
-        if (target.kind === 'slot') {
-          const slot = draft.slots?.find((candidate) => candidate.id === target.id);
-          if (!slot) return;
-          slot.area.col = clamp(slot.area.col + Math.sign(dx), 0, GRID_COLUMNS - 1);
-          slot.area.row = clamp(slot.area.row + Math.sign(dy), 0, draft.container.rows - 1);
-          return;
-        }
-        const element =
-          target.kind === 'layer'
-            ? draft.layers.find((candidate) => candidate.id === target.id)
-            : draft.texts?.find((candidate) => candidate.id === target.id);
-        if (element) {
-          element.x += dx;
-          element.y += dy;
-        }
-      }),
-    [change],
-  );
+  const applyElementMoves = (moves: readonly ElementMove[]) => {
+    if (moves.length > 0) change((draft) => applyMoves(draft, moves));
+  };
+
+  const deleteTargets = (targets: readonly Selection[]) => {
+    if (targets.length === 0) return;
+    change((draft) => removeElements(draft, targets));
+    select(ownSelection.filter((target) => !selectionIncludes(targets, target)));
+  };
+
+  const nudge = (dx: number, dy: number) => {
+    if (menu) applyElementMoves(nudgeMoves(menu, movable(ownSelection), dx, dy));
+  };
+
+  const moveSelectionBy = (dx: number, dy: number) => {
+    if (!menu) return;
+    const cells = { col: Math.round(dx / SLOT_SIZE), row: Math.round(dy / SLOT_SIZE) };
+    applyElementMoves(translateMoves(menu, movable(ownSelection), { x: dx, y: dy }, cells));
+  };
+
+  /** Aligner ou répartir : chaque élément reçoit son décalage (les zones, arrondi à la case). */
+  const arrange = (compute: (rects: Rect[]) => Point[], targets: readonly Selection[]) => {
+    if (!menu) return;
+    const candidates = movable(targets);
+    const rects = selectionRects(candidates);
+    const placed = candidates.filter((_, index) => rects[index] !== null);
+    const offsets = compute(rects.filter((rect): rect is Rect => rect !== null));
+    const moves = offsetMoves(menu, placed, offsets);
+    applyElementMoves(moves);
+    if (moves.length === 0 && placed.length > 0) setStatus('Déjà aligné');
+  };
+  const canvasRect = (): Rect => ({ x: 0, y: 0, width: WINDOW_WIDTH, height: windowHeight(menu?.container.rows ?? 6) });
+  const alignTargets = (mode: AlignMode, targets: readonly Selection[] = ownSelection) =>
+    arrange(
+      (rects) => alignOffsets(rects, mode, alignReference === 'canvas' || rects.length < 2 ? canvasRect() : unionRect(rects)),
+      targets,
+    );
+  const distributeTargets = (axis: DistributeAxis, targets: readonly Selection[] = ownSelection) =>
+    arrange((rects) => distributeOffsets(rects, axis), targets);
+
+  /** Verrouille / masque (ou l’inverse) : si tous portent déjà le drapeau, il est retiré à tous. */
+  const toggleFlag = (targets: readonly Selection[], flag: EditorFlag) => {
+    if (!menu || targets.length === 0) return;
+    const all = targets.every((target) => hasEditorFlag(findElement(menu, target) ?? {}, flag));
+    change((draft) => setFlagOn(draft, targets, flag, !all));
+  };
 
   // Identifiants de couche choisis mais pas encore dans le menu (ajouts en cours, qui attendent
   // une texture) : deux ajouts rapides ne tirent jamais le même identifiant.
   const reservedLayerIds = useRef(new Set<string>());
+  // Textures écrites pendant la session mais pas encore relues dans l’espace.
+  const reservedTextures = useRef(new Set<string>());
   const menuId = menu?.id;
   useEffect(() => {
     reservedLayerIds.current.clear();
@@ -315,83 +406,190 @@ export function EditorScreen({
     return id;
   }, []);
 
-  /** Duplique une couche juste au-dessus d’elle ; une texture générée est recopiée sous le nouvel identifiant. */
-  const duplicateLayer = useCallback(
-    async (layerId: string) => {
-      if (!menu) return;
-      const original = menu.layers.find((candidate) => candidate.id === layerId);
-      if (!original) return;
-      const id = reserveLayerId(original.id, menu.layers);
-      const copy = { ...structuredClone(original), id };
-      if (original.generator) {
-        copy.texture = generatedTexturePath(menu.id, id);
-        await bakeTexture(copy.texture, original.generator, original);
-        bumpTextures([copy.texture]);
-      }
-      change((draft) => {
-        const index = draft.layers.findIndex((layer) => layer.id === layerId);
-        draft.layers.splice(index < 0 ? draft.layers.length : index + 1, 0, copy);
-      });
-      select({ kind: 'layer', id });
-    },
-    [menu, change, select, bumpTextures, reserveLayerId],
-  );
+  /** Recalcule les textures générées des couches à insérer (une copie ne partage jamais le PNG d’une autre couche). */
+  const bakePlan = async (plan: readonly NewElement[]) => {
+    const baked: string[] = [];
+    for (const entry of plan) {
+      if (entry.kind !== 'layer' || !entry.element.generator) continue;
+      await bakeTexture(entry.element.texture, entry.element.generator, entry.element);
+      baked.push(entry.element.texture);
+    }
+    if (baked.length > 0) bumpTextures(baked);
+  };
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      // Écran caché : aucun raccourci. En mode assets, l’éditeur d’assets gère les siens.
-      // Menu contextuel ou dialogue ouvert : les touches sont pour lui, pas pour l’élément derrière.
-      if (!active || mode !== 'menus' || event.defaultPrevented || overlayOpen()) return;
-      const key = event.key.toLowerCase();
-      const withModifier = event.ctrlKey || event.metaKey;
-      if (withModifier && key === 's') {
+  /** Regénère d’abord les textures des couches générées (aucune couche sans image), puis insère : une seule entrée d’historique. */
+  const insertPlan = async (plan: NewElement[], verb: string) => {
+    if (plan.length === 0) return;
+    try {
+      await bakePlan(plan);
+    } catch (error) {
+      setStatus(`Échec de la génération des textures : ${errorMessage(error)}`);
+      return;
+    }
+    change((draft) => insertElements(draft, plan));
+    select(planSelection(plan));
+    setStatus(`${plural(plan.length, 'élément')} ${verb}`);
+  };
+
+  /** Ctrl+D : copies au-dessus des originaux (sur place ; une zone de slots se décale d’une case). */
+  const duplicateTargets = (targets: readonly Selection[]) => {
+    if (!menu || !resolved || targets.length === 0) return;
+    void insertPlan(duplicatePlan(menu, targets, takenIds(resolved.menu)), targets.length > 1 ? 'dupliqués' : 'dupliqué');
+  };
+
+  /** Extrait du presse-papiers pour ces éléments (et message d’état), ou `null` s’il n’y a rien. */
+  const clipboardFor = (targets: readonly Selection[]): MenuClipboard | null => {
+    if (!menu || targets.length === 0) return null;
+    const { layers, texts, slots } = collectElements(menu, targets);
+    setStatus(`${plural(targets.length, 'élément')} copié${targets.length > 1 ? 's' : ''}`);
+    return menuClipboard(`menu:${menu.id}`, layers, texts, slots);
+  };
+
+  /** Copier depuis un menu contextuel ou l’inspecteur (le raccourci passe par useClipboardShortcuts). */
+  const copyTargets = (targets: readonly Selection[]) => {
+    const payload = clipboardFor(targets);
+    if (payload) writeClipboard(payload);
+  };
+
+  const cutTargets = (targets: readonly Selection[]) => {
+    copyTargets(targets);
+    deleteTargets(targets);
+  };
+
+  const pasteElements = (payload: MenuClipboard) => {
+    if (!menu || !resolved) return;
+    const shift = nextPasteShift(payload, `menu:${menu.id}`);
+    void insertPlan(pastePlan(payload, menu, takenIds(resolved.menu), shift), 'collé(s)');
+  };
+
+  /** Nouvelle texture importée dans `textures/imported/` (jamais par-dessus une texture existante). */
+  const importTexture = async (blob: Blob, fileName: string): Promise<string> => {
+    const base = sanitizeId(fileName.replace(/\.png$/i, '')) || 'image';
+    const texture = uniqueTexturePath('imported', base, [...(workspace?.textures ?? []), ...reservedTextures.current]);
+    reservedTextures.current.add(texture);
+    await uploadTexture(texture, blob);
+    bumpTextures([texture]);
+    void refreshWorkspace();
+    return texture;
+  };
+
+  /** Image (fichier déposé, image collée) ajoutée comme couche, centrée sur `at` (sinon en haut à gauche). */
+  const importImageAsLayer = async (blob: Blob, fileName: string, at: Point | null) => {
+    if (!menu) return null;
+    try {
+      const texture = await importTexture(blob, fileName);
+      const size = await imageSizeOf(blob);
+      const id = reserveLayerId(textureBaseName(texture), menu.layers);
+      const x = at ? Math.round(at.x - (size?.width ?? 0) / 2) : 0;
+      const y = at ? Math.round(at.y - (size?.height ?? 0) / 2) : 0;
+      change((draft) => {
+        draft.layers.push({ id, texture, x, y });
+      });
+      setStatus(`Texture importée : textures/${texture} · couche « ${id} »`);
+      return { kind: 'layer', id } as const;
+    } catch (error) {
+      setStatus(`Échec de l’import : ${errorMessage(error)}`);
+      return null;
+    }
+  };
+
+  const pasteContent = async (content: ClipboardContent) => {
+    if (content.payload?.kind === 'menu') {
+      pasteElements(content.payload);
+    } else if (content.payload?.kind === 'asset') {
+      setStatus('Le presse-papiers contient des éléments d’asset : colle-les dans un asset.');
+    } else if (content.image && menu) {
+      const center = { x: WINDOW_WIDTH / 2, y: windowHeight(menu.container.rows) / 2 };
+      const added = await importImageAsLayer(content.image, pastedImageName(), center);
+      if (added) select([added]);
+    } else {
+      setStatus('Rien à coller : copie d’abord des éléments (Ctrl+C) ou une image PNG.');
+    }
+  };
+
+  /* Clavier et presse-papiers */
+
+  const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    // Écran caché : aucun raccourci. En modes assets et pixels, chaque éditeur gère les siens.
+    // Menu contextuel ou dialogue ouvert : les touches sont pour lui, pas pour l’élément derrière.
+    if (!active || mode !== 'menus' || event.defaultPrevented || overlayOpen()) return;
+    const letter = shortcutLetter(event);
+    const command = withCommand(event);
+    if (command && letter === 's') {
+      event.preventDefault();
+      void save();
+      return;
+    }
+    if (isEditableTarget(event.target)) return;
+    if (command && letter === 'z') {
+      event.preventDefault();
+      dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
+      return;
+    }
+    if (command && shortcutDigit(event) === '0') {
+      event.preventDefault();
+      setZoomMode('fit');
+      return;
+    }
+    if (command && letter === 'y') {
+      event.preventDefault();
+      dispatch({ type: 'redo' });
+      return;
+    }
+    if (command && letter === 'd') {
+      event.preventDefault();
+      duplicateTargets(ownSelection);
+      return;
+    }
+    if (command && letter === 'a') {
+      event.preventDefault();
+      selectAll();
+      return;
+    }
+    // Ctrl+C, Ctrl+X, Ctrl+V : traités par useClipboardShortcuts.
+    if (command || event.altKey) return;
+    if (letter === 'v') setTool('select');
+    else if (letter === 's') setTool('slot');
+    else if (event.key === 'Escape') select([]);
+    else if (isDeleteKey(event) && ownSelection.length > 0) {
+      event.preventDefault();
+      deleteTargets(ownSelection);
+    } else {
+      const delta = arrowDelta(event, 1, SLOT_SIZE);
+      if (delta && ownSelection.length > 0) {
         event.preventDefault();
-        void save();
-        return;
-      }
-      if ((event.target as HTMLElement | null)?.closest('input, textarea, select')) return;
-      if (withModifier && key === 'z') {
-        event.preventDefault();
-        dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
-        return;
-      }
-      // Touche physique : sur AZERTY, Ctrl + la touche du 0 produit « à ».
-      if (withModifier && (event.code === 'Digit0' || event.code === 'Numpad0')) {
-        event.preventDefault();
-        setZoomMode('fit');
-        return;
-      }
-      if (withModifier && key === 'y') {
-        event.preventDefault();
-        dispatch({ type: 'redo' });
-        return;
-      }
-      if (withModifier && key === 'd') {
-        event.preventDefault();
-        if (editor.selection?.kind === 'layer') void duplicateLayer(editor.selection.id);
-        return;
-      }
-      if (withModifier) return;
-      if (key === 'v') setTool('select');
-      else if (key === 's') setTool('slot');
-      else if (key === 'escape') select(null);
-      else if ((key === 'delete' || key === 'backspace') && editor.selection) deleteElement(editor.selection);
-      else if (key.startsWith('arrow') && editor.selection) {
-        event.preventDefault();
-        const step = event.shiftKey ? SLOT_SIZE : 1;
-        const dx = key === 'arrowleft' ? -step : key === 'arrowright' ? step : 0;
-        const dy = key === 'arrowup' ? -step : key === 'arrowdown' ? step : 0;
-        nudge(editor.selection, dx, dy);
+        nudge(delta.dx, delta.dy);
       }
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [save, select, deleteElement, nudge, duplicateLayer, editor.selection, mode, active]);
+  });
+
+  useClipboardShortcuts({
+    enabled: () => active && mode === 'menus' && menu !== null,
+    copy: () => clipboardFor(ownSelection),
+    remove: () => deleteTargets(ownSelection),
+    paste: (content) => void pasteContent(content),
+  });
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => handleKeyDown(event);
+    // Un fichier lâché hors de la toile n’ouvre pas l’image dans la fenêtre à la place du studio.
+    const guardDrop = (event: DragEvent) => {
+      if (hasDraggedFiles(event.dataTransfer)) event.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('dragover', guardDrop);
+    window.addEventListener('drop', guardDrop);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('dragover', guardDrop);
+      window.removeEventListener('drop', guardDrop);
+    };
+  }, []);
 
   const confirmDiscard = () =>
     !dirty ||
     !preferences.confirmDiscard ||
-    window.confirm('Des modifications ne sont pas enregistrées. Continuer quand même ?');
+    window.confirm('Des modifications ne sont pas enregistrées. Continuer quand même ?');
 
   /** Ouvre un menu de l’espace ; faux si l’utilisateur garde le menu en cours (ou si le menu est introuvable). */
   const openMenu = (id: string) => {
@@ -404,20 +602,20 @@ export function EditorScreen({
 
   const handleCreateSlot = (area: SlotArea) => {
     if (!menu) return;
-    const id = uniqueId('slot', (menu.slots ?? []).map((slot) => slot.id));
+    const id = uniqueId('slot', (resolved?.menu.slots ?? menu.slots ?? []).map((slot) => slot.id));
     change((draft) => {
       (draft.slots ??= []).push({ id, kind: 'button', area, item: { invisible: true, name: id } });
     });
-    select({ kind: 'slot', id });
+    select([{ kind: 'slot', id }]);
   };
 
   const handleAddText = () => {
     if (!menu) return;
-    const id = uniqueId('text', (menu.texts ?? []).map((text) => text.id));
+    const id = uniqueId('text', (resolved?.menu.texts ?? menu.texts ?? []).map((text) => text.id));
     change((draft) => {
       (draft.texts ??= []).push({ id, x: 8, y: 6, value: 'Texte', color: '#404040' });
     });
-    select({ kind: 'text', id });
+    select([{ kind: 'text', id }]);
   };
 
   const handleReorderLayer = (id: string, direction: 1 | -1) =>
@@ -439,11 +637,11 @@ export function EditorScreen({
       change((draft) => {
         draft.layers.push({ id, texture, x: 0, y: 0 });
       });
-      select({ kind: 'layer', id });
-      setStatus(`Texture importée : ${texture}`);
+      select([{ kind: 'layer', id }]);
+      setStatus(`Texture importée : ${texture}`);
       void refreshWorkspace();
     } catch (error) {
-      setStatus(`Échec de l’import : ${errorMessage(error)}`);
+      setStatus(`Échec de l’import : ${errorMessage(error)}`);
     }
   };
 
@@ -465,7 +663,7 @@ export function EditorScreen({
       change((draft) => {
         draft.layers.push({ id: result.layerId, texture, x: result.x, y: result.y, generator: result.spec });
       });
-      select({ kind: 'layer', id: result.layerId });
+      select([{ kind: 'layer', id: result.layerId }]);
     }
     setDialog(null);
     void refreshWorkspace();
@@ -498,7 +696,7 @@ export function EditorScreen({
     change((draft) => {
       draft.layers.push({ id, texture: imported, x: 0, y: top ?? 0 });
     });
-    select({ kind: 'layer', id });
+    select([{ kind: 'layer', id }]);
     setStatus(`Couche « ${id} » ajoutée depuis ${source.name}`);
     void refreshWorkspace();
   };
@@ -515,14 +713,14 @@ export function EditorScreen({
     dispatch({ type: 'load', menu: created });
     setPreview(DEFAULT_PREVIEW);
     setLeftTab('outline');
-    const notes = warnings.length > 0 ? ` · ${warnings.length} avertissement(s), dont : ${warnings[0]}` : '';
+    const notes = warnings.length > 0 ? ` · ${warnings.length} avertissement(s), dont : ${warnings[0]}` : '';
     setStatus(`Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
   };
 
   const confirmLeaveAsset = () =>
     !assetDirty ||
     !preferences.confirmDiscard ||
-    window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
+    window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
 
   /** Change de mode ; faux si l’utilisateur reste sur l’asset en cours. */
   const confirmLeavePixel = () =>
@@ -623,6 +821,150 @@ export function EditorScreen({
   useEffect(() => {
     onDirtyChange(anyDirty);
   }, [anyDirty, onDirtyChange]);
+
+  /* Documents : renommer, dupliquer, corbeille */
+
+  /** Premier document restant, après une mise à la corbeille. */
+  const openFallback = (type: DocumentType, snapshot: WorkspaceSnapshot | null) => {
+    if (type === 'menu') {
+      const next = snapshot?.menus.find((candidate) => !candidate.template) ?? snapshot?.menus[0] ?? null;
+      dispatch({ type: 'load', menu: next });
+      setPreview(DEFAULT_PREVIEW);
+    } else {
+      setAssetDirty(false);
+      setAssetId(snapshot?.assets[0]?.id ?? null);
+    }
+  };
+
+  /** Suit un renommage : le document ouvert prend son nouvel identifiant, ses références aussi. */
+  const followRename = (
+    type: DocumentType,
+    from: string,
+    to: string,
+    name: string,
+    snapshot: WorkspaceSnapshot | null,
+    updated: readonly string[],
+  ) => {
+    if (type === 'asset') {
+      if (assetId === from) {
+        setAssetDirty(false);
+        setAssetId(to);
+      }
+      return;
+    }
+    if (!menu) return;
+    if (menu.id === from) {
+      const fresh = snapshot?.menus.find((candidate) => candidate.id === to);
+      // Sans modification en cours : relu du disque (chemins des textures générées mis à jour) ;
+      // sinon, les modifications sont gardées sous le nouvel identifiant.
+      if (!dirty && fresh) dispatch({ type: 'load', menu: fresh });
+      else dispatch({ type: 'renamed', id: to, name });
+    } else if (updated.includes(menu.id)) {
+      const fresh = snapshot?.menus.find((candidate) => candidate.id === menu.id);
+      if (!dirty && fresh) dispatch({ type: 'load', menu: fresh });
+      else change((draft) => void rewriteMenuReferences(draft, from, to));
+    }
+  };
+
+  const handleDocumentEvent = useEffectEvent(async (event: DocumentEvent) => {
+    const snapshot = await refreshWorkspace();
+    if (event.kind === 'renamed' && event.to) {
+      followRename(event.type, event.from, event.to, event.name ?? event.to, snapshot, event.updated ?? []);
+    } else if (event.kind === 'trashed' && (event.type === 'menu' ? menu?.id === event.from : assetId === event.from)) {
+      openFallback(event.type, snapshot);
+    }
+  });
+  const handledEvent = useRef<number | null>(documentEvent?.nonce ?? null);
+  useEffect(() => {
+    if (!documentEvent || documentEvent.nonce === handledEvent.current) return;
+    handledEvent.current = documentEvent.nonce;
+    void handleDocumentEvent(documentEvent);
+  }, [documentEvent]);
+
+  const knownMenus = workspace?.menus ?? [];
+  const knownAssets = workspace?.assets ?? [];
+  const currentAsset = knownAssets.find((candidate) => candidate.id === assetId) ?? null;
+  const menuIsOnDisk = menu !== null && knownMenus.some((candidate) => candidate.id === menu.id);
+
+  const startRename = (type: DocumentType) => {
+    if (type === 'menu' && menu) setDialog({ kind: 'rename', type, id: menu.id, name: menu.name });
+    else if (type === 'asset' && currentAsset && confirmLeaveAsset()) {
+      setDialog({ kind: 'rename', type, id: currentAsset.id, name: currentAsset.name });
+    }
+  };
+
+  const handleRename = async (to: string, name: string, updateReferences: boolean) => {
+    if (dialog?.kind !== 'rename') return;
+    const { type, id } = dialog;
+    const { summary, updated } = await renameWithReferences({
+      type,
+      from: id,
+      to,
+      name,
+      menus: knownMenus,
+      updateReferences,
+    });
+    const snapshot = await refreshWorkspace();
+    followRename(type, id, summary.id, summary.name, snapshot, updated);
+    setDialog(null);
+    const references = updated.length > 0 ? ` · ${plural(updated.length, 'menu')} mis à jour` : '';
+    setStatus(id === summary.id ? `« ${summary.name} » renommé` : `« ${id} » renommé en « ${summary.id} »${references}`);
+  };
+
+  const duplicateDocumentNow = async (type: DocumentType) => {
+    const source = type === 'menu' ? menu : currentAsset;
+    if (!source) return;
+    try {
+      const ids = (type === 'menu' ? knownMenus : knownAssets).map((candidate) => candidate.id);
+      const summary = await duplicateWithFreeId(type, source.id, source.name, ids);
+      const snapshot = await refreshWorkspace();
+      const unsaved = type === 'menu' ? dirty : assetDirty;
+      if (type === 'menu' && !unsaved) {
+        const created = snapshot?.menus.find((candidate) => candidate.id === summary.id);
+        if (created) dispatch({ type: 'load', menu: created });
+      } else if (type === 'asset' && !unsaved) {
+        setAssetId(summary.id);
+      }
+      const note = unsaved ? ' (copie de la version enregistrée)' : '';
+      setStatus(`« ${summary.id} » créé, copie de « ${source.id} »${note}`);
+    } catch (error) {
+      setStatus(`Échec de la duplication : ${errorMessage(error)}`);
+    }
+  };
+
+  const trashDocumentNow = async (type: DocumentType) => {
+    const source = type === 'menu' ? menu : currentAsset;
+    if (!source) return;
+    if (type === 'menu' ? !confirmDiscard() : !confirmLeaveAsset()) return;
+    try {
+      const trashed = await trashWithConfirmation(type, source.id, source.name, preferences.confirmDelete);
+      if (!trashed) return;
+      const snapshot = await refreshWorkspace();
+      openFallback(type, snapshot);
+      setStatus(`« ${source.id} » mis à la corbeille : ${trashed.trashed}`);
+    } catch (error) {
+      setStatus(`Échec de la mise à la corbeille : ${errorMessage(error)}`);
+    }
+  };
+
+  const documentMenu = (type: DocumentType): MenuEntry[] => {
+    const source = type === 'menu' ? menu : currentAsset;
+    const onDisk = type === 'menu' ? menuIsOnDisk : currentAsset !== null;
+    const noun = type === 'menu' ? 'Menu' : 'Asset';
+    return [
+      { heading: source ? `${noun} « ${source.name} »` : noun },
+      { label: 'Renommer…', icon: 'pencil', disabled: !onDisk, onSelect: () => startRename(type) },
+      { label: 'Dupliquer', icon: 'copy', disabled: !onDisk, onSelect: () => void duplicateDocumentNow(type) },
+      { separator: true },
+      {
+        label: 'Mettre à la corbeille',
+        icon: 'trash',
+        danger: true,
+        disabled: !onDisk,
+        onSelect: () => void trashDocumentNow(type),
+      },
+    ];
+  };
 
   const handleSaveAsset = async (asset: AssetDefinition, png: Blob) => {
     const texture = `assets/${asset.id}.png`;
@@ -774,8 +1116,8 @@ export function EditorScreen({
     change((draft) => {
       draft.layers.push({ id, texture: path, x: 0, y: 0 });
     });
-    select({ kind: 'layer', id });
-    setStatus(`Couche « ${id} » ajoutée : ${region.width} × ${region.height} px rognés depuis ${source.name}`);
+    select([{ kind: 'layer', id }]);
+    setStatus(`Couche « ${id} » ajoutée : ${region.width} × ${region.height} px rognés depuis ${source.name}`);
     void refreshWorkspace();
   };
 
@@ -824,7 +1166,7 @@ export function EditorScreen({
     setMode('menus');
   };
 
-  /** Zone de slots déplacée ou redimensionnée sur la toile : une seule entrée d’historique. */
+  /** Zone de slots redimensionnée sur la toile : une seule entrée d’historique. */
   const handleSlotAreaChange = (id: string, area: SlotArea) =>
     change((draft) => {
       const slot = draft.slots?.find((candidate) => candidate.id === id);
@@ -847,13 +1189,58 @@ export function EditorScreen({
 
   const cropLayer = dialog?.kind === 'crop-layer' ? (menu?.layers.find((layer) => layer.id === dialog.layerId) ?? null) : null;
 
-  /** Actions d’un élément du menu (clic droit dans la liste ou sur la toile). */
+  /* Menus contextuels */
+
+  const clipboardEntries = (targets: readonly Selection[]): MenuEntry[] => [
+    { label: 'Couper', icon: 'cut', shortcut: 'Ctrl+X', onSelect: () => cutTargets(targets) },
+    { label: 'Copier', icon: 'clipboard', shortcut: 'Ctrl+C', onSelect: () => copyTargets(targets) },
+    { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => duplicateTargets(targets) },
+  ];
+
+  const flagEntries = (targets: readonly Selection[]): MenuEntry[] => {
+    const locked = menu ? targets.every((target) => hasEditorFlag(findElement(menu, target) ?? {}, 'locked')) : false;
+    const hidden = menu ? targets.every((target) => hasEditorFlag(findElement(menu, target) ?? {}, 'hidden')) : false;
+    return [
+      { label: locked ? 'Déverrouiller' : 'Verrouiller', icon: locked ? 'unlock' : 'lock', onSelect: () => toggleFlag(targets, 'locked') },
+      {
+        label: hidden ? 'Afficher sur la toile' : 'Masquer sur la toile',
+        icon: hidden ? 'eye' : 'eye-off',
+        onSelect: () => toggleFlag(targets, 'hidden'),
+      },
+    ];
+  };
+
+  /** Actions d’un élément (clic droit dans la liste ou sur la toile) ; sur une sélection multiple, pour toute la sélection. */
   const elementMenu = (target: Selection): MenuEntry[] => {
+    const targets = selectionIncludes(ownSelection, target) && ownSelection.length > 1 ? ownSelection : [target];
+    const remove: MenuEntry = { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteTargets(targets) };
+    if (targets.length > 1) {
+      return [
+        { heading: `${plural(targets.length, 'élément')} sélectionnés` },
+        ...clipboardEntries(targets),
+        { separator: true },
+        ...(Object.keys(ALIGN_LABELS) as AlignMode[]).map((alignMode) => ({
+          label: ALIGN_LABELS[alignMode],
+          icon: ALIGN_ICONS[alignMode],
+          onSelect: () => alignTargets(alignMode, targets),
+        })),
+        ...(['horizontal', 'vertical'] as const).map((axis) => ({
+          label: DISTRIBUTE_LABELS[axis],
+          icon: axis === 'horizontal' ? ('distribute-horizontal' as const) : ('distribute-vertical' as const),
+          disabled: targets.length < 3,
+          onSelect: () => distributeTargets(axis, targets),
+        })),
+        { separator: true },
+        ...flagEntries(targets),
+        { separator: true },
+        remove,
+      ];
+    }
     if (target.kind === 'layer') {
       const layer = menu?.layers.find((candidate) => candidate.id === target.id);
       return [
         { heading: `Couche « ${target.id} »` },
-        { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => void duplicateLayer(target.id) },
+        ...clipboardEntries(targets),
         {
           label: 'Rogner…',
           icon: 'crop',
@@ -874,21 +1261,37 @@ export function EditorScreen({
         { label: 'Monter', icon: 'chevron-up', onSelect: () => handleReorderLayer(target.id, 1) },
         { label: 'Descendre', icon: 'chevron-down', onSelect: () => handleReorderLayer(target.id, -1) },
         { separator: true },
-        { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteElement(target) },
+        ...flagEntries(targets),
+        { separator: true },
+        remove,
       ];
     }
     return [
       { heading: `${target.kind === 'text' ? 'Texte' : 'Slot'} « ${target.id} »` },
-      { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteElement(target) },
+      ...clipboardEntries(targets),
+      { separator: true },
+      ...flagEntries(targets),
+      { separator: true },
+      remove,
     ];
   };
 
   /** Clic droit sur une zone vide de la toile. */
   const canvasMenu = (): MenuEntry[] => [
     { heading: menu ? `Menu « ${menu.name} »` : 'Toile' },
+    {
+      label: 'Coller',
+      icon: 'clipboard',
+      shortcut: 'Ctrl+V',
+      disabled: !menu,
+      onSelect: () => void readClipboard().then(pasteContent),
+    },
+    { label: 'Tout sélectionner', icon: 'marquee', shortcut: 'Ctrl+A', disabled: !menu, onSelect: selectAll },
+    { separator: true },
     { label: 'Ajouter un texte', icon: 'text', disabled: !menu, onSelect: handleAddText },
     { label: 'Générer une texture…', icon: 'sparkles', disabled: !menu, onSelect: () => setDialog({ kind: 'generator', mode: 'create' }) },
     { separator: true },
+    { label: 'Renommer le menu…', icon: 'pencil', disabled: !menuIsOnDisk, onSelect: () => startRename('menu') },
     { label: 'Ajuster le zoom', icon: 'expand', shortcut: 'Ctrl+0', onSelect: () => setZoomMode('fit') },
   ];
 
@@ -898,6 +1301,7 @@ export function EditorScreen({
 
   // Taille de la zone de la toile, suivie en continu pour le zoom « Ajuster ».
   const observeStage = useCallback((node: HTMLDivElement | null) => {
+    stageNode.current = node;
     if (!node) return;
     const observer = new ResizeObserver(([entry]) => {
       // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
@@ -914,10 +1318,51 @@ export function EditorScreen({
     setZoom(level);
   };
 
-  const knownMenus = workspace?.menus ?? [];
-  const knownAssets = workspace?.assets ?? [];
-  const currentAsset = knownAssets.find((candidate) => candidate.id === assetId) ?? null;
-  const menuIsOnDisk = menu !== null && knownMenus.some((candidate) => candidate.id === menu.id);
+  /* Glisser-déposer d’un PNG depuis l’explorateur */
+
+  /** Point de la fenêtre du coffre sous le pointeur (coordonnées écran). */
+  const windowPointAt = (clientX: number, clientY: number): Point | null => {
+    const canvas = stageNode.current?.querySelector('canvas.menu-canvas');
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / effectiveZoom - CANVAS_MARGINS.x,
+      y: (clientY - rect.top) / effectiveZoom - CANVAS_MARGINS.top,
+    };
+  };
+
+  const stageDropHandlers = {
+    onDragOver: (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!menu || !hasDraggedFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      if (!dropActive) setDropActive(true);
+    },
+    onDragLeave: (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false);
+    },
+    onDrop: (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!hasDraggedFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      setDropActive(false);
+      const files = pngFiles(event.dataTransfer.files);
+      if (files.length === 0) {
+        setStatus('Seuls les fichiers PNG peuvent être déposés sur la toile.');
+        return;
+      }
+      const at = windowPointAt(event.clientX, event.clientY);
+      void (async () => {
+        const added: Selection[] = [];
+        for (const [index, file] of files.entries()) {
+          const point = at ? { x: at.x + index * 4, y: at.y + index * 4 } : null;
+          const layer = await importImageAsLayer(file, file.name, point);
+          if (layer) added.push(layer);
+        }
+        if (added.length > 0) select(added);
+      })();
+    },
+  };
+
   // Affichage seulement : les messages d’échec passent en rouge dans la barre d’outils.
   const statusIsError = /^(Échec|Impossible)/.test(status);
 
@@ -929,6 +1374,8 @@ export function EditorScreen({
   useEffect(() => {
     if (active) onDocumentChange(documentKind, documentName);
   }, [active, documentKind, documentName, onDocumentChange]);
+
+  const renameDialog = dialog?.kind === 'rename' ? dialog : null;
 
   return (
     <div className="app">
@@ -957,6 +1404,7 @@ export function EditorScreen({
                 className="menu-picker"
                 value={menu?.id ?? ''}
                 onChange={(event) => openMenu(event.target.value)}
+                onContextMenu={(event) => openContextMenu(event, documentMenu('menu'))}
                 disabled={knownMenus.length === 0}
                 aria-label="Menu ouvert"
               >
@@ -968,6 +1416,14 @@ export function EditorScreen({
                   </option>
                 ))}
               </select>
+              <IconButton
+                icon="more"
+                label="Actions du menu"
+                hint="Renommer, dupliquer, mettre à la corbeille"
+                size={24}
+                disabled={!menu}
+                onClick={(event) => openContextMenu(event, documentMenu('menu'))}
+              />
               <Tooltip label="Nouveau menu" hint="Vierge ou à partir d’un gabarit">
                 <button type="button" onClick={() => setDialog({ kind: 'new-menu' })}>
                   <Icon name="plus" />
@@ -995,6 +1451,7 @@ export function EditorScreen({
               className="menu-picker"
               value={assetId ?? ''}
               onChange={(event) => openAsset(event.target.value)}
+              onContextMenu={(event) => openContextMenu(event, documentMenu('asset'))}
               disabled={knownAssets.length === 0}
               aria-label="Asset ouvert"
             >
@@ -1005,6 +1462,14 @@ export function EditorScreen({
                 </option>
               ))}
             </select>
+            <IconButton
+              icon="more"
+              label="Actions de l’asset"
+              hint="Renommer, dupliquer, mettre à la corbeille"
+              size={24}
+              disabled={!currentAsset}
+              onClick={(event) => openContextMenu(event, documentMenu('asset'))}
+            />
             <Tooltip label="Nouvel asset" hint="Composition libre exportée en PNG et en glyphe">
               <button type="button" onClick={() => setDialog({ kind: 'new-asset' })}>
                 <Icon name="plus" />
@@ -1125,7 +1590,8 @@ export function EditorScreen({
               selection={editor.selection}
               onSelect={select}
               onReorderLayer={handleReorderLayer}
-              onDelete={deleteElement}
+              onDelete={deleteTargets}
+              onToggleFlag={(target, flag) => toggleFlag([target], flag)}
               onAddText={handleAddText}
               onOpenGenerator={() => setDialog({ kind: 'generator', mode: 'create' })}
               onImport={(file) => void handleImport(file)}
@@ -1137,7 +1603,7 @@ export function EditorScreen({
         <section className="stage-area">
           <div className="stage-toolbar" role="toolbar" aria-label="Outils de la toile">
             <div className="segmented" role="group" aria-label="Outil">
-              <Tooltip label="Sélection" hint="Choisir et déplacer couches, textes et zones" shortcut="V">
+              <Tooltip label="Sélection" hint="Choisir et déplacer ; Maj+clic ou rectangle pour en prendre plusieurs" shortcut="V">
                 <button
                   type="button"
                   className={tool === 'select' ? 'active' : ''}
@@ -1233,12 +1699,13 @@ export function EditorScreen({
             </div>
           </div>
           <div
-            className="stage"
+            className={dropActive ? 'stage is-drop-target' : 'stage'}
             ref={observeStage}
             onContextMenu={(event) => {
               // Zone grise autour du coffre : même menu qu’une zone vide de la toile.
               if (event.target === event.currentTarget) openCanvasMenu(null, event);
             }}
+            {...stageDropHandlers}
           >
           {resolved && context ? (
             <MenuCanvas
@@ -1252,19 +1719,7 @@ export function EditorScreen({
               showSlots={showSlots}
               selection={editor.selection}
               onSelect={select}
-              onBeginMove={() => dispatch({ type: 'checkpoint' })}
-              onMove={(target, x, y) =>
-                change((draft) => {
-                  const element =
-                    target.kind === 'layer'
-                      ? draft.layers.find((candidate) => candidate.id === target.id)
-                      : draft.texts?.find((candidate) => candidate.id === target.id);
-                  if (element) {
-                    element.x = x;
-                    element.y = y;
-                  }
-                }, false)
-              }
+              onMoveElements={applyElementMoves}
               onCreateSlot={handleCreateSlot}
               onSlotAreaChange={handleSlotAreaChange}
               zoomLevels={ZOOM_LEVELS}
@@ -1285,6 +1740,12 @@ export function EditorScreen({
               </button>
             </div>
           )}
+          {dropActive && (
+            <div className="drop-hint" aria-hidden="true">
+              <Icon name="upload" size={24} />
+              Déposer le PNG : il devient une couche
+            </div>
+          )}
           </div>
         </section>
 
@@ -1299,7 +1760,15 @@ export function EditorScreen({
               onSelect={select}
               onEditGenerator={(layerId) => setDialog({ kind: 'generator', mode: 'edit', layerId })}
               onCropLayer={(layerId) => setDialog({ kind: 'crop-layer', layerId })}
-              onDuplicateLayer={(layerId) => void duplicateLayer(layerId)}
+              onDuplicate={duplicateTargets}
+              onCopy={(targets) => copyTargets(targets)}
+              onDelete={deleteTargets}
+              selectionBounds={selectionBounds}
+              onMoveSelection={moveSelectionBy}
+              alignReference={alignReference}
+              onAlignReferenceChange={setAlignReference}
+              onAlign={(alignMode) => alignTargets(alignMode)}
+              onDistribute={(axis) => distributeTargets(axis)}
             />
           )}
           {resolved && (
@@ -1339,6 +1808,7 @@ export function EditorScreen({
               onSave={handleSaveAsset}
               onDirtyChange={setAssetDirty}
               saveRequest={assetSaveRequest}
+              onImportImage={importTexture}
             />
           ) : (
             <section className="stage">
@@ -1404,6 +1874,7 @@ export function EditorScreen({
         </span>
         {mode === 'menus' && resolved && (
           <span className="statusbar-meta">
+            {ownSelection.length > 1 && <span>{plural(ownSelection.length, 'élément')} sélectionnés</span>}
             <span>
               {resolved.menu.layers.length} couche{resolved.menu.layers.length > 1 ? 's' : ''}
             </span>
@@ -1469,6 +1940,17 @@ export function EditorScreen({
           primary={{ label: 'Rogner la couche', run: (region) => handleCropLayer(cropLayer.id, region) }}
           secondary={{ label: 'Extraire en nouvelle couche', run: (region) => handleExtractLayer(cropLayer.id, region) }}
           onClose={() => setDialog(null)}
+        />
+      )}
+      {renameDialog && (
+        <RenameDocumentDialog
+          type={renameDialog.type}
+          id={renameDialog.id}
+          name={renameDialog.name}
+          existingIds={(renameDialog.type === 'menu' ? knownMenus : knownAssets).map((candidate) => candidate.id)}
+          references={renameDialog.type === 'menu' ? menuReferences(knownMenus, renameDialog.id) : []}
+          onCancel={() => setDialog(null)}
+          onConfirm={handleRename}
         />
       )}
     </div>

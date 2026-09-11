@@ -18,7 +18,7 @@ export type PixelTool =
 
 export interface ToolInfo {
   label: string;
-  /** Raccourci affiché (« B », « Maj+U ») ; la touche est lue sur `event.code` (clavier AZERTY compris). */
+  /** Raccourci affiché (« B », « Maj+U ») ; lettre lue sur la touche produite, repli sur la touche physique. */
   shortcut: string;
   hint: string;
   icon: IconName;
@@ -53,7 +53,7 @@ export const TOOL_INFO: Record<PixelTool, ToolInfo> = {
   move: { label: 'Déplacement', shortcut: 'V', hint: 'Déplace la sélection (ou tout le calque) ; Ctrl : en copie', icon: 'drag' },
 };
 
-/** Touche physique (`event.code`) → outil, sans modificateur. */
+/** Lettre du raccourci (sous la forme `KeyX`, voir `shortcutLetter`) → outil, sans modificateur. */
 export const TOOL_CODES: Record<string, PixelTool> = {
   KeyB: 'pencil',
   KeyE: 'eraser',

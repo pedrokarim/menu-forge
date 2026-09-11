@@ -83,6 +83,7 @@ Positions de slots : **colonne / ligne** de la grille du coffre.
 | `x`, `y` | Position du coin haut-gauche, en pixels fenêtre |
 | `visibleWhen` | Condition (§ Conditions) ; absente = toujours visible |
 | `generator` | Paramètres de la texture si elle a été générée par le studio |
+| `editor` | État dans l’éditeur (§ Métadonnées de l’éditeur), ignoré par la lib |
 
 La lib recadre l’image, calcule son avance et génère le glyphe. L’ordre de la
 liste est l’ordre d’empilement : la dernière couche est au-dessus.
@@ -112,6 +113,7 @@ Styles : `panel` (panneau biseauté façon vanilla), `button` (bouton coloré),
 | `color` | Couleur hexadécimale |
 | `value` | Texte avec variables `{…}` (§ Variables) |
 | `visibleWhen` | Condition |
+| `editor` | État dans l’éditeur (§ Métadonnées de l’éditeur) |
 
 ## Slots (`slots`)
 
@@ -124,6 +126,7 @@ Styles : `panel` (panneau biseauté façon vanilla), `button` (bouton coloré),
 | `onClick` | Liste d’actions (§ Actions) |
 | `visibleWhen` | Le slot est vide si la condition est fausse |
 | `enabledWhen` | Le slot est affiché mais ne réagit pas si la condition est fausse |
+| `editor` | État dans l’éditeur (§ Métadonnées de l’éditeur) |
 
 Types de slots :
 
@@ -134,6 +137,27 @@ Types de slots :
 - **`input`** : le joueur peut y déposer et y retirer un item (tout le reste du
   menu est verrouillé).
 - **`decoration`** : item affiché, jamais cliquable.
+
+## Métadonnées de l’éditeur (`editor`)
+
+Couches, textes et slots peuvent porter une clé `editor`, **métadonnée du
+studio** comme `generator` : la lib l’ignore, l’élément reste exporté,
+affiché et cliquable en jeu.
+
+```json
+"editor": { "locked": true, "hidden": true }
+```
+
+| Clé | Rôle dans le studio |
+|---|---|
+| `locked` | Verrouillé : ne se sélectionne plus sur la toile (il reste dans la liste des éléments) |
+| `hidden` | Masqué sur la toile de l’éditeur seulement (le titre composé et le jeu l’affichent toujours) |
+
+Une clé absente vaut `false` ; `editor` disparaît quand elle est vide. Un
+élément collé ou dupliqué n’hérite pas de ces drapeaux.
+
+La lib ignore toute clé inconnue (voir `MenuParser`) : le test
+`MenuParserTest.ignoresTheStudioEditorFlags` le vérifie pour `editor`.
 
 ## Items
 

@@ -37,7 +37,9 @@ avant de les construire.
   de travail.
 - **Documents récents** de l’espace actif : menus, assets et images de pixels triés par date,
   avec vignette (rendu du fond ou de l’asset), type, nom, date relative ;
-  clic = ouvrir dans l’éditeur.
+  clic = ouvrir dans l’éditeur ; clic droit ou bouton « … » : Ouvrir,
+  Renommer…, Dupliquer, Mettre à la corbeille (le fichier va dans `.trash/`
+  de l’espace, rien n’est supprimé).
 - **Espaces récents** (3 à 5), clic = basculer.
 - États vides utiles : « Aucun document : commence par un gabarit ».
 - Données : `GET /documents/recent`, `GET /workspaces`.
@@ -69,7 +71,20 @@ décalage), cliquer un sprite (zone détectée sur les pixels opaques reliés).
   que la partie gardée reste en place, « Extraire en nouvelle couche » garde
   l’originale.
 - Assets : l’image garde la texture entière et n’en affiche que la zone source.
-- `Ctrl+D` duplique la couche ou l’élément sélectionné.
+- `Ctrl+D` duplique la sélection (couches, textes, zones, éléments d’asset).
+
+**Gestes d’édition.** Maj ou Ctrl + clic ajoute ou retire un élément de la
+sélection, un rectangle tracé sur une zone vide sélectionne ce qu’il touche,
+`Ctrl+A` prend tout ce qui n’est ni verrouillé ni masqué. Copier, couper,
+coller (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`) passent par le presse-papiers système
+(JSON marqué) ; une image PNG collée ou glissée depuis l’explorateur devient
+une texture puis une couche (menus) ou une image (assets). L’inspecteur d’une
+sélection multiple résume ce qui est commun et porte la barre « Aligner et
+répartir » (par rapport à la sélection ou à la toile). Verrouiller retire un
+élément de la toile (il reste dans la liste) ; masquer le cache de la toile
+seulement pour un menu, de l’export pour un asset. Les assets ont des groupes
+(`Ctrl+G`, `Ctrl+Maj+G`). Le bouton « … » à côté du sélecteur de document
+renomme, duplique ou met à la corbeille le document ouvert.
 
 **Éditeur de pixels** (`#/editeur/pixels/<id>`, troisième mode après Menus et
 Assets). Pour dessiner une texture au pixel près : couleurs à gauche (principale

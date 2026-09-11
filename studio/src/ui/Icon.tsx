@@ -1,4 +1,17 @@
 import type { JSX, SVGProps } from 'react';
+import { AlignCenterHorizontal } from 'pixelarticons/react/AlignCenterHorizontal';
+import { AlignCenterVertical } from 'pixelarticons/react/AlignCenterVertical';
+import { AlignEndHorizontal } from 'pixelarticons/react/AlignEndHorizontal';
+import { AlignEndVertical } from 'pixelarticons/react/AlignEndVertical';
+import { AlignHorizontalDistributeCenter } from 'pixelarticons/react/AlignHorizontalDistributeCenter';
+import { AlignStartHorizontal } from 'pixelarticons/react/AlignStartHorizontal';
+import { AlignStartVertical } from 'pixelarticons/react/AlignStartVertical';
+import { AlignVerticalDistributeCenter } from 'pixelarticons/react/AlignVerticalDistributeCenter';
+import { Clipboard } from 'pixelarticons/react/Clipboard';
+import { Lock } from 'pixelarticons/react/Lock';
+import { MoreHorizontal } from 'pixelarticons/react/MoreHorizontal';
+import { Scissors } from 'pixelarticons/react/Scissors';
+import { Unlock } from 'pixelarticons/react/Unlock';
 import { ArrowDown } from 'pixelarticons/react/ArrowDown';
 import { ArrowLeft } from 'pixelarticons/react/ArrowLeft';
 import { ArrowRight } from 'pixelarticons/react/ArrowRight';
@@ -14,6 +27,7 @@ import { Pencil } from 'pixelarticons/react/Pencil';
 import { Reload } from 'pixelarticons/react/Reload';
 import { Sliders } from 'pixelarticons/react/Sliders';
 import { ChevronDown } from 'pixelarticons/react/ChevronDown';
+import { ChevronRight } from 'pixelarticons/react/ChevronRight';
 import { ChevronUp } from 'pixelarticons/react/ChevronUp';
 import { Close } from 'pixelarticons/react/Close';
 import { Copy } from 'pixelarticons/react/Copy';
@@ -49,7 +63,6 @@ import { Upload } from 'pixelarticons/react/Upload';
 import { WarningDiamond } from 'pixelarticons/react/WarningDiamond';
 import { ArrowsHorizontal } from 'pixelarticons/react/ArrowsHorizontal';
 import { Circle } from 'pixelarticons/react/Circle';
-import { Clipboard } from 'pixelarticons/react/Clipboard';
 import { ColorsSwatch } from 'pixelarticons/react/ColorsSwatch';
 import { Eraser } from 'pixelarticons/react/Eraser';
 import { Flatten } from 'pixelarticons/react/Flatten';
@@ -59,8 +72,6 @@ import { ImageNew } from 'pixelarticons/react/ImageNew';
 import { Lasso } from 'pixelarticons/react/Lasso';
 import { Pipette } from 'pixelarticons/react/Pipette';
 import { Scale } from 'pixelarticons/react/Scale';
-import { Scissors } from 'pixelarticons/react/Scissors';
-import { SquareDashedCursor } from 'pixelarticons/react/SquareDashedCursor';
 import { Wand } from 'pixelarticons/react/Wand';
 import { ZoomIn } from 'pixelarticons/react/ZoomIn';
 import { ZoomOut } from 'pixelarticons/react/ZoomOut';
@@ -248,6 +259,52 @@ const SymmetryVertical = pixelIcon([
 /** Pivoter d’un quart de tour (sens antihoraire) : la même, en miroir. */
 const RotateCounterClockwise: IconComponent = (props) => <Reload {...props} style={{ transform: 'scaleX(-1)' }} />;
 
+/** Grouper : deux pièces dans un cadre pointillé (absent de pixelarticons). */
+const Group = pixelIcon([
+  [2, 2, 4, 2],
+  [2, 4, 2, 2],
+  [18, 2, 4, 2],
+  [20, 4, 2, 2],
+  [2, 20, 4, 2],
+  [2, 18, 2, 2],
+  [18, 20, 4, 2],
+  [20, 18, 2, 2],
+  [10, 2, 4, 2],
+  [10, 20, 4, 2],
+  [2, 10, 2, 4],
+  [20, 10, 2, 4],
+  [6, 6, 6, 6],
+  [12, 12, 6, 6],
+]);
+
+/** Dégrouper : deux pièces creuses, séparées, sans cadre. */
+const Ungroup = pixelIcon([
+  [2, 2, 8, 2],
+  [2, 8, 8, 2],
+  [2, 4, 2, 4],
+  [8, 4, 2, 4],
+  [14, 14, 8, 2],
+  [14, 20, 8, 2],
+  [14, 16, 2, 4],
+  [20, 16, 2, 4],
+]);
+
+/** Sélection au rectangle : cadre pointillé. */
+const Marquee = pixelIcon([
+  [2, 2, 4, 2],
+  [2, 4, 2, 2],
+  [10, 2, 4, 2],
+  [18, 2, 4, 2],
+  [20, 4, 2, 2],
+  [2, 10, 2, 4],
+  [20, 10, 2, 4],
+  [2, 18, 2, 2],
+  [2, 20, 4, 2],
+  [10, 20, 4, 2],
+  [20, 18, 2, 2],
+  [18, 20, 4, 2],
+]);
+
 const ICONS = {
   alert: SquareAlert,
   'align-center': TextAlignCenter,
@@ -257,16 +314,27 @@ const ICONS = {
   'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
   'arrow-up': ArrowUp,
+  'arrange-bottom': AlignEndHorizontal,
+  'arrange-center': AlignCenterVertical,
+  'arrange-left': AlignStartVertical,
+  'arrange-middle': AlignCenterHorizontal,
+  'arrange-right': AlignEndVertical,
+  'arrange-top': AlignStartHorizontal,
   box: Square,
   check: Check,
   chest: Chest,
   'chevron-down': ChevronDown,
+  'chevron-right': ChevronRight,
   'chevron-up': ChevronUp,
+  clipboard: Clipboard,
   clock: Clock,
   close: Close,
   copy: Copy,
   crop: Crop,
   cursor: Cursor,
+  cut: Scissors,
+  'distribute-horizontal': AlignHorizontalDistributeCenter,
+  'distribute-vertical': AlignVerticalDistributeCenter,
   download: Download,
   drag: Move,
   expand: Expand,
@@ -275,6 +343,7 @@ const ICONS = {
   folder: Folder,
   'folder-plus': FolderPlus,
   grid: Grid3x3,
+  group: Group,
   home: Home,
   image: Image,
   info: InfoBox,
@@ -286,7 +355,10 @@ const ICONS = {
   library: Library,
   list: Bulletlist,
   loader: Loader,
+  lock: Lock,
+  marquee: Marquee,
   minus: Minus,
+  more: MoreHorizontal,
   mouse: Mouse,
   'mouse-middle': MouseMiddle,
   'mouse-right': MouseRight,
@@ -302,13 +374,14 @@ const ICONS = {
   text: LetterT,
   trash: Trash,
   undo: Undo,
+  ungroup: Ungroup,
+  unlock: Unlock,
   upload: Upload,
   warning: WarningDiamond,
   'window-maximize': WindowMaximize,
   'window-restore': WindowRestore,
   // Éditeur de pixels
   bucket: Bucket,
-  cut: Scissors,
   ellipse: Circle,
   eraser: Eraser,
   eyedropper: Pipette,
@@ -318,7 +391,6 @@ const ICONS = {
   lasso: Lasso,
   layers: Layers,
   line: Line,
-  marquee: SquareDashedCursor,
   merge: Flatten,
   palette: ColorsSwatch,
   paste: Clipboard,

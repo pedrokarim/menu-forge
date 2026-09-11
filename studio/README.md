@@ -90,6 +90,9 @@ Routes de l’application :
 | `GET /api/pixels` | images de l’éditeur de pixels : `[{ id, name, width, height, layers, texture, modified }]` (sans les calques) |
 | `GET /api/pixels/:id` | le document `pixels/<id>.pixel.json` complet (format dans [`../docs/pixels.md`](../docs/pixels.md)) |
 | `PUT /api/pixels/:id` | enregistre le document après validation (taille, calques PNG, texture d’export sous `textures/`) ; écriture atomique |
+| `POST /api/documents/rename` | `{ type, from, to, name? }` : change l’identifiant d’un menu ou d’un asset (fichier et champ `id`) ; 404 si `from` manque, 409 si `to` existe ; textures copiées sous le nouveau nom, jamais déplacées |
+| `POST /api/documents/duplicate` | même corps : copie sous `to`, l’original reste |
+| `POST /api/documents/trash` | `{ type, id }` : déplace le document dans `<espace>/.trash/<date>/`, **ne supprime jamais rien** ; renvoie `{ type, id, trashed }` |
 | `POST /api/libraries` | `{ id, name, root, ownership }` : `root` absolu, contenant `assets/` |
 | `DELETE /api/libraries/:id` | débranche le pack (rien n’est supprimé sur le disque) |
 | `POST /api/libraries/:id/reindex` | reconstruit l’index sans cache ; renvoie `{ id, textures, fonts }` |

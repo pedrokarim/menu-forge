@@ -127,6 +127,29 @@ export function drawSlotZone(ctx: CanvasRenderingContext2D, rect: ScreenRect, st
   ctx.restore();
 }
 
+/** Rectangle de sélection (glisser sur une zone vide) : voile d’or et cadre fin. */
+export function drawMarquee(ctx: CanvasRenderingContext2D, rect: ScreenRect) {
+  ctx.fillStyle = OVERLAY.draftFill;
+  ctx.fillRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+  fillRing(ctx, expandRect(rect, 1), 1, OVERLAY.ink);
+  fillRing(ctx, rect, 1, OVERLAY.gold);
+}
+
+/** Cadre englobant d’une sélection multiple : pointillés d’or autour de l’ensemble. */
+export function drawGroupFrame(ctx: CanvasRenderingContext2D, rect: ScreenRect) {
+  const outer = expandRect(rect, 7);
+  ctx.fillStyle = OVERLAY.gold;
+  const dash = (x: number, y: number, w: number, h: number) => ctx.fillRect(x, y, w, h);
+  for (let x = outer.left; x < outer.right; x += 8) {
+    dash(x, outer.top, Math.min(4, outer.right - x), 1);
+    dash(x, outer.bottom - 1, Math.min(4, outer.right - x), 1);
+  }
+  for (let y = outer.top; y < outer.bottom; y += 8) {
+    dash(outer.left, y, 1, Math.min(4, outer.bottom - y));
+    dash(outer.right - 1, y, 1, Math.min(4, outer.bottom - y));
+  }
+}
+
 /** Aperçu de la zone en cours de tracé (outil Slots). */
 export function drawDraftZone(ctx: CanvasRenderingContext2D, rect: ScreenRect) {
   ctx.fillStyle = OVERLAY.draftFill;
