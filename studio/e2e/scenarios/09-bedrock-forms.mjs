@@ -125,10 +125,10 @@ function inspectorOverflow(page) {
 
 /** Les huit dispositions du pack mcrs_ui. */
 const LAYOUTS = ['grid', 'left_button', 'bottom_button', 'image_grid', 'square_image', 'motd', 'store', 'wrapped'];
-/** Petite, moyenne et grande fenêtre. */
+/** Petite fenêtre, taille minimale de l’appli (hauteur utile d’un écran portable), grande fenêtre. */
 const SIZES = [
   { width: 1024, height: 600 },
-  { width: 1280, height: 800 },
+  { width: 1180, height: 668 },
   { width: 1600, height: 900 },
 ];
 /** 80 caractères avec espaces, et 80 sans aucune (aucun point de coupure). */
@@ -199,6 +199,21 @@ function editorOverflow(page) {
       const box = sidebar.getBoundingClientRect();
       if (box.bottom > editorBox.bottom + 1) problems.push('colonne plus haute que l’éditeur');
       for (const row of sidebar.querySelectorAll('.form-button-row, .section-header, .field, button')) within(row, box, 'élément de colonne');
+    }
+    // Onglets de la colonne de gauche : le libellé reste dans son bouton (il passe à la ligne).
+    for (const tab of editor.querySelectorAll('.sidebar-tabs button')) {
+      const rect = tab.getBoundingClientRect();
+      if (rect.width === 0) continue;
+      const label = tab.querySelector('.tab-label');
+      if (!label) problems.push(`onglet « ${tab.textContent.trim()} » sans .tab-label`);
+      else {
+        const inner = label.getBoundingClientRect();
+        if (inner.left < rect.left - 1 || inner.right > rect.right + 1 || inner.bottom > rect.bottom + 1) problems.push(`onglet « ${label.textContent} » : libellé hors du bouton`);
+        // Un mot court comme « Bibliothèque » ne se coupe jamais en deux lignes.
+        const line = parseFloat(getComputedStyle(label).lineHeight) || parseFloat(getComputedStyle(label).fontSize) * 1.2;
+        if (inner.height > line * 1.5) problems.push(`onglet « ${label.textContent} » : libellé coupé sur plusieurs lignes`);
+      }
+      if (tab.scrollWidth > tab.clientWidth + 1) problems.push(`onglet « ${tab.textContent.trim()} » : contenu plus large que le bouton`);
     }
     const stageArea = editor.querySelector('.stage-area');
     const stageBox = stageArea.getBoundingClientRect();
@@ -342,6 +357,12 @@ export const tests = [
           const label = `${layout} à ${size.width} × ${size.height}`;
           t.equal(await inspectorOverflow(page), [], `inspecteur, ${label}`);
           t.equal(await editorOverflow(page), [], `colonnes, aperçu et barre d’état, ${label}`);
+          // Titre de 80 caractères sur une ligne : coupé par l’écran, donc signalé (jamais une coupure muette).
+          await t.waitFor(() => page.locator('.form-editor .sidebar .warning', { hasText: 'Titre tronqué en jeu' }).isVisible(), `avertissement du titre tronqué, ${label}`);
+          await t.waitFor(() => page.locator('.form-editor .form-fit-count').isVisible(), `compteur des textes tronqués, ${label}`);
+          if (layout === 'grid') {
+            await t.waitFor(() => page.locator('.form-editor .inspector .warning', { hasText: 'Texte tronqué en jeu' }).isVisible(), `avertissement du texte sans espace, ${label}`);
+          }
           // Bas de la colonne de droite atteint par son défilement interne : rien n’est hors d’atteinte.
           await page.locator('.form-editor > .sidebar').last().evaluate((node) => node.scrollTo(0, node.scrollHeight));
           t.equal(await editorOverflow(page), [], `colonne de droite défilée jusqu’en bas, ${label}`);
@@ -351,15 +372,47 @@ export const tests = [
     },
   },
   {
+    name: 'aperçu entièrement visible : 3 écrans simulés × 3 tailles',
+    async run(t) {
+      const { page } = t;
+      await putIconForm(t, 'e2e_screens');
+      for (const size of SIZES) {
+        await page.setViewportSize(size);
+        await openForm(t, 'e2e_screens');
+        for (const screenId of ['pc', 'large', 'small']) {
+          await page.getByLabel('Taille de l’écran simulé').selectOption(screenId);
+          await t.wait(250);
+          const inside = await page.evaluate(() => {
+            const stage = document.querySelector('.form-editor .form-stage').getBoundingClientRect();
+            const screen = document.querySelector('.form-editor .bf-screen').getBoundingClientRect();
+            return screen.left >= stage.left - 1 && screen.right <= stage.right + 1 && screen.top >= stage.top - 1 && screen.bottom <= stage.bottom + 1;
+          });
+          t.check(inside, `écran « ${screenId} » entier dans la zone à ${size.width} × ${size.height}`);
+          await shot(page, `screen-${screenId}-${size.width}x${size.height}`);
+        }
+        t.equal(await page.locator('.form-editor .warning', { hasText: 'tronqué' }).count(), 0, `textes courts : aucun avertissement à ${size.width} × ${size.height}`);
+      }
+    },
+  },
+  {
     name: 'réglages Bedrock et « Nouveau menu » : 3 tailles',
     async run(t) {
       const { page } = t;
+      // Chemin profond : répété en entier sous le champ, à la ligne (créé dans l’espace temporaire).
+      const longDir = path.join(t.env.root, 'un_dossier_de_serveur_bedrock_au_nom_particulierement_long', 'sous_dossier_encore_plus_profond_pour_le_test', 'menu_forge', 'export');
+      mkdirSync(longDir, { recursive: true });
+      await open(t, '#/parametres');
+      const input = page.getByLabel('Dossier d’export Bedrock', { exact: true });
+      await input.fill(longDir);
+      await input.press('Enter');
+      await t.waitFor(async () => (await api(t, '/settings')).export.bedrockDirectory === longDir, 'chemin Bedrock profond enregistré');
       for (const size of SIZES) {
         await page.setViewportSize(size);
         await open(t, '#/parametres');
         const section = page.locator('section[aria-labelledby="settings-bedrock"]');
         await section.scrollIntoViewIfNeeded();
-        t.equal(await boxOverflow(section, 'input, button, code, p'), [], `réglages Bedrock à ${size.width} × ${size.height}`);
+        t.equal(await section.locator('.setting-path').textContent(), longDir, `chemin répété en entier à ${size.width} × ${size.height}`);
+        t.equal(await boxOverflow(section, 'input, button, code, p, .setting-path'), [], `réglages Bedrock à ${size.width} × ${size.height}`);
         await shot(page, `settings-bedrock-${size.width}x${size.height}`);
 
         await open(t, '#/editeur/menus/shop');
