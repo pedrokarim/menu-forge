@@ -60,6 +60,17 @@ travail, affiché comme les ressources d’enderium-core : la capture `export` 
 | `asset-editor` | Éditeur d’assets : l’encart d’aide et son export |
 | `shortcuts` | Aide-mémoire des raccourcis |
 | `settings` | Paramètres (export vers le plugin compris) |
+| `interface-generator` | Générateur d’interfaces : barre d’onglets en style « sombre à accent », aperçu en direct |
+| `generated-menu` | Une boutique créée par le générateur (style mc-rs), ouverte dans l’éditeur |
+| `ai-settings` | Paramètres, section IA : les onze fournisseurs, aucun activé, fiche OpenAI dépliée sans clé (fenêtre de 1180 px de haut) |
+| `ai-texture` | « Générer une texture » : sortie du faux Automatic1111 et texture ramenée sur 16 × 16 et la palette Menu Forge |
+| `ai-interface` | « Générer une interface » : réponse du faux Ollama refusée au premier essai, corrigée au second |
+
+Les trois captures `ai-*` ne contactent **aucun** service : `capture.mjs` lance
+un faux Automatic1111 et un faux Ollama sur `127.0.0.1` (port libre), qui
+renvoient l’émeraude et le menu décrits dans `DEMO_AI` (`demo-workspace.mjs`).
+Le backend lit le vrai trousseau du système sans jamais y écrire, et la
+capture est refusée si une clé d’API y est déjà rangée.
 
 Prérequis : les dépendances du studio installées (`npm install` dans
 `studio/`), Rust (le backend est compilé s’il manque) et, pour réduire le poids

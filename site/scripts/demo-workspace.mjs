@@ -5,7 +5,7 @@
  * panneaux et de boutons, calques d’une image de l’éditeur de pixels peints au
  * rectangle) et le logo du projet : aucun asset tiers, aucune bibliothèque de
  * pack. Les PNG sont « cuits » dans le navigateur par le code du studio
- * lui-même (`renderGenerator`, `renderAsset`), voir `capture.mjs`.
+ * lui-même (`renderGeneratorBlob`, `renderAsset`), voir `capture.mjs`.
  *
  * Géométrie du coffre (docs/rendering.md) : cellule d’un slot en
  * (7 + 18 × col, 17 + 18 × ligne), 18 × 18 px ; titre en (8, 6).
@@ -368,6 +368,94 @@ const shopTabIcon = {
       rects: [[11, 10, 3, 1, '#ffffff'], [10, 11, 1, 3, '#ffffff'], [12, 9, 2, 1, '#fff6c8']],
     },
   ],
+};
+
+/* ---------- Génération par IA : fournisseurs simulés ---------- */
+
+/**
+ * Émeraude de 16 × 16 que renvoie le faux Automatic1111 des captures : dessinée
+ * ici, agrandie ×16 sur un fond clair légèrement bruité, comme une image de
+ * modèle. `#` contour, `G` reflet, `g` face, `d` ombre, `.` fond.
+ */
+const EMERALD = [
+  '................',
+  '......####......',
+  '....##GGgg##....',
+  '...#GGgggggg#...',
+  '..#GGgggggggd#..',
+  '..#Ggggggggdd#..',
+  '.#Ggggggggggdd#.',
+  '.#gggggggggddd#.',
+  '.#ggggggggdddd#.',
+  '..#dggggggddd#..',
+  '..#ddggggdddd#..',
+  '...#dddddddd#...',
+  '....##dddd##....',
+  '......####......',
+  '................',
+  '................',
+];
+
+/**
+ * Menu que renvoie le faux Ollama : une boutique paginée. Le premier essai
+ * place volontairement le titre trop haut (`y = 2`) ; le studio renvoie
+ * l’erreur au modèle, qui la corrige au second essai.
+ */
+function aiMenu(id, rows, corrected) {
+  const last = rows - 1;
+  return {
+    formatVersion: 1,
+    id,
+    name: 'Marché de nuit',
+    container: { type: 'chest', rows },
+    state: { page: { type: 'page', list: 'offres' } },
+    layers: [
+      {
+        id: 'fond',
+        texture: 'fond.png',
+        x: 0,
+        y: 0,
+        generator: { style: 'panel', width: 176, height: 114 + 18 * rows, color: '#c6c6c6', cells: [{ col: 0, row: 0, width: 9, height: last }], cellColor: '#8b8b8b' },
+      },
+      { id: 'precedent', texture: 'precedent.png', ...cell(0, last), generator: button(18, 18, '#e0892b') },
+      { id: 'suivant', texture: 'suivant.png', ...cell(8, last), generator: button(18, 18, '#e0892b') },
+    ],
+    texts: [
+      { id: 'titre', x: 8, y: corrected ? 6 : 2, color: '#404040', value: 'Marché de nuit' },
+      { id: 'page', x: 88, y: 22 + 18 * last, align: 'center', color: '#404040', value: '{page.number}/{page.count}' },
+    ],
+    slots: [
+      { id: 'offres', kind: 'list', list: 'offres', area: { col: 0, row: 0, width: 9, height: last } },
+      {
+        id: 'precedent',
+        kind: 'button',
+        area: { col: 0, row: last },
+        item: { invisible: true, name: '<gray>Page précédente' },
+        onClick: [{ type: 'prevPage', list: 'offres' }],
+      },
+      {
+        id: 'suivant',
+        kind: 'button',
+        area: { col: 8, row: last },
+        item: { invisible: true, name: '<gray>Page suivante' },
+        onClick: [{ type: 'nextPage', list: 'offres' }],
+      },
+    ],
+  };
+}
+
+/** Réponses des fournisseurs simulés et descriptions saisies dans les captures. */
+export const DEMO_AI = {
+  image: {
+    art: EMERALD,
+    // Proches (sans y être) de la palette Menu Forge : la réduction y ramène chaque teinte.
+    colors: { '#': '#1f2226', G: '#e8fff0', g: '#4ee85a', d: '#119e22' },
+    background: '#efe9dc',
+    scale: 16,
+  },
+  menu: aiMenu,
+  texturePrompt: 'Émeraude taillée, facettes vert vif, contour sombre',
+  interfacePrompt: 'Boutique paginée : une grille d’offres, flèches page précédente et suivante',
 };
 
 /**

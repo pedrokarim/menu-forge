@@ -8,7 +8,10 @@
  *    réglages avec `"libraries": []` – aucun asset tiers ne peut apparaître.
  * 2. Lance le backend Rust (`studio-api`, sans Discord) et Vite sur des ports
  *    dédiés, cuit les textures avec le code du studio, puis pilote l’interface
- *    avec Playwright.
+ *    avec Playwright. Les captures de la génération par IA passent par des
+ *    fournisseurs **simulés** sur ce poste (un faux Automatic1111 et un faux
+ *    Ollama, sur un port libre de 127.0.0.1) : aucun service réel, aucune clé ;
+ *    la capture est refusée si une clé est déjà rangée dans le trousseau.
  * 3. Écrit les PNG dans `site/assets/screens/` en masquant les chemins de la
  *    machine, puis les optimise (Pillow, si Python est disponible).
  *
@@ -28,11 +31,13 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import http from 'node:http';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { DEMO_ASSETS, DEMO_MENUS, DEMO_PIXELS, DEMO_WORKSPACE_NAME } from './demo-workspace.mjs';
+import { deflateSync } from 'node:zlib';
+import { DEMO_AI, DEMO_ASSETS, DEMO_MENUS, DEMO_PIXELS, DEMO_WORKSPACE_NAME } from './demo-workspace.mjs';
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_DIR = path.resolve(SITE_DIR, '..');
@@ -135,6 +140,93 @@ async function waitForApi() {
   throw new Error(`studio-api ne répond pas sur le port ${API_PORT}`);
 }
 
+/* ---------- Fournisseurs d’IA simulés ---------- */
+
+const CRC_TABLE = new Uint32Array(256).map((_, index) => {
+  let value = index;
+  for (let bit = 0; bit < 8; bit++) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+  return value >>> 0;
+});
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const chunk = Buffer.alloc(12 + data.length);
+  chunk.writeUInt32BE(data.length, 0);
+  chunk.write(type, 4, 'ascii');
+  data.copy(chunk, 8);
+  chunk.writeUInt32BE(crc32(chunk.subarray(4, 8 + data.length)), 8 + data.length);
+  return chunk;
+}
+
+/** PNG RGBA minimal : `pixel(x, y)` renvoie `[r, g, b, a]`. */
+function encodePng(width, height, pixel) {
+  const stride = width * 4 + 1;
+  const raw = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) raw.set(pixel(x, y), y * stride + 1 + x * 4);
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  return Buffer.concat([signature, pngChunk('IHDR', header), pngChunk('IDAT', deflateSync(raw)), pngChunk('IEND', Buffer.alloc(0))]);
+}
+
+/** Image « renvoyée par le modèle » : l’émeraude de la démonstration, agrandie, fond clair bruité. */
+function fakeModelImage() {
+  const { art, colors, background, scale } = DEMO_AI.image;
+  if (art.some((row) => row.length !== art.length)) throw new Error('Dessin de l’émeraude : lignes de longueur inégale');
+  const rgb = (hex) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+  const size = art.length * scale;
+  return encodePng(size, size, (x, y) => {
+    const key = art[Math.floor(y / scale)][Math.floor(x / scale)];
+    const noise = ((x * 7 + y * 13) % 7) - 3;
+    const base = rgb(key === '.' ? background : colors[key]);
+    return [...base.map((value) => Math.max(0, Math.min(255, value + noise))), 255];
+  }).toString('base64');
+}
+
+/**
+ * Faux Automatic1111 (images) et faux Ollama (texte) sur 127.0.0.1, port libre.
+ * Rien ne sort du poste : le backend du studio les appelle comme de vrais
+ * serveurs locaux, et reçoit les réponses de `DEMO_AI`.
+ */
+async function startFakeProviders() {
+  const image = fakeModelImage();
+  const reply = (response, value) => {
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify(value));
+  };
+  const server = http.createServer((request, response) => {
+    let body = '';
+    request.on('data', (part) => (body += part));
+    request.on('end', () => {
+      if (request.url === '/sdapi/v1/sd-models') return reply(response, [{ title: 'demo.safetensors' }]);
+      if (request.url === '/sdapi/v1/txt2img') return reply(response, { images: [image] });
+      if (request.url === '/api/tags') return reply(response, { models: [{ name: 'llama3.2:latest' }] });
+      if (request.url === '/api/chat') {
+        const { messages } = JSON.parse(body);
+        const system = messages[0]?.content ?? '';
+        const id = /"id": "([a-z0-9_]+)"/.exec(system)?.[1] ?? 'menu';
+        const rows = Number(/"rows": (\d)/.exec(system)?.[1] ?? 6);
+        const corrected = messages.some((message) => String(message.content).includes('ne passe pas la validation'));
+        const content = JSON.stringify(DEMO_AI.menu(id, rows, corrected));
+        return reply(response, { message: { role: 'assistant', content }, done: true });
+      }
+      response.writeHead(404, { 'Content-Type': 'text/plain' });
+      response.end('inconnu');
+    });
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  return { server, endpoint: `http://127.0.0.1:${server.address().port}` };
+}
+
 /* ---------- Espace de démonstration ---------- */
 
 function prepareWorkDir() {
@@ -156,13 +248,14 @@ function prepareWorkDir() {
 
 /**
  * Écrit menus, assets, images de pixels et textures par l’API, depuis la page :
- * les PNG sont produits par le code du studio (`renderGenerator`, `renderAsset`,
+ * les PNG sont produits par le code du studio (`renderGeneratorBlob`, `renderAsset`,
  * encodeur PNG de l’éditeur de pixels).
  */
 async function seedWorkspace(page) {
   await page.evaluate(
     async ({ menus, assets, pixels }) => {
       const generator = await import('/src/model/generator.ts');
+      const textureRender = await import('/src/model/textureRender.ts');
       const assetRender = await import('/src/asset/render.ts');
       const pixelDocument = await import('/src/pixel/document.ts');
       const pixelIo = await import('/src/pixel/io.ts');
@@ -192,7 +285,10 @@ async function seedWorkspace(page) {
       }
       for (const menu of menus) {
         for (const layer of menu.layers) {
-          if (layer.generator) await putTexture(layer.texture, generator.renderGenerator(layer.generator, layer));
+          if (layer.generator) {
+            const png = await textureRender.renderGeneratorBlob(layer.generator, layer);
+            await put(`/api/textures/${layer.texture.split('/').map(encodeURIComponent).join('/')}`, png, 'image/png');
+          }
         }
         await put(`/api/menus/${menu.id}`, JSON.stringify(menu, null, 2), 'application/json');
         await pause();
@@ -208,7 +304,7 @@ async function seedWorkspace(page) {
           layer.name = spec.name;
           layer.opacity = spec.opacity ?? 100;
           if (spec.generator) {
-            const canvas = generator.renderGenerator(spec.generator, { x: 0, y: 0 });
+            const canvas = textureRender.imageToCanvas(textureRender.renderGeneratorImage(spec.generator, { x: 0, y: 0 }));
             layer.data.set(canvas.getContext('2d').getImageData(0, 0, width, height).data);
           }
           for (const [x, y, w, h, color] of spec.rects) {
@@ -378,7 +474,8 @@ shot('asset-editor', 'Éditeur d’assets (mode libre) : un encart d’aide', as
 
 shot('shortcuts', 'Aide-mémoire des raccourcis', async (page) => {
   await open(page, '#/accueil');
-  await page.locator('body').click({ position: { x: 700, y: 880 } });
+  // Clic dans la barre de titre, vide : le bas de l’accueil porte des cartes de documents.
+  await page.locator('body').click({ position: { x: 700, y: 22 } });
   await page.keyboard.press('?');
   await page.locator('.modal').first().waitFor();
   await wait(400);
@@ -526,6 +623,122 @@ shot('settings', 'Paramètres', async (page) => {
   await open(page, '#/parametres');
 });
 
+/* ---------- Générateur d’interfaces ---------- */
+
+/** Champ d’un dialogue par le texte exact de son libellé (`label.field`). */
+const field = (scope, label) =>
+  scope
+    .locator('label.field')
+    .filter({ has: scope.page().locator('.field-label', { hasText: new RegExp(`^${label}$`) }) })
+    .locator('input, select, textarea')
+    .first();
+
+/** Ouvre le générateur d’interfaces par l’action rapide de l’accueil. */
+async function openInterfaceGenerator(page) {
+  await open(page, '#/accueil');
+  await page.locator('.quick-action', { hasText: 'Générer une interface' }).click();
+  const modal = page.locator('.modal').filter({ has: page.locator('.interface-generator') }).first();
+  await modal.waitFor({ timeout: 30000 });
+  await wait(300);
+  return modal;
+}
+
+shot('interface-generator', 'Générateur d’interfaces : barre d’onglets en style « sombre à accent »', async (page) => {
+  const modal = await openInterfaceGenerator(page);
+  await modal.getByRole('radio', { name: 'Barre d’onglets' }).click();
+  await field(modal, 'Famille de styles').selectOption('dark');
+  await field(modal, 'Nom').fill('Quêtes');
+  await wait(500);
+  await page.mouse.move(5, 5);
+  await wait(200);
+  return modal;
+});
+
+shot('generated-menu', 'Une boutique générée (style mc-rs), ouverte dans l’éditeur', async (page) => {
+  const modal = await openInterfaceGenerator(page);
+  await field(modal, 'Nom').fill('Marché');
+  await wait(300);
+  await modal.getByRole('button', { name: 'Créer le menu' }).click();
+  await page.getByRole('status').filter({ hasText: 'créé' }).waitFor({ timeout: 30000 });
+  await zoomIn(page);
+  await page.mouse.move(700, 880);
+  await wait(500);
+});
+
+/* ---------- Génération par IA (fournisseurs simulés) ---------- */
+
+/** Adresse du faux serveur local (fixée au lancement). */
+let fakeEndpoint = '';
+
+/** Règle un fournisseur par l’API du studio (`enabled`, `endpoint`), depuis la page. */
+async function configureAi(page, provider, patch) {
+  await page.evaluate(
+    async ({ provider: id, patch: value }) => {
+      const api = await import('/src/ai/api.ts');
+      await api.configureProvider(id, value);
+    },
+    { provider, patch },
+  );
+}
+
+/** Refuse la capture si une vraie clé est rangée dans le trousseau (elle n’a rien à faire à l’écran). */
+async function assertNoRealKeys(page) {
+  const configured = await page.evaluate(async () => {
+    const api = await import('/src/ai/api.ts');
+    const list = await api.fetchProviders();
+    return list.providers.filter((provider) => provider.keyConfigured).map((provider) => provider.id);
+  });
+  if (configured.length > 0) throw new Error(`clé d’API déjà rangée pour ${configured.join(', ')} : capture refusée`);
+}
+
+shot('ai-settings', 'Paramètres, section IA : onze fournisseurs, aucun activé', async (page) => {
+  await page.setViewportSize(TALL_VIEWPORT);
+  for (const provider of ['automatic1111', 'ollama']) await configureAi(page, provider, { enabled: false, endpoint: null });
+  await open(page, '#/parametres');
+  await page.locator('.ai-provider').nth(10).waitFor({ timeout: 30000 });
+  await assertNoRealKeys(page);
+  await page.locator('.ai-provider[data-provider="openai"] summary').click();
+  await page.locator('#settings-ai').evaluate((heading) => heading.closest('section').scrollIntoView({ block: 'start' }));
+  await page.mouse.move(5, 600);
+  await wait(400);
+});
+
+shot('ai-texture', '« Générer une texture » : sortie du modèle et texture contrainte', async (page) => {
+  await configureAi(page, 'automatic1111', { enabled: true, endpoint: fakeEndpoint });
+  await open(page, '#/editeur/pixels/shop_tab_icon');
+  await page.locator('canvas.pixel-canvas').waitFor({ timeout: 30000 });
+  await assertNoRealKeys(page);
+  await page.getByRole('button', { name: 'Générer une texture…' }).first().click();
+  const modal = page.locator('.modal').first();
+  await modal.waitFor();
+  await field(modal, 'Fournisseur').selectOption('automatic1111');
+  await field(modal, 'Taille type').selectOption('0');
+  await field(modal, 'Palette imposée').selectOption('menu-forge');
+  await modal.locator('textarea').fill(DEMO_AI.texturePrompt);
+  await modal.getByRole('button', { name: 'Générer', exact: true }).click();
+  await page.getByRole('img', { name: 'Texture contrainte' }).waitFor({ timeout: 30000 });
+  await page.mouse.move(5, 5);
+  await wait(400);
+  return modal;
+});
+
+shot('ai-interface', '« Générer une interface » : essai refusé, corrigé, validé', async (page) => {
+  await configureAi(page, 'ollama', { enabled: true, endpoint: fakeEndpoint });
+  await open(page, '#/accueil');
+  await assertNoRealKeys(page);
+  await page.getByRole('button', { name: 'Générer une interface…', exact: true }).click();
+  const modal = page.locator('.modal').first();
+  await modal.waitFor({ timeout: 30000 });
+  await field(modal, 'Fournisseur').selectOption('ollama');
+  await modal.locator('textarea').fill(DEMO_AI.interfacePrompt);
+  await field(modal, 'Nom').fill('Marché de nuit');
+  await modal.getByRole('button', { name: 'Générer', exact: true }).click();
+  await modal.locator('.ai-log li.is-ok').waitFor({ timeout: 30000 });
+  await page.mouse.move(5, 5);
+  await wait(400);
+  return modal;
+});
+
 /* ---------- Optimisation ---------- */
 
 /** Réduit les PNG à une palette de 256 couleurs (Pillow), s’ils y gagnent. */
@@ -557,11 +770,15 @@ function optimize(files) {
 const children = [];
 let vite = null;
 let browser = null;
+let fakeProviders = null;
 const errors = [];
 
 try {
   prepareWorkDir();
   mkdirSync(OUT_DIR, { recursive: true });
+  fakeProviders = await startFakeProviders();
+  fakeEndpoint = fakeProviders.endpoint;
+  log(`fournisseurs d’IA simulés sur ${fakeEndpoint}`);
 
   const api = spawn(
     studioApiBinary(),
@@ -591,7 +808,8 @@ try {
     cacheDir: path.join(WORK_DIR, 'vite'),
     server: {
       // `studio/node_modules` peut être une jonction (worktree) : on autorise aussi sa cible.
-      fs: { allow: [STUDIO_DIR, realpathSync(path.join(STUDIO_DIR, 'node_modules'))] },
+      // `docs/` : le dialogue « Générer une interface » importe `docs/menu.schema.json`.
+      fs: { allow: [STUDIO_DIR, path.join(REPO_DIR, 'docs'), realpathSync(path.join(STUDIO_DIR, 'node_modules'))] },
       host: 'localhost',
       port: UI_PORT,
       strictPort: true,
@@ -651,6 +869,8 @@ try {
 } finally {
   await browser?.close().catch(() => {});
   await vite?.close().catch(() => {});
+  fakeProviders?.server.closeAllConnections();
+  fakeProviders?.server.close();
   for (const child of children) child.kill();
 }
 
