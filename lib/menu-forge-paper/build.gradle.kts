@@ -13,9 +13,15 @@ tasks.withType<JavaCompile>().configureEach {
 
 dependencies {
   compileOnly("io.papermc.paper:paper-api:${property("paper_api_version")}")
-  implementation(project(":menu-forge-core")) {
+  // `api` : l’API publique (MenuForgeApi) expose des types du noyau
+  // (MenuDefinition, GeneratedPack), un consommateur doit donc les voir.
+  api(project(":menu-forge-core")) {
     exclude(group = "com.google.code.gson", module = "gson")
   }
+
+  // Serveur simulé pour les tests (MockBukkit bâti sur paper-api 1.20.6, la
+  // version minimale visée).
+  testImplementation("com.github.seeseemelk:MockBukkit-v1.20:${property("mockbukkit_version")}")
 }
 
 tasks.processResources {
@@ -25,10 +31,6 @@ tasks.processResources {
   filesMatching("plugin.yml") {
     expand(props)
   }
-}
-
-tasks.jar {
-  archiveClassifier.set("plain")
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {

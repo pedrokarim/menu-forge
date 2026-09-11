@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "id": "parity_main",
+  "name": "Parité",
+  "extends": ["parity_frame"],
+  "container": { "type": "chest", "rows": 6 },
+  "state": {
+    "tab": { "type": "enum", "values": ["a", "b"], "default": "a" }
+  },
+  "layers": [
+    { "id": "empty", "texture": "parity/empty.png", "x": 0, "y": 0 },
+    { "id": "panel", "texture": "parity/panel.png", "x": 0, "y": 30 },
+    {
+      "id": "veil", "texture": "parity/veil.png", "x": 0, "y": 0,
+      "visibleWhen": { "state": "tab", "is": "b" }
+    },
+    { "id": "Icon", "texture": "parity/icon.png", "x": 20, "y": 2 },
+    { "id": "icon", "texture": "parity/icon.png", "x": 150, "y": 120 }
+  ],
+  "texts": [
+    { "id": "title", "x": 8, "y": 6, "value": "Bonjour {viewer.name}" },
+    { "id": "tab", "x": 88, "y": 100, "align": "center", "color": "#404040", "value": "Onglet {state.tab}" },
+    { "id": "right", "x": 168, "y": 20, "align": "right", "color": "#ffaa00", "value": "Épée !" }
+  ]
+}

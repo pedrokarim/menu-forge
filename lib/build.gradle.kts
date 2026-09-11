@@ -9,6 +9,7 @@ allprojects {
 
 subprojects {
   apply(plugin = "java-library")
+  apply(plugin = "maven-publish")
 
   repositories {
     mavenCentral()
@@ -34,5 +35,15 @@ subprojects {
   tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     systemProperty("java.awt.headless", "true")
+  }
+
+  // `./gradlew publishToMavenLocal` : pour un serveur qui consomme la lib sans
+  // build composite (voir README, « Brancher un serveur »).
+  extensions.configure<PublishingExtension> {
+    publications {
+      create<MavenPublication>("maven") {
+        from(components["java"])
+      }
+    }
   }
 }

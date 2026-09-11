@@ -33,6 +33,26 @@ JAVA_HOME="/c/Program Files/Java/jdk-21" ./gradlew build
 - `menu-forge-paper/build/libs/MenuForge-<version>.jar` : le plugin, noyau
   inclus (Gson et Adventure sont fournis par Paper).
 
+### Tests
+
+`./gradlew build` lance :
+
+- les tests du noyau (parseur, gabarits, conditions, mesure, composition du
+  titre, génération du pack) ;
+- la **fixture de parité** partagée avec le studio
+  (`menu-forge-core/src/test/resources/parity/`) : menus et textures dont la
+  sortie attendue (polices, textures recadrées, titres) est vérifiée octet
+  pour octet par `ParityFixtureTest`, et par `studio/tests/parity.test.ts`
+  côté studio. Après un changement voulu de l’algorithme :
+  `./gradlew :menu-forge-core:test --tests '*ParityFixtureTest' -PparityUpdate=true`,
+  puis `npm test` dans `studio/` ;
+- les tests du plugin sur un **serveur simulé** (MockBukkit bâti sur
+  paper-api 1.20.6, la version minimale visée) : ouverture d’un menu et titre
+  composé, clics verrouillés sauf dans les slots `input` (shift-clic, glisser,
+  double-clic), `setState` qui reconstruit le coffre, pagination bornée, pile
+  `open` / `back` / `close`, actions `custom`, drapeaux et variables du
+  serveur, commandes et complétion, espaces de travail supplémentaires.
+
 ## Le noyau en bref
 
 | Paquetage | Contenu |
@@ -175,6 +195,28 @@ Variables résolues par la lib : `{viewer}` et `{viewer.name}`, `{viewer.uuid}`
 Pour un pipeline de pack existant (celui d’Enderium, par exemple), les fichiers
 générés sont disponibles en mémoire via `api.generatedPack().files()`, chemins
 relatifs à la racine du pack.
+
+### Menus embarqués par un plugin
+
+| Méthode | Rôle |
+|---|---|
+| `addWorkspace(root)` / `removeWorkspace(root)` | Espace de travail supplémentaire (`root/menus/**`, `root/textures/**`), lu à chaque rechargement après celui de MenuForge : c’est ainsi qu’un plugin fournit ses menus. Un id déjà vu est refusé ; une texture est prise dans le premier espace qui la possède. |
+| `registerReloadListener(listener)` | Appelé après chaque rechargement avec le pack régénéré (pour reconstruire le resource pack du serveur). |
+| `unregisterFlagProvider`, `unregisterPlaceholderResolver`, `unregisterReloadListener`, `unregisterCustomAction` | Retrait des SPI à la désactivation du plugin consommateur. |
+
+### Consommer la lib depuis un autre build
+
+Le plugin consommateur dépend de `dev.menuforge:menu-forge-paper` en
+`compileOnly` et déclare `softdepend: [MenuForge]` : MenuForge reste un plugin
+à part, à ne jamais embarquer ni relocaliser.
+
+- **Build composite** (conseillé en développement) :
+  `includeBuild("../menu-forge/lib")` dans son `settings.gradle.kts` ; Gradle
+  substitue la dépendance par le projet, compilé depuis les sources.
+- **Maven local** : `./gradlew publishToMavenLocal` ici, puis `mavenLocal()`
+  côté consommateur.
+
+Premier consommateur : enderium-core (voir son `.agent/menu-forge.md`).
 
 ## Calibration en jeu
 

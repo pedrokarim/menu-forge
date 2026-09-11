@@ -18,6 +18,12 @@
 //! | `POST /libraries` | `{ id, name, root, ownership }` : branche un pack extrait |
 //! | `DELETE /libraries/:id` | débranche un pack (rien n’est supprimé sur le disque) |
 //! | `POST /libraries/:id/reindex` | reconstruit l’index en ignorant les caches |
+//! | `POST /export/plugin` | `{ menus, textures }` : menus **résolus** (documents du format, gabarits appliqués) et PNG qu’ils utilisent (chemins relatifs à `textures/`), écrits dans `<export.enderiumResources>/menuforge/` (`menus/<id>.menu.json`, `textures/…`) et **jamais ailleurs** ; tout est vérifié avant la première écriture ; les fichiers du précédent export (manifeste `menuforge/.menu-forge-export.json`) absents de celui-ci sont supprimés, eux seuls → `{ directory, menus, textures, removed }` ; 409 si le dossier d’export n’est pas réglé ou n’existe plus |
+//! | `PUT /exports/<nom>.zip` | corps : archive zip (pack de test autonome généré par l’interface), écrite dans `<espace actif>/exports/<nom>.zip` → `{ path, size }` ; nom `[a-z0-9_.-]+.zip`, corps commençant par une signature zip |
+//!
+//! La génération du pack (polices, textures recadrées) est faite par
+//! l’interface (`studio/src/export/`), avec le même algorithme que la lib ;
+//! voir [`crate::export`].
 //!
 //! Les autres méthodes sur ces chemins retombent sur les routes historiques
 //! (404 « Route inconnue »), comme avant.
@@ -104,6 +110,11 @@ impl Backend {
             }
             ("/documents/trash", "POST") => json(&self.current_workspace().trash_document(&body_object(&request.body)?)?),
             ("/libraries", "POST") => self.add_library(&request.body)?,
+            ("/export/plugin", "POST") => self.export_plugin(&request.body)?,
+            _ if method == "PUT" && crate::export::pack_route(pathname).is_some() => {
+                let name = crate::export::pack_route(pathname).unwrap_or_default();
+                self.export_pack(name, &request.body)?
+            }
             _ => match library_action(pathname) {
                 Some((raw_id, None)) if method == "DELETE" => self.remove_library(&decode_component(raw_id)?)?,
                 Some((raw_id, Some("reindex"))) if method == "POST" => {

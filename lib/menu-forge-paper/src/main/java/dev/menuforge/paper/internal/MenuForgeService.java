@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -45,10 +46,13 @@ public final class MenuForgeService implements MenuForgeApi {
   private final List<FlagProvider> flagProviders = new CopyOnWriteArrayList<>();
   private final List<PlaceholderResolver> placeholderResolvers = new CopyOnWriteArrayList<>();
   private final Map<String, CustomActionHandler> customActions = new ConcurrentHashMap<>();
+  private final List<Path> extraWorkspaces = new CopyOnWriteArrayList<>();
+  private final List<Consumer<GeneratedPack>> reloadListeners = new CopyOnWriteArrayList<>();
   private final SessionManager sessions = new SessionManager();
   private final ItemRenderer itemRenderer = new ItemRenderer(this);
   private final ActionExecutor actionExecutor = new ActionExecutor(this);
 
+  private InventoryFactory inventoryFactory = org.bukkit.Bukkit::createInventory;
   private ItemFactory customItemFactory;
   private DefaultItemFactory defaultItemFactory = new DefaultItemFactory(Material.PAPER, null, 0);
   private Map<String, CompiledMenu> menus = Map.of();
@@ -97,7 +101,12 @@ public final class MenuForgeService implements MenuForgeApi {
       logger().log(Level.SEVERE, "impossible de créer l’espace de travail " + workspace, exception);
     }
 
-    final WorkspaceLoader.Result loaded = WorkspaceLoader.load(menusDirectory, texturesDirectory, logger());
+    final List<WorkspaceLoader.Root> roots = new java.util.ArrayList<>();
+    roots.add(new WorkspaceLoader.Root(menusDirectory, texturesDirectory, ""));
+    for (final Path extra : extraWorkspaces) {
+      roots.add(WorkspaceLoader.Root.of(extra, extra.getFileName() + ":"));
+    }
+    final WorkspaceLoader.Result loaded = WorkspaceLoader.load(roots, logger());
     menus = Collections.unmodifiableMap(loaded.menus());
 
     GeneratedPack generated = GeneratedPack.empty();
@@ -113,6 +122,13 @@ public final class MenuForgeService implements MenuForgeApi {
       logger().log(Level.SEVERE, message, exception);
     }
     pack = generated;
+    for (final Consumer<GeneratedPack> listener : reloadListeners) {
+      try {
+        listener.accept(generated);
+      } catch (final RuntimeException exception) {
+        logger().log(Level.WARNING, "écouteur de rechargement en erreur", exception);
+      }
+    }
 
     final int userMenus = (int) menus.keySet().stream().filter(id -> !WorkspaceLoader.isBuiltIn(id)).count();
     logger().info(userMenus + " menu(s) chargé(s), " + pack.size() + " fichier(s) de pack écrits dans " + packDirectory()
@@ -171,6 +187,15 @@ public final class MenuForgeService implements MenuForgeApi {
 
   TitleRenderer titleRenderer() {
     return titleRenderer;
+  }
+
+  InventoryFactory inventoryFactory() {
+    return inventoryFactory;
+  }
+
+  /** Remplace la création des coffres (tests uniquement). */
+  void setInventoryFactory(final InventoryFactory factory) {
+    inventoryFactory = Objects.requireNonNull(factory, "factory");
   }
 
   Optional<CompiledMenu> compiled(final String menuId) {
@@ -261,8 +286,18 @@ public final class MenuForgeService implements MenuForgeApi {
   }
 
   @Override
+  public void unregisterFlagProvider(final FlagProvider provider) {
+    flagProviders.remove(provider);
+  }
+
+  @Override
   public void registerPlaceholderResolver(final PlaceholderResolver resolver) {
     placeholderResolvers.add(Objects.requireNonNull(resolver, "resolver"));
+  }
+
+  @Override
+  public void unregisterPlaceholderResolver(final PlaceholderResolver resolver) {
+    placeholderResolvers.remove(resolver);
   }
 
   @Override
@@ -313,6 +348,37 @@ public final class MenuForgeService implements MenuForgeApi {
   @Override
   public void reload() {
     reloadWorkspace();
+  }
+
+  @Override
+  public void addWorkspace(final Path root) {
+    final Path normalized = Objects.requireNonNull(root, "root").toAbsolutePath().normalize();
+    if (!extraWorkspaces.contains(normalized)) {
+      extraWorkspaces.add(normalized);
+    }
+  }
+
+  @Override
+  public void removeWorkspace(final Path root) {
+    extraWorkspaces.remove(Objects.requireNonNull(root, "root").toAbsolutePath().normalize());
+  }
+
+  @Override
+  public List<Path> workspaces() {
+    final List<Path> all = new java.util.ArrayList<>();
+    all.add(plugin.getDataFolder().toPath().resolve("workspace").toAbsolutePath().normalize());
+    all.addAll(extraWorkspaces);
+    return List.copyOf(all);
+  }
+
+  @Override
+  public void registerReloadListener(final Consumer<GeneratedPack> listener) {
+    reloadListeners.add(Objects.requireNonNull(listener, "listener"));
+  }
+
+  @Override
+  public void unregisterReloadListener(final Consumer<GeneratedPack> listener) {
+    reloadListeners.remove(listener);
   }
 
   /** Clé d’espace de noms utilitaire (utilisée par la fabrique par défaut). */

@@ -245,7 +245,7 @@ final class MenuSessionImpl implements MenuSession {
   }
 
   private boolean isViewOpen() {
-    return view != null && player.getOpenInventory().getTopInventory().getHolder(false) == view;
+    return view != null && MenuHolder.of(player.getOpenInventory().getTopInventory()) == view;
   }
 
   private void show(final boolean keepInputs) {

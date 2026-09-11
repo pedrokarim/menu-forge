@@ -1,0 +1,2 @@
+# Fixture de parité studio / lib : comparée à l’octet près, jamais convertie (fins de ligne comprises).
+lib/menu-forge-core/src/test/resources/parity/** -text

@@ -1,0 +1,12 @@
+{
+  "formatVersion": 1,
+  "id": "parity_small",
+  "name": "Petit menu",
+  "container": { "type": "chest", "rows": 3 },
+  "layers": [
+    { "id": "panel", "texture": "parity/panel.png", "x": 0, "y": 10 }
+  ],
+  "texts": [
+    { "id": "count", "x": 170, "y": 60, "align": "right", "value": "12/46" }
+  ]
+}

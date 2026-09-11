@@ -62,7 +62,11 @@ export function buildPreviewContext(menu: MenuDefinition, values: PreviewValues)
   return { state, flags, variables };
 }
 
-/** Remplace les variables `{nom}` connues ; les inconnues restent telles quelles. */
+/**
+ * Remplace les variables `{nom}` connues ; les inconnues restent telles
+ * quelles. Mêmes noms que la lib (`Variables.PATTERN`) : lettres, chiffres,
+ * `_`, `.`, `:` et `-`.
+ */
 export function interpolate(template: string, variables: Record<string, string>): string {
-  return template.replace(/\{([a-zA-Z0-9_.]+)\}/g, (match, name: string) => variables[name] ?? match);
+  return template.replace(/\{([A-Za-z0-9_.:-]+)\}/g, (match, name: string) => variables[name] ?? match);
 }

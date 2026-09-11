@@ -78,6 +78,7 @@ import { menuReferences, rewriteMenuReferences } from '../model/references';
 import { resolveMenu } from '../model/resolve';
 import { CANVAS_MARGINS, fitZoom, isEditableTarget, stepZoom } from '../canvas/viewport';
 import { INITIAL_EDITOR, editorReducer, selectionIncludes } from '../state/editor';
+import { exportPackZip, exportToPlugin } from '../export/exportWorkspace';
 import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
@@ -330,18 +331,60 @@ export function EditorScreen({
     );
   };
 
+  /** Enregistre le menu ouvert ; `false` en cas d’échec (message affiché). */
   const save = useCallback(async () => {
-    if (!menu) return;
+    if (!menu) return false;
     const json = JSON.stringify(menu);
     try {
       await saveMenu(menu);
       dispatch({ type: 'saved', json });
       setStatus(`« ${menu.id} » enregistré`);
       void refreshWorkspace();
+      return true;
     } catch (error) {
-      setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
+      setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
+      return false;
     }
   }, [menu, refreshWorkspace]);
+
+  // Export en cours : les demandes suivantes sont ignorées jusqu’à la fin.
+  const [exporting, setExporting] = useState(false);
+  const exportingRef = useRef(false);
+  /**
+   * Exporte tout l’espace : vers le plugin (menus résolus et textures), ou en
+   * pack ZIP de test. Le menu ouvert est d’abord enregistré s’il a changé.
+   */
+  const runExport = useCallback(
+    async (target: 'plugin' | 'pack') => {
+      if (exportingRef.current) return;
+      if (dirty && !(await save())) return;
+      exportingRef.current = true;
+      setExporting(true);
+      setStatus(target === 'plugin' ? 'Export vers le plugin…' : 'Génération du pack ZIP…');
+      try {
+        const snapshot = await fetchWorkspace();
+        if (target === 'plugin') {
+          const result = await exportToPlugin(snapshot);
+          const removed =
+            result.removed.length > 0
+              ? `, ${plural(result.removed.length, 'ancien fichier retiré', 'anciens fichiers retirés')}`
+              : '';
+          setStatus(
+            `Exporté vers le plugin${NBSP}: ${plural(result.menus, 'menu')} et ${plural(result.textures, 'texture')}${removed}, dans ${result.directory}`,
+          );
+        } else {
+          const result = await exportPackZip(snapshot);
+          setStatus(`Pack de test écrit${NBSP}: ${result.path} (${plural(result.menus, 'menu')}, ${plural(result.files, 'fichier')})`);
+        }
+      } catch (error) {
+        setStatus(`Échec de l’export${NBSP}: ${errorMessage(error)}`);
+      } finally {
+        exportingRef.current = false;
+        setExporting(false);
+      }
+    },
+    [dirty, save],
+  );
 
   /* Modifications de la sélection */
 
@@ -519,6 +562,11 @@ export function EditorScreen({
     if (command && letter === 's') {
       event.preventDefault();
       void save();
+      return;
+    }
+    if (command && letter === 'e') {
+      event.preventDefault();
+      void runExport(event.shiftKey ? 'pack' : 'plugin');
       return;
     }
     if (isEditableTarget(event.target)) return;
@@ -1317,6 +1365,15 @@ export function EditorScreen({
     { separator: true },
     { label: 'Renommer le menu…', icon: 'pencil', disabled: !menuIsOnDisk, onSelect: () => startRename('menu') },
     { label: 'Ajuster le zoom', icon: 'expand', shortcut: 'Ctrl+0', onSelect: () => setZoomMode('fit') },
+    { separator: true },
+    { label: 'Exporter vers le plugin', icon: 'upload', shortcut: 'Ctrl+E', disabled: exporting, onSelect: () => void runExport('plugin') },
+    {
+      label: 'Exporter un pack ZIP de test',
+      icon: 'download',
+      shortcut: 'Ctrl+Maj+E',
+      disabled: exporting,
+      onSelect: () => void runExport('pack'),
+    },
   ];
 
   const openElementMenu = (target: Selection, event: ReactMouseEvent) => openContextMenu(event, elementMenu(target));
@@ -1465,6 +1522,36 @@ export function EditorScreen({
                   <Icon name={dirty ? 'save' : 'check'} />
                   {dirty ? 'Enregistrer' : 'Enregistré'}
                   {dirty && <span className="dirty-mark" aria-hidden="true" />}
+                </button>
+              </Tooltip>
+              <Tooltip
+                label="Exporter vers le plugin"
+                hint="Tous les menus de l’espace, gabarits appliqués, et leurs textures, dans le dossier réglé dans les paramètres"
+                shortcut="Ctrl+E"
+              >
+                <button
+                  type="button"
+                  onClick={() => void runExport('plugin')}
+                  disabled={exporting || knownMenus.length === 0}
+                  aria-keyshortcuts="Control+E"
+                >
+                  <Icon name={exporting ? 'loader' : 'upload'} />
+                  Exporter
+                </button>
+              </Tooltip>
+              <Tooltip
+                label="Pack ZIP de test"
+                hint="Polices générées, textures et pack.mcmeta, écrits dans exports/ de l’espace : à essayer sans serveur"
+                shortcut="Ctrl+Maj+E"
+              >
+                <button
+                  type="button"
+                  onClick={() => void runExport('pack')}
+                  disabled={exporting || knownMenus.length === 0}
+                  aria-keyshortcuts="Control+Shift+E"
+                >
+                  <Icon name="download" />
+                  Pack ZIP
                 </button>
               </Tooltip>
             </div>

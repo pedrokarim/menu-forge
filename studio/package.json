@@ -17,6 +17,7 @@
     "api": "cargo run --release --manifest-path backend/Cargo.toml --bin studio-api --",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --import ./tests/resolve-ts.mjs --test tests/*.test.ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
