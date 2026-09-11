@@ -26,7 +26,7 @@ import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 import { overlayOpen } from '../ui/overlay';
 import { FormPreview } from './FormPreview';
-import type { PreviewEntry, PreviewScreen } from './FormPreview';
+import type { PreviewEntry, PreviewScreen, TextOverflow } from './FormPreview';
 import { IconPicker } from './IconPicker';
 import './form.css';
 
@@ -65,6 +65,11 @@ const SCREENS: ReadonlyArray<{ id: string; label: string; screen: PreviewScreen 
   { id: 'large', label: 'Grand écran · 640 × 360', screen: { width: 640, height: 360 } },
   { id: 'small', label: 'Petit écran · 427 × 240', screen: { width: 427, height: 240 } },
 ];
+
+const NO_TEXT_OVERFLOW: TextOverflow = { title: false, buttons: [] };
+
+/** Zoom affiché à la française (« ×0,5 »). */
+const zoomLabel = (zoom: number) => `×${String(zoom).replace('.', ',')}`;
 
 const ROLE_LABELS: Record<FormButtonRole | 'button', string> = { button: 'Bouton', banner: 'Bannière', special: 'Spécial' };
 const BUTTON_ID = /^[A-Za-z0-9_.-]+$/u;
@@ -142,6 +147,8 @@ export function FormEditor(props: FormEditorProps) {
   const [screenId, setScreenId] = useState(SCREENS[0].id);
   const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
   const [notice, setNotice] = useState('');
+  // Textes que l’écran simulé coupe ou qui dépassent de leur case (mesurés par l’aperçu).
+  const [textOverflow, setTextOverflow] = useState<TextOverflow>(NO_TEXT_OVERFLOW);
 
   const screen = (SCREENS.find((candidate) => candidate.id === screenId) ?? SCREENS[0]).screen;
   const selected = form.buttons.find((button) => button.id === selectedId) ?? null;
@@ -241,7 +248,8 @@ export function FormEditor(props: FormEditorProps) {
     return () => observer.disconnect();
   }, []);
   const fit = stageSize ? Math.min((stageSize.width - 48) / screen.width, (stageSize.height - 48) / screen.height) : 2;
-  const zoom = Math.max(1, Math.min(6, Math.floor(fit * 2) / 2));
+  // Plancher ×0,5 : un grand écran simulé tient encore dans une zone étroite (1180 px, colonnes pleines).
+  const zoom = Math.max(0.5, Math.min(6, Math.floor(fit * 2) / 2));
 
   /* Bibliothèque : la texture choisie devient l’icône du bouton sélectionné */
 
@@ -317,6 +325,7 @@ export function FormEditor(props: FormEditorProps) {
   };
 
   const visibleCount = preview && !trySession ? preview.entries.length : form.buttons.length;
+  const overflowCount = (textOverflow.title ? 1 : 0) + textOverflow.buttons.length;
 
   return (
     <main className="workspace form-editor">
@@ -324,11 +333,11 @@ export function FormEditor(props: FormEditorProps) {
         <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche" hidden={trySession !== null}>
           <button type="button" role="tab" aria-selected={leftTab === 'buttons'} className={leftTab === 'buttons' ? 'active' : ''} onClick={() => setLeftTab('buttons')}>
             <Icon name="list" />
-            Boutons
+            <span className="tab-label">Boutons</span>
           </button>
           <button type="button" role="tab" aria-selected={leftTab === 'library'} className={leftTab === 'library' ? 'active' : ''} onClick={() => setLeftTab('library')}>
             <Icon name="library" />
-            Bibliothèque
+            <span className="tab-label">Bibliothèque</span>
           </button>
         </div>
         <div hidden={leftTab !== 'library' || trySession !== null}>
@@ -370,6 +379,12 @@ export function FormEditor(props: FormEditorProps) {
                 onFocus={onCheckpoint}
                 onChange={(value) => updateForm((draft) => void (draft.title = value), false)}
               />
+              {textOverflow.title && (
+                <p className="warning">
+                  <Icon name="warning" />
+                  <span>Titre tronqué en jeu&nbsp;: plus large que la disposition, l’écran le coupe. Raccourcis-le.</span>
+                </p>
+              )}
               <LiveText
                 label="Contenu"
                 value={form.content ?? ''}
@@ -424,6 +439,11 @@ export function FormEditor(props: FormEditorProps) {
                           <span className="muted small mono">{button.id}</span>
                         </span>
                         {button.role && <span className={`pill form-role role-${button.role}`}>{ROLE_LABELS[button.role]}</span>}
+                        {textOverflow.buttons.includes(button.id) && (
+                          <span className="form-fit-icon" title="Texte tronqué en jeu">
+                            <Icon name="warning" />
+                          </span>
+                        )}
                         {button.visibleWhen && <Icon name="eye" />}
                         {(button.onClick ?? []).length > 0 && <span className="count">{(button.onClick ?? []).length}</span>}
                       </li>
@@ -467,7 +487,13 @@ export function FormEditor(props: FormEditorProps) {
             ))}
           </select>
           <span className="stage-toolbar-end muted small">
-            {info.label} · {plural(visibleCount, 'bouton envoyé', 'boutons envoyés')} · ×{zoom}
+            {info.label} · {plural(visibleCount, 'bouton envoyé', 'boutons envoyés')} · {zoomLabel(zoom)}
+            {overflowCount > 0 && (
+              <span className="form-fit-count">
+                <Icon name="warning" />
+                {plural(overflowCount, 'texte tronqué', 'textes tronqués')} en jeu
+              </span>
+            )}
           </span>
         </div>
         <div className="stage form-stage" ref={observeStage} onClick={() => !trySession && setSelectedId(null)}>
@@ -482,6 +508,7 @@ export function FormEditor(props: FormEditorProps) {
               selectedId={trySession ? null : selectedId}
               onPress={press}
               resolveIcon={resolveIcon}
+              onTextOverflow={setTextOverflow}
             />
           ) : (
             <div className="empty-state">
@@ -569,6 +596,12 @@ export function FormEditor(props: FormEditorProps) {
                 )
               }
             />
+            {textOverflow.buttons.includes(selected.id) && (
+              <p className="warning">
+                <Icon name="warning" />
+                <span>Texte tronqué en jeu&nbsp;: il dépasse de sa case dans cette disposition. Raccourcis-le ou ajoute des espaces.</span>
+              </p>
+            )}
             <Field label="Rôle" hint={selected.role === 'banner' ? (info.banner ?? 'Sans effet dans cette disposition.') : selected.role === 'special' ? (info.special ? 'Bouton violet.' : 'Sans effet dans cette disposition.') : 'Bouton ordinaire.'}>
               <select
                 value={selected.role ?? ''}

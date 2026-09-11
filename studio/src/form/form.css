@@ -6,12 +6,68 @@
 /* Centré par `margin: auto` (comme la toile des menus) : un écran simulé plus
    large que la zone reste entièrement atteignable au défilement, rien n’est
    coupé à gauche ni en haut. */
+.form-stage {
+  justify-content: safe center;
+  align-items: safe center;
+}
+
 .form-stage > .bf-screen {
   margin: auto;
 }
 
 .form-library-hint {
   padding: 8px 12px 0;
+}
+
+/* Onglets de la colonne de gauche : si picto et libellé ne tiennent pas côte à
+   côte, le libellé passe sous le picto, entier ; un mot n’est coupé que s’il
+   ne tient pas seul sur sa ligne. Jamais de débordement sur l’onglet voisin. */
+.form-editor .sidebar-tabs button {
+  flex-wrap: wrap;
+  justify-content: center;
+  min-width: 0;
+  height: auto;
+  white-space: normal;
+}
+
+.form-editor .sidebar-tabs .tab-label {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Aides, messages et textes secondaires des colonnes : identifiants et chemins
+   sans espace passent à la ligne. */
+.form-editor .field-hint,
+.form-editor .muted {
+  overflow-wrap: anywhere;
+}
+
+/* Résumé de la barre de l’aperçu : il se replie avec la colonne centrale. */
+.form-editor .stage-toolbar-end {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* Textes tronqués en jeu : compteur de la barre de l’aperçu (visible même
+   quand la colonne étroite masque les autres outils) et repère de la liste. */
+.form-editor .stage-toolbar-end > .form-fit-count {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  color: #ffd27a;
+}
+
+.form-fit-icon {
+  display: inline-flex;
+  flex: none;
+  color: #ffd27a;
 }
 
 .form-button-list {

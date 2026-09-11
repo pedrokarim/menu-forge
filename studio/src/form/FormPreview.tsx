@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useLayoutEffect, useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { parseLegacyText, stripLegacy } from '../lib/legacyText';
 import { BANNER_FLAG, SPECIAL_FLAG, SUBTITLE_SEPARATOR, TITLE_CUT, hasFlag, leading, motdBannerHeight, splitAtCut, storeCategoryCount, without } from '../model/bedrockForm';
@@ -36,6 +36,48 @@ export interface FormPreviewProps {
   onPress: (id: string) => void;
   /** Adresse affichable d’une icône ; `null` : texture Bedrock absente du studio (vignette de remplacement). */
   resolveIcon: (icon: FormIcon) => string | null;
+  /** Textes que la disposition coupe, mesurés après chaque rendu (appelé seulement quand le constat change). */
+  onTextOverflow?: (overflow: TextOverflow) => void;
+}
+
+/**
+ * Textes tronqués en jeu : le titre (sur une ligne, `white-space: pre` comme le
+ * label du pack) plus large que l’écran, et les boutons dont le texte sort de
+ * leur case (grille aux dimensions fixes) ou de l’écran.
+ */
+export interface TextOverflow {
+  title: boolean;
+  /** Identifiants des boutons concernés, dans l’ordre de l’aperçu. */
+  buttons: string[];
+}
+
+/** Marge de mesure (pixels de la page), pour les arrondis du zoom. */
+const OVERFLOW_TOLERANCE = 1;
+
+function measureTextOverflow(screen: HTMLElement): TextOverflow {
+  const box = screen.getBoundingClientRect();
+  const beyond = (rect: DOMRect, limit: DOMRect, vertical: boolean) =>
+    rect.left < limit.left - OVERFLOW_TOLERANCE ||
+    rect.right > limit.right + OVERFLOW_TOLERANCE ||
+    (vertical && (rect.top < limit.top - OVERFLOW_TOLERANCE || rect.bottom > limit.bottom + OVERFLOW_TOLERANCE));
+  let title = false;
+  const buttons = new Set<string>();
+  // Un bouton plus large que l’écran (texte sur une ligne) : rogné à l’horizontale.
+  // À la verticale, les listes défilent : seul l’horizontal compte.
+  for (const entry of screen.querySelectorAll<HTMLElement>('[data-entry]')) {
+    if (beyond(entry.getBoundingClientRect(), box, false)) buttons.add(entry.dataset.entry ?? '');
+  }
+  for (const text of screen.querySelectorAll<HTMLElement>('.bf-text')) {
+    const rect = text.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+    const entry = text.closest<HTMLElement>('[data-entry]');
+    if (entry) {
+      if (beyond(rect, entry.getBoundingClientRect(), true)) buttons.add(entry.dataset.entry ?? '');
+    } else if (beyond(rect, box, false)) {
+      title = true;
+    }
+  }
+  return { title, buttons: [...buttons].filter(Boolean) };
 }
 
 /** Tailles des polices à l’échelle 1 (police par défaut, MinecraftTen). */
@@ -139,6 +181,7 @@ function press(ctx: RenderContext, entry: PreviewEntry, className: string, style
       tabIndex={0}
       title={entry.id}
       className={`bf-press ${className}`}
+      data-entry={entry.id}
       data-selected={entry.id === ctx.selectedId || undefined}
       style={style}
       onClick={(event) => {
@@ -556,10 +599,31 @@ const LAYOUTS: Record<FormLayout, (props: LayoutProps) => ReactNode> = {
 };
 
 /** Écran Bedrock simulé : la disposition choisie par le drapeau du titre, dessinée au pixel d’interface. */
-export function FormPreview({ layout, title, content, entries, screen, zoom, selectedId, onPress, resolveIcon }: FormPreviewProps) {
+export function FormPreview({ layout, title, content, entries, screen, zoom, selectedId, onPress, resolveIcon, onTextOverflow }: FormPreviewProps) {
   const Layout = LAYOUTS[layout];
+  const root = useRef<HTMLDivElement>(null);
+  const reported = useRef('');
+  // Mesure après chaque rendu, puis une fois les polices chargées (les largeurs changent).
+  useLayoutEffect(() => {
+    const node = root.current;
+    if (!node || !onTextOverflow) return;
+    let alive = true;
+    const measure = () => {
+      if (!alive) return;
+      const overflow = measureTextOverflow(node);
+      const key = JSON.stringify(overflow);
+      if (key === reported.current) return;
+      reported.current = key;
+      onTextOverflow(overflow);
+    };
+    measure();
+    void document.fonts.ready.then(measure);
+    return () => {
+      alive = false;
+    };
+  });
   return (
-    <div className="bf-screen" style={{ width: screen.width, height: screen.height, zoom }}>
+    <div ref={root} className="bf-screen" style={{ width: screen.width, height: screen.height, zoom }}>
       <Layout title={title} content={content} entries={entries} screen={screen} ctx={{ selectedId, onPress, resolveIcon }} />
     </div>
   );
