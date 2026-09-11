@@ -32,7 +32,8 @@ avant de les construire.
 ### Accueil (`#/accueil`)
 
 - En-tête : logo pixel de Menu Forge, nom de l’espace actif.
-- **Actions rapides** (grandes cases façon inventaire) : Nouveau menu, Nouvel
+- **Actions rapides** (grandes cases façon inventaire) : Nouveau menu, Générer une
+  interface, Nouvel
   asset, Nouvelle image, Importer un écran depuis une police, Ouvrir un espace
   de travail.
 - **Documents récents** de l’espace actif : menus, assets et images de pixels triés par date,
@@ -111,6 +112,29 @@ pose, décale, préfixe ou conditionne des instances, ouvre le composant ou
 détache une instance. Les éléments d’instance sont listés avec la pastille
 « composant » et ne se modifient que dans leur composant (format :
 [`format.md`](format.md) § Composants).
+
+**Générer une interface.** « Nouveau menu » propose « Générer une
+interface… », aussi action rapide de l’accueil. On choisit un type – boutique
+(grille d’articles paginée et barre d’actions), grille simple, modale de
+confirmation, liste paginée, barre d’onglets –, le nombre de lignes du coffre,
+le nombre et la disposition des boutons (à gauche, centrés, à droite,
+répartis), la famille de styles (Deepslate, mc-rs ou sombre à accent) et une couleur d’accent ;
+l’aperçu suit en direct, et un clic sur un onglet ou une flèche y change
+l’état. Le menu créé est complet : couches aux textures générées (fond et
+cases, boutons, variantes allumées ou actives), zones de slots et leurs
+actions (`setState` pour les onglets, `nextPage` / `prevPage` pour les pages,
+`back`, `close`, actions du serveur), textes et variables d’état. Il se
+retouche ensuite à la main comme n’importe quel menu ; « Modifier la texture
+générée… » rouvre chaque couche dans le générateur de textures.
+
+**Générateur de textures.** « Générer une texture… » dessine une couche au
+pixel près, dans un style Deepslate (biseauté façon vanilla), mc-rs
+(panneaux sombres et arrondis, boutons plats à trois états, boutons en relief,
+bandes, cases, grille de chargement) ou sombre à accent (fenêtre plate à cadre
+fin, cases creusées, onglets et boutons plats, bouton fermer, store rayé,
+lignes de liste, cartouches, barres de progression), avec aperçu et paramètres propres à la
+famille (rayon, bordure, accent, état, ombre, progression). Format : [`format.md`](format.md)
+§ Couches.
 
 **Éditeur de pixels** (`#/editeur/pixels/<id>`, troisième mode après Menus et
 Assets). Pour dessiner une texture au pixel près : couleurs à gauche (principale

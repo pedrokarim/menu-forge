@@ -18,12 +18,18 @@ import { Tooltip } from '../ui/Tooltip';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 
-export type QuickAction = 'new-menu' | 'new-asset' | 'new-pixel' | 'import-font' | 'open-workspace';
+export type QuickAction = 'new-menu' | 'generate-menu' | 'new-asset' | 'new-pixel' | 'import-font' | 'open-workspace';
 /** Gestion d’un document récent depuis l’accueil. */
 export type DocumentAction = 'rename' | 'duplicate' | 'trash';
 
 const QUICK_ACTIONS: ReadonlyArray<{ kind: QuickAction; icon: IconName; title: string; text: string; shortcut?: string }> = [
   { kind: 'new-menu', icon: 'chest', title: 'Nouveau menu', text: 'Vierge ou à partir d’un gabarit : coffre, modale, liste paginée…' },
+  {
+    kind: 'generate-menu',
+    icon: 'sparkles',
+    title: 'Générer une interface',
+    text: `Boutique, grille, modale, liste ou onglets${NBSP}: un menu complet, en style Deepslate, mc-rs ou sombre à accent.`,
+  },
   { kind: 'new-asset', icon: 'image', title: 'Nouvel asset', text: 'Composition libre (boîtes, images, texte) exportée en PNG et en glyphe.' },
   {
     kind: 'new-pixel',

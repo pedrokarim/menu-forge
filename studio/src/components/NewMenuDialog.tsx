@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { MAX_ROWS } from '../model/geometry';
 import { ID_PATTERN, sanitizeId, uniqueId } from '../model/menu';
 import type { MenuDefinition } from '../model/menu';
@@ -15,12 +15,20 @@ export interface NewMenuInput {
 interface NewMenuDialogProps {
   templates: MenuDefinition[];
   existingIds: string[];
+  /** Ouvrir directement le générateur d’interfaces (action rapide de l’accueil). */
+  generate?: boolean;
   onCancel: () => void;
   onCreate: (input: NewMenuInput) => Promise<void>;
 }
 
-/** Création d’un menu, vierge ou à partir d’un gabarit fourni. */
-export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: NewMenuDialogProps) {
+/** Générateur d’interfaces (styles, aperçu), chargé à sa première ouverture. */
+const InterfaceGeneratorDialog = lazy(() =>
+  import('./InterfaceGeneratorDialog').then((module) => ({ default: module.InterfaceGeneratorDialog })),
+);
+
+/** Création d’un menu, vierge, à partir d’un gabarit fourni ou généré. */
+export function NewMenuDialog({ templates, existingIds, generate = false, onCancel, onCreate }: NewMenuDialogProps) {
+  const [generating, setGenerating] = useState(generate);
   const [name, setName] = useState('Mon menu');
   // Identifiant proposé toujours libre : le dialogue ne s’ouvre jamais sur une erreur.
   const [id, setId] = useState(() => uniqueId('mon_menu', existingIds));
@@ -67,6 +75,19 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
     );
   };
 
+  if (generating) {
+    return (
+      <Suspense fallback={null}>
+        <InterfaceGeneratorDialog
+          existingIds={existingIds}
+          onCancel={onCancel}
+          onBack={generate ? undefined : () => setGenerating(false)}
+          onCreate={onCreate}
+        />
+      </Suspense>
+    );
+  }
+
   return (
     <Modal
       title="Nouveau menu"
@@ -84,6 +105,15 @@ export function NewMenuDialog({ templates, existingIds, onCancel, onCreate }: Ne
         </>
       }
     >
+      <button type="button" className="template-card template-generate" onClick={() => setGenerating(true)}>
+        <strong>
+          <Icon name="sparkles" />
+          Générer une interface…
+        </strong>
+        <span className="muted small">
+          Boutique, grille, modale, liste paginée ou onglets, en style Deepslate, mc-rs ou sombre à accent, avec aperçu.
+        </span>
+      </button>
       <div className="template-gallery" role="radiogroup" aria-label="Point de départ">
         {card('', 'Vierge', 'Un coffre vide, sans couche.')}
         {templates.map((candidate) => {

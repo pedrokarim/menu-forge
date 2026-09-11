@@ -165,7 +165,7 @@ Détails et couverture dans [`../docs/rendering.md`](../docs/rendering.md).
 ## Tests
 
 ```sh
-npm test                   # génération du pack, schéma du format, parité avec la lib
+npm test                   # pack, schéma, parité avec la lib, textures générées, générateur d’interfaces
 cd backend && cargo test   # backend Rust
 ```
 
@@ -173,4 +173,7 @@ cd backend && cargo test   # backend Rust
 dépendance : Node efface les types à la volée (`tests/resolve-ts.mjs` résout les imports sans
 extension), valide [`../docs/menu.schema.json`](../docs/menu.schema.json) sur les gabarits et
 exemples du dépôt, vérifie la génération du pack (PNG, zip) et joue les fixtures de parité
-partagées avec la lib (`../lib/menu-forge-core/src/test/resources/parity`).
+partagées avec la lib (`../lib/menu-forge-core/src/test/resources/parity`). Ils vérifient aussi les textures générées (formes au pixel près, couleurs
+des états mc-rs, empreintes des PNG cuits) et le générateur d’interfaces
+(toutes les combinaisons d’options valides contre le schéma, cohérentes et
+jouables dans le mode « Essayer »).

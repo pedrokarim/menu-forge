@@ -4,7 +4,6 @@ import type { EditorMode } from '../shell/router';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 import { overlayOpen } from '../ui/overlay';
-import { GeneratorDialog } from '../components/GeneratorDialog';
 import type { GeneratorResult } from '../components/GeneratorDialog';
 import { Inspector } from '../components/Inspector';
 import { MenuCanvas } from '../components/MenuCanvas';
@@ -47,7 +46,7 @@ import { ALIGN_LABELS, DISTRIBUTE_LABELS, alignOffsets, distributeOffsets, union
 import type { AlignMode, AlignReference, DistributeAxis } from '../model/arrange';
 import { composeTitle } from '../model/compose';
 import { evaluateCondition } from '../model/conditions';
-import { GENERATOR_PRESETS, canvasToBlob, renderGenerator } from '../model/generator';
+import { GENERATOR_PRESETS } from '../model/generator';
 import { SLOT_SIZE, WINDOW_WIDTH, windowHeight } from '../model/geometry';
 import type { Point, Rect } from '../model/geometry';
 import { createEmptyMenu, hasEditorFlag, sanitizeId, uniqueId } from '../model/menu';
@@ -92,7 +91,7 @@ import { IconButton } from '../ui/IconButton';
 import { Tooltip } from '../ui/Tooltip';
 
 type DialogState =
-  | { kind: 'new-menu' }
+  | { kind: 'new-menu'; generate?: boolean }
   | { kind: 'new-asset' }
   | { kind: 'generator'; mode: 'create' }
   | { kind: 'generator'; mode: 'edit'; layerId: string }
@@ -115,6 +114,8 @@ const AssetEditor = lazy(() => import('../asset/AssetEditor').then((module) => (
 /** Bibliothèque et rognage (sélecteur de zones, détection des sprites) : chargés à leur premier affichage. */
 const LibraryPanel = lazy(() => import('../components/LibraryPanel').then((module) => ({ default: module.LibraryPanel })));
 const CropDialog = lazy(() => import('../components/CropDialog').then((module) => ({ default: module.CropDialog })));
+/** Générateur de textures (styles Deepslate et mc-rs), chargé à sa première ouverture. */
+const GeneratorDialog = lazy(() => import('../components/GeneratorDialog').then((module) => ({ default: module.GeneratorDialog })));
 
 const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8];
 
@@ -142,13 +143,15 @@ function instantiateTemplate(template: MenuDefinition, id: string, name: string)
   return copy;
 }
 
+/** Cuit une texture générée (PNG exact, sans canvas) ; le moteur des styles est chargé à la première cuisson. */
 async function bakeTexture(path: string, spec: GeneratorSpec, origin: Point) {
-  await uploadTexture(path, await canvasToBlob(renderGenerator(spec, origin)));
+  const { renderGeneratorBlob } = await import('../model/textureRender');
+  await uploadTexture(path, await renderGeneratorBlob(spec, origin));
 }
 
 /** Demande venue d’un autre écran (actions rapides de l’accueil) ; `nonce` change à chaque demande. */
 export interface EditorRequest {
-  kind: 'new-menu' | 'new-asset' | 'new-pixel' | 'import-font';
+  kind: 'new-menu' | 'generate-menu' | 'new-asset' | 'new-pixel' | 'import-font';
   nonce: number;
 }
 
@@ -938,7 +941,7 @@ export function EditorScreen({
     } else if (kind === 'new-pixel') {
       if (switchMode('pixels')) setDialog({ kind: 'new-pixel' });
     } else if (switchMode('menus')) {
-      if (kind === 'new-menu') setDialog({ kind: 'new-menu' });
+      if (kind === 'new-menu' || kind === 'generate-menu') setDialog({ kind: 'new-menu', generate: kind === 'generate-menu' });
       else setLeftTab('library');
     }
   };
@@ -2233,6 +2236,7 @@ export function EditorScreen({
         <NewMenuDialog
           templates={workspace?.templates ?? []}
           existingIds={knownMenus.map((candidate) => candidate.id)}
+          generate={dialog.generate}
           onCancel={() => setDialog(null)}
           onCreate={handleNewMenu}
         />
@@ -2252,14 +2256,16 @@ export function EditorScreen({
         />
       )}
       {dialog?.kind === 'generator' && menu && generatorInitial && (
-        <GeneratorDialog
-          mode={dialog.mode}
-          initial={generatorInitial}
-          rows={menu.container.rows}
-          takenIds={menu.layers.map((layer) => layer.id)}
-          onCancel={() => setDialog(null)}
-          onConfirm={handleGenerator}
-        />
+        <Suspense fallback={null}>
+          <GeneratorDialog
+            mode={dialog.mode}
+            initial={generatorInitial}
+            rows={menu.container.rows}
+            takenIds={menu.layers.map((layer) => layer.id)}
+            onCancel={() => setDialog(null)}
+            onConfirm={handleGenerator}
+          />
+        </Suspense>
       )}
       {dialog?.kind === 'crop-layer' && cropLayer && (
         <Suspense fallback={null}>

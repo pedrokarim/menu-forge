@@ -302,11 +302,11 @@
 
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 
-/* Cinq actions : une seule ligne sur grand écran, puis 3 + 2, puis deux colonnes. */
+/* Six actions : une seule ligne sur grand écran, puis 3 + 3, puis deux colonnes. */
 @media (max-width: 1599px) {
   .quick-actions {
     grid-template-columns: repeat(3, minmax(0, 1fr));
