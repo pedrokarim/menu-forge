@@ -60,6 +60,12 @@ art agrandi au plus proche voisin.
 | `workspace` | `workspace.png` | 512 × 512 | petite image : dossier, orange – espaces de travail |
 | `about` | `about.png` | 512 × 512 | petite image : information, turquoise – page À propos |
 
+**Image de couverture** : `cover.png` (1024 × 576, 16:9), à téléverser dans
+*Rich Presence → Image d’invitation Rich Presence → Image de couverture*. Elle
+n’a pas de clé : c’est l’image par défaut des invitations. Logo, mot-symbole
+« menu-forge » et rangée des médaillons, sans petit texte (l’invitation la
+montre en réduction).
+
 Le backend refuse toute autre clé de petite image (liste `SMALL_IMAGES` de
 `presence.rs`) : une clé absente du portail ferait afficher un trou.
 

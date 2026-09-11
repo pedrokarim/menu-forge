@@ -22,6 +22,10 @@ Ce script produit ces images dans `public/brand/discord/`, en pixel art net
   | `workspace` | dossier | orange |
   | `about` | information | turquoise |
 
+- `cover.png` (1024 × 576, 16:9) : l’image de couverture (portail : Rich
+  Presence → Image d’invitation), sans clé : le logo, le mot-symbole
+  « menu-forge » dessiné en pixels et la rangée des sept médaillons.
+
 La clé Discord de chaque image est le nom du fichier sans extension ; le
 backend n’accepte que ces clés (`SMALL_IMAGES` dans `backend/src/presence.rs`).
 
@@ -256,25 +260,86 @@ def speck(x: int, y: int) -> int:
     return (value ^ (value >> 16)) % 100
 
 
-def large_logo() -> Image.Image:
-    grid: list[list[Color | None]] = [[None] * TILE_GRID for _ in range(TILE_GRID)]
-    last = TILE_GRID - 1
-    for y in range(TILE_GRID):
-        for x in range(TILE_GRID):
-            edge_distance = min(x, y, last - x, last - y)
+def slate_tile(cols: int, rows: int) -> list[list[Color | None]]:
+    """Tuile d’ardoise : contour d’une case, biseaux de deux (lumière en haut à gauche), grain."""
+    grid: list[list[Color | None]] = [[None] * cols for _ in range(rows)]
+    last_x, last_y = cols - 1, rows - 1
+    for y in range(rows):
+        for x in range(cols):
+            edge_distance = min(x, y, last_x - x, last_y - y)
             if edge_distance == 0:
                 grid[y][x] = EDGE
-            elif x in (1, 2) and y <= last - x or y in (1, 2) and x <= last - y:
+            elif x in (1, 2) and y <= last_y - x or y in (1, 2) and x <= last_x - y:
                 grid[y][x] = SLATE_LIGHT
             elif edge_distance <= 2:
                 grid[y][x] = SLATE_DARK
             else:
                 grain = speck(x, y)
                 grid[y][x] = SLATE_SPECK if grain < 6 else SLATE_PIT if grain < 12 else SLATE
-    image = paint(grid, TILE_UNIT)
+    return grid
+
+
+def large_logo() -> Image.Image:
+    image = paint(slate_tile(TILE_GRID, TILE_GRID), TILE_UNIT)
     logo = render(compose(), LOGO_SCALE)
     offset = (LARGE_SIZE - logo.width) // 2
     image.alpha_composite(logo, (offset, offset))
+    return image
+
+
+# ------------------------------------------------------------- couverture
+
+# Image de couverture (portail : Rich Presence → Image d’invitation) : 1024 × 576,
+# 16:9. Grille de cases de 8 px (128 × 72) : ardoise, logo à gauche, mot-symbole
+# et rangée des médaillons à droite. Pas de petit texte : l’invitation montre
+# la couverture en réduction.
+COVER_WIDTH, COVER_HEIGHT = 1024, 576
+COVER_UNIT = 8
+TEXT: Color = (247, 245, 251)  # --ds-ink-strong
+GOLD: Color = (242, 201, 76)  # --ds-gold
+COVER_LOGO_SCALE = 16  # logo 24 × 24 agrandi à 384 px
+COVER_LOGO_AT = (64, 96)  # centré verticalement
+WORDMARK_AT = (61, 26)  # en cases : (488 px, 208 px)
+BADGES_AT = (488, 304)  # médaillons de 64 px (une case de médaillon = 2 px)
+BADGE_PREVIEW = 64
+BADGE_GAP = 4
+
+# Police pixel du mot-symbole : 5 × 8 cases, ligne de base à la 7e rangée,
+# jambage du « g » sur la 8e. Avance : 6 cases.
+WORDMARK_FONT = {
+    "m": [".....", ".....", "##.#.", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "....."],
+    "e": [".....", ".....", ".###.", "#...#", "#####", "#....", ".###.", "....."],
+    "n": [".....", ".....", "#.##.", "##..#", "#...#", "#...#", "#...#", "....."],
+    "u": [".....", ".....", "#...#", "#...#", "#...#", "#..##", ".##.#", "....."],
+    "-": [".....", ".....", ".....", ".....", ".###.", ".....", ".....", "....."],
+    "f": ["..##.", ".#...", "####.", ".#...", ".#...", ".#...", ".#...", "....."],
+    "o": [".....", ".....", ".###.", "#...#", "#...#", "#...#", ".###.", "....."],
+    "r": [".....", ".....", "#.##.", "##..#", "#....", "#....", "#....", "....."],
+    "g": [".....", ".....", ".####", "#...#", "#...#", ".####", "....#", "####."],
+}
+WORDMARK = "menu-forge"
+
+
+def cover() -> Image.Image:
+    grid = slate_tile(COVER_WIDTH // COVER_UNIT, COVER_HEIGHT // COVER_UNIT)
+    left, top = WORDMARK_AT
+    cells: list[tuple[int, int, Color]] = []
+    for index, char in enumerate(WORDMARK):
+        color = GOLD if char == "-" else TEXT
+        for y, line in enumerate(WORDMARK_FONT[char]):
+            for x, mark in enumerate(line):
+                if mark == "#":
+                    cells.append((left + index * 6 + x, top + y, color))
+    # Ombre d’une case en bas à droite d’abord, lettres ensuite : l’ombre ne mord jamais une lettre voisine.
+    for x, y, _ in cells:
+        grid[y + 1][x + 1] = EDGE
+    for x, y, color in cells:
+        grid[y][x] = color
+    image = paint(grid, COVER_UNIT)
+    image.alpha_composite(render(compose(), COVER_LOGO_SCALE), COVER_LOGO_AT)
+    for index, (icon, color) in enumerate(SMALL_IMAGES.values()):
+        preview = badge(icon, color).resize((BADGE_PREVIEW, BADGE_PREVIEW), Image.NEAREST)
+        image.alpha_composite(preview, (BADGES_AT[0] + index * (BADGE_PREVIEW + BADGE_GAP), BADGES_AT[1]))
     return image
 
 
@@ -284,7 +349,8 @@ def main() -> None:
     large_logo().save(out / "logo.png")
     for key, (icon, color) in SMALL_IMAGES.items():
         badge(icon, color).save(out / f"{key}.png")
-    names = ["logo"] + list(SMALL_IMAGES)
+    cover().convert("RGB").save(out / "cover.png")
+    names = ["logo"] + list(SMALL_IMAGES) + ["cover"]
     print(f"écrit dans {out} : {', '.join(f'{name}.png' for name in names)}")
 
 
