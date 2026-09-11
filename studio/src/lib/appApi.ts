@@ -1,3 +1,4 @@
+import { WRITE_HEADER, withWriteHeader } from './http';
 import type { LibraryOwnership } from './libraryApi';
 
 /** Client des routes de l’application (réglages, espaces de travail, bibliothèques). */
@@ -13,6 +14,8 @@ export interface AppInfo {
   overrides: string[];
   /** Vrai si le fichier de réglages n’existait pas au démarrage. */
   firstLaunch?: boolean;
+  /** Vrai si le fichier de réglages est illisible : laissé intact, rien n’est enregistré pendant la session. */
+  settingsReadOnly?: boolean;
 }
 
 export interface Confirmations {
@@ -21,7 +24,7 @@ export interface Confirmations {
 }
 
 export interface UiSettings {
-  /** 0 = « Ajuster » (le plus grand palier qui tient). */
+  /** 0 = « Ajuster » (le plus grand palier qui tient). */
   defaultZoom: number;
   showGrid: boolean;
   confirmations: Confirmations;
@@ -137,11 +140,14 @@ async function failure(response: Response): Promise<Error> {
 }
 
 async function call<T>(url: string, method = 'GET', body?: unknown): Promise<T> {
-  const response = await fetch(`/api${url}`, {
-    method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const response = await fetch(
+    `/api${url}`,
+    withWriteHeader({
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
+  );
   if (!response.ok) throw await failure(response);
   if (response.status === 204) return undefined as T;
   const isJson = response.headers.get('content-type')?.includes('application/json');
@@ -160,5 +166,13 @@ export const addLibrary = (library: LibrarySetting) => call<LibrarySetting>('/li
 export const removeLibrary = (id: string) => call<void>(`/libraries/${encodeURIComponent(id)}`, 'DELETE');
 export const updatePresence = (activity: PresenceActivity) => call<void>('/presence', 'PUT', activity);
 export const fetchPresence = () => call<PresenceStatus>('/presence');
+
+/**
+ * Efface l’activité Discord tout de suite (fermeture de l’onglet) : la requête
+ * part même pendant le déchargement de la page (`keepalive`).
+ */
+export function clearPresence(): void {
+  void fetch('/api/presence', { method: 'DELETE', keepalive: true, headers: { [WRITE_HEADER]: '1' } }).catch(() => undefined);
+}
 export const reindexLibrary = (id: string) =>
   call<LibraryCounts>(`/libraries/${encodeURIComponent(id)}/reindex`, 'POST');

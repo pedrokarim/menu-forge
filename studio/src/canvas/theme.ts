@@ -1,5 +1,5 @@
 /**
- * Palette « Deepslate » de tout ce que la toile dessine par-dessus le menu :
+ * Palette « Deepslate » de tout ce que la toile dessine par-dessus le menu :
  * sélection, poignées, repères, étiquettes. Elle ne s’applique jamais au fond
  * ni aux couches de l’utilisateur.
  */

@@ -1,4 +1,4 @@
-/* Éditeur d’assets (« mode libre ») : remplace les trois colonnes des menus.
+/* Éditeur d’assets (« mode libre ») : remplace les trois colonnes des menus.
    Mêmes jetons Deepslate que le reste du studio (voir index.css). */
 
 .asset-editor {
@@ -15,8 +15,10 @@
   }
 }
 
+/* Colonne bornée : un long message du pied ne doit pas élargir la toile sous l’inspecteur. */
 .asset-stage {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
@@ -104,8 +106,9 @@
   gap: 16px;
 }
 
+/* Aperçu moins haut : à 1180 × 700, la fenêtre de rognage tient sans défiler autour. */
 .crop-dialog .asset-region-scroll {
-  max-height: min(52vh, 520px);
+  max-height: min(42vh, 460px);
 }
 
 .crop-side {
@@ -146,9 +149,11 @@
   text-align: center;
 }
 
-.asset-toolbar-texture {
-  width: 340px;
-  max-width: 100%;
+/* Le champ de texture prend la place qui reste : la barre garde une seule ligne. */
+.asset-toolbar > .asset-toolbar-texture {
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 340px;
 }
 
 .asset-toolbar-texture .field {
@@ -223,7 +228,7 @@
 /* Liste des éléments */
 
 /* Le <select> prendrait la largeur de son option la plus longue : on la fixe.
-   Le « + » est un picto, pas un caractère. */
+   Le « + » est un picto, pas un caractère. */
 .asset-add-select {
   width: 96px;
   min-height: var(--control-h-sm);
@@ -261,7 +266,7 @@
 
 /* Sélecteur de zone source */
 
-/* Colonnes « minmax(0, 1fr) » : l’aperçu agrandi et les extraits défilent dans
+/* Colonnes « minmax(0, 1fr) » : l’aperçu agrandi et les extraits défilent dans
    leur cadre au lieu d’élargir la colonne. */
 .asset-region-picker,
 .asset-snippet-block {

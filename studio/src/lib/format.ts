@@ -1,6 +1,6 @@
 /** Mise en forme des textes affichés (dates, quantités), en français. */
 
-/** Espace insécable, avant « : », « ; », « ! », « ? ». */
+/** Espace insécable, avant « : », « ; », « ! », « ? ». */
 export const NBSP = String.fromCharCode(160);
 
 const relative = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
@@ -15,7 +15,7 @@ const UNITS: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, number]> = [
   ['year', 31_557_600],
 ];
 
-/** « à l’instant », « il y a 5 minutes », « hier »… */
+/** « à l’instant », « il y a 5 minutes », « hier »… */
 export function formatRelative(iso: string, now = Date.now()): string {
   const time = Date.parse(iso);
   if (!Number.isFinite(time)) return 'date inconnue';
@@ -27,13 +27,13 @@ export function formatRelative(iso: string, now = Date.now()): string {
   return relative.format(Math.round(seconds / unit[1]), unit[0]);
 }
 
-/** « 11 septembre 2026 à 14:05 ». */
+/** « 11 septembre 2026 à 14:05 ». */
 export function formatDate(iso: string): string {
   const time = Date.parse(iso);
   return Number.isFinite(time) ? absolute.format(time) : 'date inconnue';
 }
 
-/** « 1 menu », « 3 menus ». */
+/** « 1 menu », « 3 menus ». */
 export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
   return `${count}${NBSP}${count > 1 ? pluralForm : singular}`;
 }

@@ -9,8 +9,8 @@ export interface FontImportResult {
 }
 
 /**
- * Reconstruit un menu à partir d’une police de pack (façon « un menu = une
- * police ») : chaque glyphe-image devient une couche placée à `y = 13 − ascent`
+ * Reconstruit un menu à partir d’une police de pack (façon « un menu = une
+ * police ») : chaque glyphe-image devient une couche placée à `y = 13 − ascent`
  * (x = 0, les packs de ce type commencent le titre par un recul de −8). Les
  * polices référencées (`reference`) passent en premier, comme dans le jeu.
  * La première image de chaque police est visible (typiquement la barre de

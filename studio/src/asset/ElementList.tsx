@@ -35,7 +35,7 @@ function describe(element: AssetElement): string {
       return element.texture.split('/').pop() ?? element.texture;
     case 'text': {
       const firstLine = element.text.split('\n')[0].replace(/§./gu, '');
-      return `« ${firstLine} »`;
+      return `« ${firstLine} »`;
     }
   }
 }

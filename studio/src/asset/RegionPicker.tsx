@@ -12,9 +12,10 @@ import type { Insets, Region } from './model';
 import { MAX_CANVAS_SIDE } from './presets';
 import { findSprites } from './sprites';
 
-const PICKER_ZOOMS = [1, 2, 3, 4, 6, 8, 12, 16] as const;
-/** Largeur visée par défaut pour le zoom automatique (colonne de droite). */
-const PICKER_TARGET = 288;
+/** Paliers de l’aperçu ; ½ et ¼ pour voir en entier les très grandes textures (atlas). */
+const PICKER_ZOOMS = [0.25, 0.5, 1, 2, 3, 4, 6, 8, 12, 16] as const;
+/** Taille visée par défaut pour le zoom automatique (inspecteur : l’aperçu ne repousse pas l’export). */
+const PICKER_TARGET = 200;
 const LINE_HIT = 4;
 /** Tailles de case courantes des atlas (18 = une case d’inventaire). */
 const GRID_PRESETS = [8, 16, 18, 32, 64] as const;
@@ -73,8 +74,9 @@ function allowedZooms(texture: LoadedTexture | null | undefined): number[] {
 
 function autoZoom(texture: LoadedTexture | null | undefined, target: number): number {
   if (!texture) return 1;
-  const fit = Math.max(1, Math.floor(target / Math.max(texture.width, texture.height, 1)));
-  return allowedZooms(texture).filter((level) => level <= fit).at(-1) ?? 1;
+  const fit = target / Math.max(texture.width, texture.height, 1);
+  const levels = allowedZooms(texture);
+  return levels.filter((level) => level <= fit).at(-1) ?? levels[0];
 }
 
 /** Case de la grille sous un pixel. */
@@ -130,7 +132,7 @@ export function RegionPicker({
     offsetX: Math.max(0, grid.offsetX),
     offsetY: Math.max(0, grid.offsetY),
   };
-  // Étiquetage des sprites : calculé une fois par texture, à l’entrée dans le mode « Sprite ».
+  // Étiquetage des sprites : calculé une fois par texture, à l’entrée dans le mode « Sprite ».
   const sprites = useMemo(() => (mode === 'sprite' && texture ? findSprites(texture) : null), [mode, texture]);
 
   const hoverRect: Region | null = !hover
@@ -145,8 +147,8 @@ export function RegionPicker({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx || !texture) return;
-    const width = texture.width * zoom;
-    const height = texture.height * zoom;
+    const width = Math.max(1, Math.round(texture.width * zoom));
+    const height = Math.max(1, Math.round(texture.height * zoom));
     canvas.width = width;
     canvas.height = height;
     ctx.imageSmoothingEnabled = false;
@@ -364,7 +366,7 @@ export function RegionPicker({
         <select value={zoom} onChange={(event) => setZoomChoice(Number(event.target.value))} aria-label="Zoom de l’aperçu">
           {zoomLevels.map((level) => (
             <option key={level} value={level}>
-              ×{level}
+              {level < 1 ? `×1/${Math.round(1 / level)}` : `×${level}`}
             </option>
           ))}
         </select>
@@ -445,7 +447,11 @@ export function RegionPicker({
       <div className="asset-region-scroll">
         <canvas
           ref={canvasRef}
-          style={{ width: texture.width * zoom, height: texture.height * zoom, cursor }}
+          style={{
+            width: Math.max(1, Math.round(texture.width * zoom)),
+            height: Math.max(1, Math.round(texture.height * zoom)),
+            cursor,
+          }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

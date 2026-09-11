@@ -3,6 +3,7 @@
   "plugins": ["react", "typescript", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
+    "no-irregular-whitespace": ["warn", { "skipComments": true, "skipStrings": true, "skipTemplates": true, "skipJSXText": true }],
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
   }
 }

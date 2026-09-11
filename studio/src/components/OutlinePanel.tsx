@@ -194,7 +194,7 @@ export function OutlinePanel(props: OutlinePanelProps) {
               <>
                 <span className="kind-dot text" />
                 <span className="outline-name">{text.id}</span>
-                <span className="muted">« {text.value} »</span>
+                <span className="muted">« {text.value} »</span>
               </>,
               evaluateCondition(text.visibleWhen, context),
             ),

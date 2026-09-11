@@ -44,15 +44,20 @@ function MenuSurface({ state, onClose }: { state: OpenState; onClose: (restoreFo
     window.addEventListener('blur', dismiss);
     window.addEventListener('resize', dismiss);
     window.addEventListener('scroll', dismiss, true);
+    // Changement d’écran (raccourci, Précédent) : le menu de l’écran quitté disparaît.
+    window.addEventListener('hashchange', dismiss);
     return () => {
       window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('blur', dismiss);
       window.removeEventListener('resize', dismiss);
       window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('hashchange', dismiss);
     };
   }, [onClose]);
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    // Toutes les touches restent dans le menu : ↓ ne doit pas aussi déplacer l’élément visé.
+    event.stopPropagation();
     const items = [...(ref.current?.querySelectorAll<HTMLButtonElement>('.context-item:not(:disabled)') ?? [])];
     const index = items.findIndex((item) => item === document.activeElement);
     const focus = (next: number) => {
@@ -87,6 +92,7 @@ function MenuSurface({ state, onClose }: { state: OpenState; onClose: (restoreFo
       ref={ref}
       className="context-menu"
       role="menu"
+      aria-label={state.entries[0] && 'heading' in state.entries[0] ? state.entries[0].heading : 'Actions'}
       style={{ visibility: 'hidden' }}
       onKeyDown={onKeyDown}
       onContextMenu={(event) => event.preventDefault()}

@@ -88,14 +88,14 @@ export interface TextLine {
   width: number;
 }
 
-/** Retire les codes « § » (repli quand la police du jeu est indisponible). */
+/** Retire les codes « § » (repli quand la police du jeu est indisponible). */
 function stripFormatting(text: string): string {
   return text.replace(/§./gu, '');
 }
 
 function measureLine(line: string, element: AssetTextElement, font: MinecraftFont | null): number {
   const bold = element.bold ?? false;
-  // « §l » en tête reproduit exactement le style de départ passé à drawFormatted.
+  // « §l » en tête reproduit exactement le style de départ passé à drawFormatted.
   if (font) return font.measureFormatted(bold ? `§l${line}` : line);
   const plain = stripFormatting(line);
   let width = 0;

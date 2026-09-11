@@ -8,7 +8,7 @@ import { Notice, ScreenFrame } from '../shell/ScreenFrame';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 
-/** Zooms proposés à l’ouverture (0 = « Ajuster »). */
+/** Zooms proposés à l’ouverture (0 = « Ajuster »). */
 const ZOOM_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8];
 
 /** `pack_format` des versions visées par la lib. */
@@ -20,7 +20,7 @@ const PACK_FORMATS: ReadonlyArray<{ value: number; label: string }> = [
 
 const DEFAULT_DISCORD: DiscordSettings = { enabled: true, clientId: null, showDocument: true };
 
-/** Application Discord « menu-forge », utilisée tant qu’aucun autre identifiant n’est saisi (même valeur que le backend). */
+/** Application Discord « menu-forge », utilisée tant qu’aucun autre identifiant n’est saisi (même valeur que le backend). */
 const MENU_FORGE_CLIENT_ID = '1370756359037124698';
 
 /** Pastille d’état de la connexion à Discord. */
@@ -115,7 +115,10 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
         },
       );
     void poll();
-    const timer = window.setInterval(() => void poll(), 4000);
+    // Fenêtre cachée ou réduite : pas de requête inutile.
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void poll();
+    }, 4000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -196,7 +199,7 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
           Éditeur
         </h2>
         <div className="card setting-list">
-          <SettingRow title="Zoom à l’ouverture" text="« Ajuster » : le plus grand palier où tout tient dans la zone.">
+          <SettingRow title="Zoom à l’ouverture" text="« Ajuster » : le plus grand palier où tout tient dans la zone.">
             <select
               aria-label="Zoom à l’ouverture"
               value={ui.defaultZoom}
@@ -266,7 +269,7 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
               </button>
             )}
           </SettingRow>
-          <SettingRow title="Espace de noms" text="Namespace des polices générées (minuscules, chiffres, « _ », « . », « - »).">
+          <SettingRow title="Espace de noms" text="Namespace des polices générées (minuscules, chiffres, « _ », « . », « - »).">
             <CommitInput
               mono
               label="Espace de noms"
@@ -323,7 +326,7 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
               onCommit={(value) => void save({ discord: { clientId: value.trim() === '' ? null : value.trim() } }, 'Identifiant Discord')}
             />
           </SettingRow>
-          <SettingRow title="Nom du document" text="Sinon, Discord affiche seulement « Édite un menu ».">
+          <SettingRow title="Nom du document" text="Sinon, Discord affiche seulement « Édite un menu ».">
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -352,6 +355,13 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
               />
             )}
           </SettingRow>
+          {app?.settingsReadOnly && (
+            <SettingRow title="Enregistrement impossible">
+              <span className="muted" role="alert">
+                Fichier illisible, laissé intact : les changements valent pour cette session et seront perdus à la fermeture.
+              </span>
+            </SettingRow>
+          )}
           {app && app.overrides.length > 0 && (
             <SettingRow title="Imposés pour la session">
               <span className="muted">

@@ -3,7 +3,7 @@ import type { Region } from './model';
 
 /**
  * Sprites d’une texture (atlas) : groupes de pixels opaques reliés, en
- * 8-connexité, chacun avec sa boîte englobante. Sert au mode « Sprite » du
+ * 8-connexité, chacun avec sa boîte englobante. Sert au mode « Sprite » du
  * sélecteur de zone : un clic sur un pixel donne la zone de son sprite.
  */
 export interface SpriteMap {

@@ -429,11 +429,14 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
         onCommit={(state) => onChange((draft) => (draft.state = state))}
       />
       <p className="field-hint">Sélectionne un élément sur la toile ou dans la liste pour le modifier.</p>
-      <div className="shortcuts">
-        <h4>
+      <details className="shortcuts">
+        <summary>
           <Icon name="keyboard" />
           Raccourcis
-        </h4>
+          <span className="shortcuts-all">
+            tous&nbsp;: <kbd>?</kbd>
+          </span>
+        </summary>
         <dl className="shortcut-list">
           <dt>
             <kbd>V</kbd>
@@ -444,7 +447,7 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
           </dt>
           <dd>Outil Slots</dd>
           <dt>
-            <kbd>Suppr</kbd>
+            <ShortcutKeys shortcut="Suppr" />
           </dt>
           <dd>Supprimer l’élément</dd>
           <dt>
@@ -480,7 +483,7 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
           </dt>
           <dd>Enregistrer</dd>
         </dl>
-      </div>
+      </details>
     </section>
   );
 }

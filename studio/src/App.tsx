@@ -9,6 +9,7 @@ import {
   forgetWorkspace,
   openWorkspace,
   reindexLibrary,
+  clearPresence,
   updatePresence,
   updateSettings,
 } from './lib/appApi';
@@ -146,9 +147,11 @@ export default function App() {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const withModifier = event.ctrlKey || event.metaKey;
-      if (withModifier && !event.shiftKey && !event.altKey && /^[1-5]$/.test(event.key)) {
+      // Touche physique (event.code) : sur AZERTY, Ctrl + la touche du 1 produit « & », pas « 1 ».
+      const digit = /^(?:Digit|Numpad)([1-5])$/.exec(event.code)?.[1];
+      if (withModifier && !event.shiftKey && !event.altKey && digit) {
         event.preventDefault();
-        goTo(SCREEN_ORDER[Number(event.key) - 1]);
+        goTo(SCREEN_ORDER[Number(digit) - 1]);
       } else if (withModifier && !event.shiftKey && event.key.toLowerCase() === 'o') {
         event.preventDefault();
         navigate({ screen: 'workspaces' });
@@ -184,6 +187,8 @@ export default function App() {
     }
     await openWorkspace(path);
     setWelcomed(true);
+    // Une action rapide en attente ne doit pas être rejouée dans le nouvel espace.
+    setEditorRequest(null);
     setEditorDirty(false);
     setEditorRoute({ mode: 'menus', id: null });
     setRecent(null);
@@ -233,12 +238,34 @@ export default function App() {
 
   // Rich Presence Discord : l’activité suit l’écran et le document (le backend la transmet à Discord).
   const activityKey = JSON.stringify(describeActivity(screen, openDocument, activeWorkspace?.name ?? null));
+  // Renvoyée toutes les 30 s (signe de vie) : sans nouvelles de l’interface, le backend l’efface.
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void updatePresence(JSON.parse(activityKey) as PresenceActivity).catch(() => undefined);
-    }, 600);
-    return () => window.clearTimeout(timer);
+    const send = () => void updatePresence(JSON.parse(activityKey) as PresenceActivity).catch(() => undefined);
+    const timer = window.setTimeout(send, 600);
+    const heartbeat = window.setInterval(send, 30_000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(heartbeat);
+    };
   }, [activityKey]);
+
+  // Onglet ou fenêtre fermés : l’activité Discord disparaît aussitôt.
+  useEffect(() => {
+    window.addEventListener('pagehide', clearPresence);
+    return () => window.removeEventListener('pagehide', clearPresence);
+  }, []);
+
+  // Mode navigateur : prévenir avant de fermer ou recharger l’onglet avec des modifications non enregistrées
+  // (dans l’appli, la barre de titre s’en charge).
+  useEffect(() => {
+    if (isTauri || !editorDirty || !preferences.confirmDiscard) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [editorDirty, preferences.confirmDiscard]);
 
   const confirmClose = () =>
     !editorDirty ||

@@ -23,7 +23,7 @@ function describeToken(token: TitleToken): string {
         token.padded ? ' (complétée)' : ''
       } · avance ${token.advance}`;
     case 'text':
-      return `texte « ${token.value} » · ascent ${token.ascent} · largeur ${token.width}`;
+      return `texte « ${token.value} » · ascent ${token.ascent} · largeur ${token.width}`;
   }
 }
 

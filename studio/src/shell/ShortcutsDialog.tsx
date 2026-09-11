@@ -1,9 +1,12 @@
 import { Fragment } from 'react';
 import { Modal } from '../components/fields';
-import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
+import { ShortcutKeys } from '../ui/Keys';
 
-/** Une ligne : touches (« Ctrl+Z ») ou geste décrit en clair (« Ctrl + molette »). */
-type Entry = { keys: string; label: string } | { arrows: true; label: string } | { gesture: string; label: string };
+/** Une ligne : touches et gestes séparés par « + » (« Ctrl+Z », « Espace+Glisser »). */
+interface Entry {
+  keys: string;
+  label: string;
+}
 
 const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
   {
@@ -26,7 +29,7 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
       { keys: 'Suppr', label: 'Supprimer l’élément' },
       { keys: 'Ctrl+D', label: 'Dupliquer la couche (ou l’élément)' },
       { keys: 'Échap', label: 'Désélectionner' },
-      { arrows: true, label: 'Déplacer de 1 px' },
+      { keys: 'Flèches', label: 'Déplacer de 1 px' },
       { keys: 'Maj+Flèches', label: 'Déplacer de 18 px (une case)' },
       { keys: 'Ctrl+S', label: 'Enregistrer' },
     ],
@@ -48,15 +51,16 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
       { keys: 'Ctrl+Z', label: 'Annuler' },
       { keys: 'Ctrl+Y', label: 'Rétablir' },
       { keys: 'Ctrl+0', label: 'Ajuster le zoom' },
-      { gesture: 'Ctrl + molette', label: 'Zoomer sur le pointeur' },
-      { gesture: 'Espace + glisser', label: 'Faire défiler la toile' },
-      { gesture: 'Clic molette', label: 'Faire défiler la toile' },
-      { gesture: 'Alt en glissant', label: 'Sans aimantation' },
+      { keys: 'Ctrl+Molette', label: 'Zoomer sur le pointeur' },
+      { keys: 'Espace+Glisser', label: 'Faire défiler la toile' },
+      { keys: 'Clic molette', label: 'Faire défiler la toile' },
+      { keys: 'Alt+Glisser', label: 'Glisser sans aimantation' },
+      { keys: 'Clic droit', label: 'Actions de l’élément visé' },
     ],
   },
 ];
 
-/** Aide-mémoire des raccourcis (touche « ? »), regroupé par contexte. */
+/** Aide-mémoire des raccourcis (touche « ? »), regroupé par contexte. */
 export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal
@@ -75,11 +79,9 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
             <h3>{group.title}</h3>
             <dl className="shortcut-list">
               {group.entries.map((entry) => (
-                <Fragment key={`${'keys' in entry ? entry.keys : 'gesture' in entry ? entry.gesture : 'arrows'}-${entry.label}`}>
+                <Fragment key={`${entry.keys}-${entry.label}`}>
                   <dt>
-                    {'keys' in entry && <ShortcutKeys shortcut={entry.keys} />}
-                    {'arrows' in entry && <ArrowKeys />}
-                    {'gesture' in entry && <span className="shortcut-gesture">{entry.gesture}</span>}
+                    <ShortcutKeys shortcut={entry.keys} />
                   </dt>
                   <dd>{entry.label}</dd>
                 </Fragment>

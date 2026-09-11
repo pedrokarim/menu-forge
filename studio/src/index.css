@@ -1,5 +1,5 @@
 /* ==========================================================================
-   menu-forge · studio – système de design « Deepslate »
+   menu-forge · studio – système de design « Deepslate »
    L’univers du jeu, sans déguisement : ardoise, biseaux de 2 px, champs en
    creux, or réservé à la sélection et au geste principal, inspecteur dans un
    cadre d’infobulle d’objet.
@@ -458,6 +458,8 @@ textarea {
   min-height: var(--control-h);
   padding: 4px 8px;
   font: inherit;
+  /* Hauteur de ligne fixe : 30 px de haut quelle que soit la police (13 px, ou 12 px en mono). */
+  line-height: 18px;
   color: var(--ds-ink);
   background-color: var(--ds-field);
   border: 2px solid var(--ds-edge);
@@ -854,7 +856,7 @@ input[type='color']::-webkit-color-swatch {
 
 /* ---------- Structure ---------- */
 
-/* « minmax(0, 1fr) » : sans colonne explicite, un statut long élargirait toute
+/* « minmax(0, 1fr) » : sans colonne explicite, un statut long élargirait toute
    la page au-delà de la fenêtre. */
 .app {
   display: grid;
@@ -945,7 +947,7 @@ input[type='color']::-webkit-color-swatch {
   width: 128px;
 }
 
-/* Libellés courts (« Fond : vanilla ») : ils tiennent entiers à toutes les largeurs. */
+/* Libellés courts (« Fond : vanilla ») : ils tiennent entiers à toutes les largeurs. */
 .background-picker {
   width: 144px;
 }
@@ -1232,7 +1234,7 @@ input[type='color']::-webkit-color-swatch {
   top: 0;
   z-index: 3;
   display: grid;
-  /* « minmax(0, 1fr) » : un libellé long ne doit pas élargir la colonne latérale
+  /* « minmax(0, 1fr) » : un libellé long ne doit pas élargir la colonne latérale
      (elle défilerait alors de côté). */
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
@@ -1275,7 +1277,7 @@ input[type='color']::-webkit-color-swatch {
 }
 
 /* Colonne réduite (sous 1280 px) : les onglets perdent leur picto et leur marge
-   intérieure pour que « Bibliothèque » tienne en entier. */
+   intérieure pour que « Bibliothèque » tienne en entier. */
 @media (max-width: 1279px) {
   .sidebar-tabs button {
     gap: 0;
@@ -1292,7 +1294,7 @@ input[type='color']::-webkit-color-swatch {
   }
 }
 
-/* Grilles à une colonne : sans « minmax(0, 1fr) », la colonne implicite prendrait
+/* Grilles à une colonne : sans « minmax(0, 1fr) », la colonne implicite prendrait
    la largeur du plus long libellé insécable (ou de la plus longue option d’un
    select) et ferait déborder la colonne latérale. */
 .field,
@@ -1543,12 +1545,24 @@ select {
   box-shadow: var(--bevel-slot), 0 0 0 2px var(--ds-gold);
 }
 
+/* Cadre de l’image : l’image y est contenue quelles que soient ses
+   proportions (une texture de 2600 px de haut ne sort pas de sa case). */
 .thumb-image {
-  display: grid;
-  place-items: center;
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
+}
+
+.thumb-image img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
 }
 
 .thumb img,
@@ -1596,13 +1610,6 @@ select {
   color: var(--ds-faint);
 }
 
-.mono-break {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  word-break: break-all;
-  color: #cfcbd9;
-}
 
 .loading-line {
   display: flex;
@@ -2020,8 +2027,8 @@ select {
 .pixel-preview {
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 72px;
+  width: 56px;
+  height: 56px;
   overflow: hidden;
   background-color: #1c1d22;
   background-image: conic-gradient(#2a2b31 0 25%, #1f2025 0 50%, #2a2b31 0 75%, #1f2025 0);
@@ -2052,12 +2059,62 @@ select {
   color: var(--ds-ink-strong);
 }
 
-.library-dock-more summary {
-  font-size: 12px;
-  color: var(--ds-muted);
+/* Volet de texture tout en bas de la colonne, même quand il y a peu de vignettes. */
+.sidebar:has(> div:not([hidden]) > .library) {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar > div:has(> .library) {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+}
+
+.library {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+}
+
+.library-dock {
+  margin-top: auto;
+}
+
+/* Raccourcis repliés : tous sont dans l’aide-mémoire (touche ?). */
+.shortcuts > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  font: 400 13px/1.2 var(--font-display);
+  letter-spacing: 0.03em;
+  color: #d8d4e2;
+  list-style: none;
   cursor: pointer;
 }
 
-.library-dock-more[open] summary {
-  margin-bottom: 6px;
+.shortcuts > summary::-webkit-details-marker {
+  display: none;
+}
+
+.shortcuts > summary:hover {
+  color: var(--ds-ink-strong);
+}
+
+.shortcuts[open] > summary {
+  margin-bottom: 8px;
+}
+
+.shortcuts-all {
+  margin-left: auto;
+  font: 11px var(--font-ui);
+  color: var(--ds-muted);
+}
+
+/* Touche dessinée en picto (Maj, Suppr, souris…) : même cadre que les autres touches. */
+kbd.key-icon {
+  min-width: 20px;
+  padding: 0 3px;
+  color: #cfcbd9;
 }

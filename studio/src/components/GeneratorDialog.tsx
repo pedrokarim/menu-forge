@@ -107,7 +107,7 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
               {idError && <FieldError>{idError}</FieldError>}
             </Field>
           ) : (
-            <p className="muted">Couche « {layerId} »</p>
+            <p className="muted">Couche « {layerId} »</p>
           )}
           <Field label="Style">
             <select value={spec.style} onChange={(event) => setSpec({ ...spec, style: event.target.value as PanelStyle })}>

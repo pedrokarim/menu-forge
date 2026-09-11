@@ -183,10 +183,10 @@ export function Modal({
       className="modal-backdrop"
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
       onKeyDown={(event) => {
-        if (event.key !== 'Escape') return;
-        // Échap ferme le dialogue sans atteindre les raccourcis de l’éditeur (désélection).
+        // Aucune touche tapée dans un dialogue n’atteint les raccourcis de l’éditeur en dessous
+        // (Suppr, flèches, Ctrl+Z…) ; Échap le ferme.
         event.stopPropagation();
-        onClose();
+        if (event.key === 'Escape') onClose();
       }}
     >
       <div ref={dialogRef} className={wide ? 'modal modal-wide' : 'modal'} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>

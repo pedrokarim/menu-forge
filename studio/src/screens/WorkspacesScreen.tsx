@@ -59,10 +59,10 @@ export function WorkspacesScreen({ pill, list, welcome, confirmRemoval, onOpen, 
   };
 
   const forget = (target: string, name: string) => {
-    if (confirmRemoval && !window.confirm(`Retirer « ${name} » de la liste${NBSP}? Aucun fichier n’est supprimé.`)) return;
+    if (confirmRemoval && !window.confirm(`Retirer « ${name} » de la liste${NBSP}? Aucun fichier n’est supprimé.`)) return;
     void run(async () => {
       await onForget(target);
-      setNotice({ kind: 'ok', text: `« ${name} » retiré de la liste (le dossier est intact)` });
+      setNotice({ kind: 'ok', text: `« ${name} » retiré de la liste (le dossier est intact)` });
     }, 'Impossible de retirer cet espace');
   };
 
@@ -207,6 +207,7 @@ export function WorkspacesScreen({ pill, list, welcome, confirmRemoval, onOpen, 
                     <IconButton
                       icon="open"
                       label="Afficher dans l’explorateur"
+                      variant="ghost"
                       size={24}
                       disabled={!candidate.exists}
                       onClick={() => void run(() => revealInExplorer(candidate.path), 'Explorateur indisponible')}

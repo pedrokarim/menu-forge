@@ -5,6 +5,7 @@ import { IconButton } from '../ui/IconButton';
 import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
 import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { useContextMenu } from '../ui/menuContext';
+import { overlayOpen } from '../ui/overlay';
 import type { LoadedTexture } from '../lib/textures';
 import { canvasToBlob } from '../model/generator';
 import { sanitizeId, uniqueId } from '../model/menu';
@@ -28,6 +29,7 @@ import {
   findBoxPreset,
   fitScale,
   maxZoomFor,
+  CANVAS_PAD,
 } from './presets';
 import type { AssetTool } from './presets';
 import { assetTexturePaths, elementBounds, loadAssetTexture, renderAsset, renderAssetSync } from './render';
@@ -46,7 +48,7 @@ export interface AssetEditorProps {
    * La demande présente au montage est considérée comme déjà traitée.
    */
   insertRequest: { texture: string; source?: ImageElement['source']; nonce: number } | null;
-  /** Contenu à afficher dans l’onglet « Bibliothèque » de la colonne de gauche (fourni par l’application). */
+  /** Contenu à afficher dans l’onglet « Bibliothèque » de la colonne de gauche (fourni par l’application). */
   librarySlot: ReactNode;
   /** Enregistre le JSON et le PNG exporté (échelle 1). Lève une erreur en cas d’échec. */
   onSave: (asset: AssetDefinition, png: Blob) => Promise<void>;
@@ -56,8 +58,10 @@ export interface AssetEditorProps {
   active?: boolean;
   /** Grille de pixels à l’ouverture (réglage de l’éditeur). */
   defaultShowGrid?: boolean;
-  /** Zoom à l’ouverture : 0 ou absent = « Ajuster ». */
+  /** Zoom à l’ouverture : 0 ou absent = « Ajuster ». */
   defaultZoom?: number;
+  /** Demande d’enregistrement venue de la barre du haut ; change à chaque demande. */
+  saveRequest?: number;
 }
 
 const TOOLS: readonly AssetTool[] = ['select', 'box', 'text', 'image'];
@@ -73,7 +77,7 @@ function onElement(id: string, mutate: (element: AssetElement) => void): Recipe 
 }
 
 /**
- * Éditeur d’assets (« mode libre ») : box, images et textes composés
+ * Éditeur d’assets (« mode libre ») : box, images et textes composés
  * librement puis exportés en un PNG, à insérer comme glyphe. Occupe toute la
  * zone de travail : éléments / bibliothèque à gauche, toile au centre,
  * inspecteur et export à droite.
@@ -90,6 +94,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     active = true,
     defaultShowGrid = true,
     defaultZoom: openingZoom = 0,
+    saveRequest = 0,
   } = props;
   const [history, dispatch] = useReducer(historyReducer, initial, createHistory);
   const asset = history.present;
@@ -98,12 +103,14 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   const [boxPresetId, setBoxPresetId] = useState(DEFAULT_BOX_PRESET);
   const [imageTexture, setImageTexture] = useState('');
   const [zoom, setZoom] = useState(() => openingZoom || defaultZoom(initial.size.width, initial.size.height));
-  // Zoom « Ajuster » par défaut, comme pour les menus : le plus grand palier où l’asset tient dans la zone.
+  // Zoom « Ajuster » par défaut, comme pour les menus : le plus grand palier où l’asset tient dans la zone.
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(openingZoom === 0 ? 'fit' : 'manual');
   const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
   const observeStage = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
     const observer = new ResizeObserver(([entry]) => {
+      // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
+      if (entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
       setStageSize({ width: Math.floor(entry.contentRect.width), height: Math.floor(entry.contentRect.height) });
     });
     observer.observe(node);
@@ -293,13 +300,25 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       const png = await canvasToBlob(canvas);
       await onSave(snapshot, png);
       setSavedJson(JSON.stringify(snapshot));
-      setStatus(`« ${snapshot.id} » enregistré, PNG exporté (${canvas.width} × ${canvas.height})`);
+      setStatus(`« ${snapshot.id} » enregistré, PNG exporté (${canvas.width} × ${canvas.height})`);
     } catch (error) {
       setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
     } finally {
       setSaving(false);
     }
   };
+
+  // Bouton « Enregistrer » de la barre du haut : chaque nouvelle demande enregistre une fois.
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  });
+  const handledSaveRequest = useRef(saveRequest);
+  useEffect(() => {
+    if (saveRequest === handledSaveRequest.current) return;
+    handledSaveRequest.current = saveRequest;
+    void saveRef.current();
+  }, [saveRequest]);
 
   /* Menu contextuel d’un élément (clic droit dans la liste) */
 
@@ -310,7 +329,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     if (!element) return;
     const noun = element.type === 'box' ? 'Box' : element.type === 'image' ? 'Image' : 'Texte';
     openContextMenu(event, [
-      { heading: `${noun} « ${id} »` },
+      { heading: `${noun} « ${id} »` },
       { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => duplicateElement(id) },
       {
         label: element.hidden ? 'Afficher' : 'Masquer',
@@ -328,7 +347,8 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   /* Clavier */
 
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (!active) return;
+    // Écran caché, ou menu contextuel / dialogue ouvert : les touches ne sont pas pour la toile.
+    if (!active || event.defaultPrevented || overlayOpen()) return;
     const key = event.key.toLowerCase();
     const withModifier = event.ctrlKey || event.metaKey;
     if (withModifier && key === 's') {
@@ -347,7 +367,8 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       dispatch({ type: 'redo' });
       return;
     }
-    if (withModifier && key === '0') {
+    // Touche physique : sur AZERTY, Ctrl + la touche du 0 produit « à ».
+    if (withModifier && (event.code === 'Digit0' || event.code === 'Numpad0')) {
       event.preventDefault();
       setZoomMode('fit');
       return;
@@ -389,10 +410,13 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
 
   const maxZoom = maxZoomFor(asset.size.width, asset.size.height);
   const zoomOptions = ZOOM_LEVELS.filter((level) => level <= maxZoom);
-  // Sous la toile : la ligne des coordonnées (≈ 34 px avec l’espacement).
+  // Autour de la toile : sa marge (24 px de chaque côté, voir AssetCanvas) ; dessous, la ligne
+  // des coordonnées (≈ 34 px avec l’espacement).
   const fittedZoom = stageSize
     ? (zoomOptions.filter(
-        (level) => asset.size.width * level <= stageSize.width && asset.size.height * level + 34 <= stageSize.height,
+        (level) =>
+          asset.size.width * level + CANVAS_PAD * 2 <= stageSize.width &&
+          asset.size.height * level + CANVAS_PAD * 2 + 34 <= stageSize.height,
       ).at(-1) ?? 1)
     : defaultZoom(asset.size.width, asset.size.height);
   const effectiveZoom = Math.min(zoomMode === 'fit' ? fittedZoom : zoom, maxZoom);
@@ -442,11 +466,14 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
               onAddText={() => createText({ x: 4, y: 4 })}
             />
             <section className="panel-section">
-              <div className="shortcuts">
-                <h4>
+              <details className="shortcuts">
+                <summary>
                   <Icon name="keyboard" />
                   Raccourcis
-                </h4>
+                  <span className="shortcuts-all">
+                    tous&nbsp;: <kbd>?</kbd>
+                  </span>
+                </summary>
                 <dl className="shortcut-list">
                   {TOOLS.map((value) => (
                     <Fragment key={value}>
@@ -465,7 +492,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                   </dt>
                   <dd>Déplacer de 10 px</dd>
                   <dt>
-                    <kbd>Suppr</kbd>
+                    <ShortcutKeys shortcut="Suppr" />
                   </dt>
                   <dd>Supprimer l’élément</dd>
                   <dt>
@@ -493,7 +520,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                   </dt>
                   <dd>Enregistrer et exporter</dd>
                 </dl>
-              </div>
+              </details>
             </section>
           </>
         )}

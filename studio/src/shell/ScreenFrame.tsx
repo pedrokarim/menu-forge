@@ -11,7 +11,7 @@ interface ScreenFrameProps {
 }
 
 /**
- * Cadre commun des écrans « pleine page » : en-tête de la même hauteur que la
+ * Cadre commun des écrans « pleine page » : en-tête de la même hauteur que la
  * barre d’outils de l’éditeur, puis un corps centré qui défile.
  */
 export function ScreenFrame({ title, icon, pill, children }: ScreenFrameProps) {

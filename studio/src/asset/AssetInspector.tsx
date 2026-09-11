@@ -418,7 +418,7 @@ function ImageInspector({ element, textures, resources, update, live, checkpoint
           }, 'texture')
         }
       />
-      <StaticField label="Zone source" hint="Trace la zone à récupérer (le « E » dans une plus grande image, par exemple).">
+      <StaticField label="Zone source" hint="Trace la zone à récupérer (le « E » dans une plus grande image, par exemple).">
         <RegionPicker
           texture={element.texture ? texture : null}
           region={element.source}
@@ -470,7 +470,7 @@ function TextInspector({ element, update }: EditingProps<AssetTextElement>) {
 
   return (
     <>
-      <Field label="Texte" hint="Une ligne par ligne de texte ; codes « § » acceptés.">
+      <Field label="Texte" hint="Une ligne par ligne de texte ; codes « § » acceptés.">
         <textarea
           ref={areaRef}
           className="code"
@@ -483,7 +483,7 @@ function TextInspector({ element, update }: EditingProps<AssetTextElement>) {
           }}
         />
       </Field>
-      <StaticField label="Codes de format" hint="Clic : insère le code au curseur. Une couleur annule aussi le gras, « §r » revient au style de l’élément.">
+      <StaticField label="Codes de format" hint="Clic : insère le code au curseur. Une couleur annule aussi le gras, « §r » revient au style de l’élément.">
         <div className="asset-code-palette">
           {FORMAT_CODES.map((format) => (
             <button key={format.code} type="button" title={format.label} onClick={() => insertCode(`§${format.code}`)}>

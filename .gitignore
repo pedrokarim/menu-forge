@@ -5,6 +5,7 @@ build/
 .gradle/
 out/
 *.class
+__pycache__/
 
 # Bibliothèques d’assets locales (chemins propres à la machine, packs tiers)
 libraries.local.json

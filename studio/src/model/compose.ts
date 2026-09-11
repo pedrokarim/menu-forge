@@ -68,11 +68,11 @@ export function composeTitle(
     if (!evaluateCondition(layer.visibleWhen, context)) continue;
     const bounds = boundsOf(layer.texture);
     if (bounds === undefined) {
-      warnings.push(`« ${layer.id} » : texture en cours de chargement`);
+      warnings.push(`« ${layer.id} » : texture en cours de chargement`);
       continue;
     }
     if (bounds === null) {
-      warnings.push(`« ${layer.id} » : texture introuvable ou vide (${layer.texture})`);
+      warnings.push(`« ${layer.id} » : texture introuvable ou vide (${layer.texture})`);
       continue;
     }
     const x = layer.x + bounds.cropX;

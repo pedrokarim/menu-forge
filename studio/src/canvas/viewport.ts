@@ -3,7 +3,7 @@ import { WINDOW_WIDTH, windowHeight } from '../model/geometry';
 /** Navigation dans la zone de travail : défilement, taille de la vue et paliers de zoom. */
 
 /** Marges autour de la fenêtre du coffre sur la toile (px GUI), pour voir ce qui déborde (barre d’onglets flottante…). */
-export const CANVAS_MARGINS = { x: 40, top: 48, bottom: 16 } as const;
+export const CANVAS_MARGINS = { x: 32, top: 32, bottom: 8 } as const;
 
 /** Taille de la vue de la toile des menus en px GUI : fenêtre du coffre + marges. */
 export function menuViewSize(rows: number): { width: number; height: number } {
@@ -14,7 +14,7 @@ export function menuViewSize(rows: number): { width: number; height: number } {
 }
 
 /**
- * Zoom « Ajuster » : le plus grand palier où toute la vue tient dans la place
+ * Zoom « Ajuster » : le plus grand palier où toute la vue tient dans la place
  * disponible (px écran), sinon le plus petit palier.
  */
 export function fitZoom(available: { width: number; height: number }, rows: number, levels: readonly number[]): number {

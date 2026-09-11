@@ -13,11 +13,11 @@ import {
 } from './geometry';
 import type { Point, Rect, ResizeHandle } from './geometry';
 import type { AssetDefinition } from './model';
-import { GRID_MIN_ZOOM } from './presets';
+import { CANVAS_PAD, GRID_MIN_ZOOM } from './presets';
 import type { AssetTool } from './presets';
 
 /** Marge autour de l’asset, en pixels écran (poignées et sélection restent visibles au bord). */
-const PAD = 24;
+const PAD = CANVAS_PAD;
 const HANDLE_SIZE = 7;
 /** Or de sélection et cerne sombre (jetons Deepslate). */
 const SELECTION_COLOR = '#f2c94c';

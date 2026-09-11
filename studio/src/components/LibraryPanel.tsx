@@ -18,13 +18,13 @@ interface LibraryPanelProps {
   /** Crée un nouveau menu à partir d’une police du pack. */
   onImportFont: (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => Promise<void>;
   canAddLayer: boolean;
-  /** Libellé de l’ajout dans le menu contextuel (« Ajouter comme couche », « Insérer dans l’asset »). */
+  /** Libellé de l’ajout dans le menu contextuel (« Ajouter comme couche », « Insérer dans l’asset »). */
   addLabel?: string;
 }
 
 const PAGE_SIZE = 240;
 /** Côté utile de l’aperçu du volet (px). */
-const PREVIEW_SIDE = 64;
+const PREVIEW_SIDE = 48;
 
 function folderOf(path: string): string {
   return path.replace(/^assets\/[^/]+\/textures\//, '').split('/').slice(0, -1).join('/') || '(racine)';
@@ -122,7 +122,7 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
     );
   }, [scoped, folder, query]);
 
-  /** Polices « menu » : au moins un glyphe-image haut (fond d’écran, panneau). */
+  /** Polices « menu » : au moins un glyphe-image haut (fond d’écran, panneau). */
   const menuFonts = useMemo(
     () => (index?.fonts ?? []).filter((font) => font.glyphs.some((glyph) => glyph.found && glyph.height >= 64)),
     [index],
@@ -150,11 +150,13 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
   const prepareFontImport = (font: string) => {
     setFontId(font);
     setMenuId(menuIdFor(font));
-    window.setTimeout(() => importRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
+    // En haut de la colonne : en bas, le volet épinglé de la texture la cacherait.
+    window.setTimeout(() => importRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
   };
 
   const thumbMenu = (texture: LibraryTexture): MenuEntry[] => {
-    const fonts = texture.usages.filter((usage) => menuFontIds.has(usage.font)).slice(0, 3);
+    // Une police qui utilise la texture à plusieurs hauteurs n’apparaît qu’une fois.
+    const fonts = [...new Map(texture.usages.filter((usage) => menuFontIds.has(usage.font)).map((usage) => [usage.font, usage])).values()].slice(0, 3);
     return [
       { heading: fileNameOf(texture.path) },
       { label: addLabel, icon: 'plus', disabled: busy || !canAddLayer, onSelect: () => addTexture(texture) },
@@ -163,7 +165,7 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
         : []),
       ...(fonts.length > 0 ? [{ separator: true as const }] : []),
       ...fonts.map((usage) => ({
-        label: `Importer le menu « ${usage.font} »`,
+        label: `Importer le menu « ${usage.font} »`,
         icon: 'chest' as const,
         onSelect: () => prepareFontImport(usage.font),
       })),
@@ -263,7 +265,7 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
           {visible.length === 0 && (
             <p className="empty-hint">
               <Icon name="search" />
-              <span>Aucune texture ne correspond. Élargis la recherche ou décoche « interface seulement ».</span>
+              <span>Aucune texture ne correspond. Élargis la recherche ou décoche « interface seulement ».</span>
             </p>
           )}
           <div className="thumb-grid">
@@ -362,14 +364,15 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
             <PixelPreview src={libraryRawUrl(sourceId, selected.path)} width={selected.width} height={selected.height} />
             <div className="library-dock-info">
               <strong title={selected.path}>{fileNameOf(selected.path)}</strong>
-              <span className="muted small" title={selected.path}>
-                {selected.width} × {selected.height} px · {folderOf(selected.path)}
+              <span
+                className="muted small"
+                title={top !== null ? `Placée à y = ${top} (ascent ${13 - top})` : undefined}
+              >
+                {selected.width} × {selected.height} px{top !== null ? ` · y = ${top}` : ''}
               </span>
-              {top !== null && (
-                <span className="muted small">
-                  Placée à y = {top} (ascent {13 - top})
-                </span>
-              )}
+              <span className="muted small" title={selected.path}>
+                {folderOf(selected.path)}
+              </span>
             </div>
             <IconButton icon="close" label="Désélectionner" variant="ghost" onClick={() => setSelected(null)} />
           </div>
@@ -394,32 +397,12 @@ export function LibraryPanel({ onAddLayer, onAddRegion, onImportFont, canAddLaye
             )}
           </div>
           {!canAddLayer && <p className="field-hint">Ouvre d’abord un menu.</p>}
-          {selected.usages.length > 0 && (
-            <details className="library-dock-more">
-              <summary>
-                Polices qui l’utilisent ({selected.usages.length})
-              </summary>
-              <ul className="usage-list small">
-                {selected.usages.slice(0, 6).map((usage) => (
-                  <li key={`${usage.font}@${usage.ascent}`}>
-                    <button type="button" className="link" onClick={() => prepareFontImport(usage.font)}>
-                      {usage.font}
-                    </button>{' '}
-                    <span className="muted">
-                      ascent {usage.ascent} · hauteur {usage.height}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="small mono-break">{selected.path}</p>
-            </details>
-          )}
         </section>
       )}
 
       {cropping && selected && source && onAddRegion && (
         <CropDialog
-          title={`Rogner « ${fileNameOf(selected.path)} »`}
+          title={`Rogner « ${fileNameOf(selected.path)} »`}
           url={libraryRawUrl(sourceId, selected.path)}
           primary={{ label: 'Ajouter', run: (region) => onAddRegion(source, selected, region) }}
           secondary={{ label: 'Ajouter et continuer', run: (region) => onAddRegion(source, selected, region) }}

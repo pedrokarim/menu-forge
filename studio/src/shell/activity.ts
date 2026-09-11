@@ -32,7 +32,7 @@ const SCREEN_ACTIVITY: Record<PlainScreen, { details: string; image: PresenceIma
  * petite image et son texte restent génériques.
  */
 export function describeActivity(screen: ScreenId, document: OpenDocument | null, workspace: string | null): PresenceActivity {
-  const state = workspace ? `Espace « ${workspace} »` : undefined;
+  const state = workspace ? `Espace « ${workspace} »` : undefined;
   if (screen !== 'editor') {
     const { details, image } = SCREEN_ACTIVITY[screen];
     return { details, state, smallImage: image, smallText: SCREEN_TITLES[screen] };
@@ -40,14 +40,14 @@ export function describeActivity(screen: ScreenId, document: OpenDocument | null
   if (!document) return { details: 'Dans l’éditeur', state, smallImage: 'menu', smallText: 'Éditeur' };
   return document.kind === 'menu'
     ? {
-        details: `Édite le menu « ${document.name} »`,
+        details: `Édite le menu « ${document.name} »`,
         genericDetails: 'Édite un menu',
         state,
         smallImage: 'menu',
         smallText: 'Menu',
       }
     : {
-        details: `Compose l’asset « ${document.name} »`,
+        details: `Compose l’asset « ${document.name} »`,
         genericDetails: 'Compose un asset',
         state,
         smallImage: 'asset',

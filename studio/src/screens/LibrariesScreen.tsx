@@ -78,7 +78,7 @@ export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemova
 
   const taken = (libraries ?? []).map((library) => library.id);
   let idError: string | null = null;
-  if (draft.id && !LIBRARY_ID.test(draft.id)) idError = 'Lettres minuscules, chiffres, « _ » et « - » seulement';
+  if (draft.id && !LIBRARY_ID.test(draft.id)) idError = 'Lettres minuscules, chiffres, « _ » et « - » seulement';
   else if (taken.includes(draft.id)) idError = 'Une bibliothèque porte déjà cet identifiant';
 
   const run = async (key: string, action: () => Promise<void>, failure: string) => {
@@ -119,7 +119,7 @@ export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemova
       async () => {
         await addLibrary({ id: draft.id, name: draft.name.trim() || draft.id, root: draft.root.trim(), ownership: draft.ownership });
         await onChanged();
-        setNotice({ kind: 'ok', text: `Bibliothèque « ${draft.name.trim() || draft.id} » branchée` });
+        setNotice({ kind: 'ok', text: `Bibliothèque « ${draft.name.trim() || draft.id} » branchée` });
         setDraft({ root: '', id: '', name: '', ownership: 'third-party' });
         setIdTouched(false);
       },
@@ -133,20 +133,20 @@ export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemova
       async () => {
         const result = await reindexLibrary(library.id);
         setCounts((previous) => ({ ...previous, [library.id]: { textures: result.textures, fonts: result.fonts } }));
-        setNotice({ kind: 'ok', text: `« ${library.name} » réindexée : ${plural(result.textures, 'texture')}, ${plural(result.fonts, 'police')}` });
+        setNotice({ kind: 'ok', text: `« ${library.name} » réindexée : ${plural(result.textures, 'texture')}, ${plural(result.fonts, 'police')}` });
       },
       'Réindexation impossible',
     );
 
   const remove = (library: LibrarySetting) => {
-    if (confirmRemoval && !window.confirm(`Débrancher « ${library.name} »${NBSP}? Le pack reste intact sur le disque.`)) return;
+    if (confirmRemoval && !window.confirm(`Débrancher « ${library.name} »${NBSP}? Le pack reste intact sur le disque.`)) return;
     void run(
       library.id,
       async () => {
         await removeLibrary(library.id);
         requested.current.delete(library.id);
         await onChanged();
-        setNotice({ kind: 'ok', text: `« ${library.name} » débranchée (rien n’a été supprimé)` });
+        setNotice({ kind: 'ok', text: `« ${library.name} » débranchée (rien n’a été supprimé)` });
       },
       'Impossible de débrancher ce pack',
     );
@@ -161,7 +161,7 @@ export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemova
       async () => {
         await onPatch({ libraries: libraries.map((library) => (library.id === editing.id ? { ...library, name, ownership: editing.ownership } : library)) });
         setEditing(null);
-        setNotice({ kind: 'ok', text: `« ${name} » modifiée` });
+        setNotice({ kind: 'ok', text: `« ${name} » modifiée` });
       },
       'Modification impossible',
     );
@@ -291,10 +291,11 @@ export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemova
                       </>
                     ) : (
                       <>
-                        <IconButton icon="pencil" label="Modifier le nom et la propriété" size={24} onClick={() => setEditing(library)} />
+                        <IconButton icon="pencil" label="Modifier le nom et la propriété" variant="ghost" size={24} onClick={() => setEditing(library)} />
                         <IconButton
                           icon="reload"
                           label="Réindexer"
+                          variant="ghost"
                           hint="Relit le pack en ignorant les caches"
                           size={24}
                           disabled={busy !== null}
@@ -304,6 +305,7 @@ export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemova
                           <IconButton
                             icon="open"
                             label="Afficher dans l’explorateur"
+                            variant="ghost"
                             size={24}
                             onClick={() => void run(library.id, () => revealInExplorer(library.root), 'Explorateur indisponible')}
                           />
@@ -364,7 +366,7 @@ export function LibrariesScreen({ pill, settings, sessionOverride, confirmRemova
             />
             {idError && <FieldError>{idError}</FieldError>}
           </Field>
-          <Field label="Propriété" hint="« Maison » : assets à vous ; « tiers » : restent en usage local.">
+          <Field label="Propriété" hint="« Maison » : assets à vous ; « tiers » : restent en usage local.">
             <select value={draft.ownership} onChange={(event) => setDraft({ ...draft, ownership: event.target.value as LibraryOwnership })}>
               <option value="third-party">{OWNERSHIP_LABELS['third-party']}</option>
               <option value="own">{OWNERSHIP_LABELS.own}</option>

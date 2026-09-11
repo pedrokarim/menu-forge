@@ -3,6 +3,8 @@
  * Types en miroir des réponses du backend (`backend/src/libraries.rs`).
  */
 
+import { withWriteHeader } from './http';
+
 export type LibraryOwnership = 'own' | 'third-party';
 
 export interface LibrarySourceInfo {
@@ -43,7 +45,7 @@ export interface LibraryIndex {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, withWriteHeader(init));
   if (!response.ok) throw new Error((await response.text()) || `Erreur ${response.status}`);
   return (await response.json()) as T;
 }
@@ -73,7 +75,7 @@ export async function importFromLibrary(sourceId: string, path: string): Promise
   return texture;
 }
 
-/** Heuristique « asset d’interface » sur le chemin (GUI, menus, HUD, boutons…). */
+/** Heuristique « asset d’interface » sur le chemin (GUI, menus, HUD, boutons…). */
 export function looksLikeInterface(path: string): boolean {
   return /(^|\/)(gui|ui|custom_ui|menus?|hud|huds|container|interface|buttons?|icons?|screens?|dialogue)(\/|_|$)/i.test(
     path.replace(/^assets\/[^/]+\/textures\//, ''),

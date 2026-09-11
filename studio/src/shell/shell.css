@@ -1,4 +1,4 @@
-/* Coquille de l’application : rail d’écrans et écrans « pleine page »
+/* Coquille de l’application : rail d’écrans et écrans « pleine page »
    (accueil, espaces, bibliothèques, paramètres, à propos). Mêmes jetons
    Deepslate que le reste du studio (voir index.css). */
 
@@ -737,11 +737,6 @@ button.row-card:where(:active:not(:disabled)) {
 
 .shortcut-group .shortcut-list {
   grid-template-columns: 128px minmax(0, 1fr);
-}
-
-.shortcut-gesture {
-  font-size: 11.5px;
-  color: var(--ds-ink);
 }
 
 /* ---------- Barre de titre (appli de bureau) ---------- */

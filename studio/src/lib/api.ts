@@ -1,5 +1,6 @@
 import type { AssetDefinition } from '../asset/model';
 import type { MenuDefinition } from '../model/menu';
+import { withWriteHeader } from './http';
 
 /** Contenu de l’espace de travail renvoyé par le serveur local. */
 export interface WorkspaceSnapshot {
@@ -11,7 +12,7 @@ export interface WorkspaceSnapshot {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, withWriteHeader(init));
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || `Erreur ${response.status}`);

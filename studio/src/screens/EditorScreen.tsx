@@ -3,6 +3,7 @@ import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { EditorMode } from '../shell/router';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
+import { overlayOpen } from '../ui/overlay';
 import { GeneratorDialog } from '../components/GeneratorDialog';
 import type { GeneratorResult } from '../components/GeneratorDialog';
 import { Inspector } from '../components/Inspector';
@@ -31,7 +32,6 @@ import { GENERATOR_PRESETS, canvasToBlob, renderGenerator } from '../model/gener
 import { GRID_COLUMNS, SLOT_SIZE, WINDOW_WIDTH, windowHeight } from '../model/geometry';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
-import { ShortcutKeys } from '../ui/Keys';
 import { Tooltip } from '../ui/Tooltip';
 import { fitZoom, stepZoom } from '../canvas/viewport';
 import type { Point } from '../model/geometry';
@@ -96,7 +96,7 @@ export interface EditorRequest {
 
 /** Préférences de l’éditeur, tirées des réglages. */
 export interface EditorPreferences {
-  /** Zoom à l’ouverture : 0 = « Ajuster ». */
+  /** Zoom à l’ouverture : 0 = « Ajuster ». */
   defaultZoom: number;
   /** Grille de pixels de l’éditeur d’assets. */
   showGrid: boolean;
@@ -141,7 +141,7 @@ export function EditorScreen({
   const [textureVersions, setTextureVersions] = useState<Record<string, number>>({});
   const [preview, setPreview] = useState<PreviewValues>(DEFAULT_PREVIEW);
   const [zoom, setZoom] = useState(() => preferences.defaultZoom || 3);
-  // Zoom « Ajuster » par défaut : le plus grand palier où tout le coffre tient dans la zone.
+  // Zoom « Ajuster » par défaut : le plus grand palier où tout le coffre tient dans la zone.
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(() => (preferences.defaultZoom === 0 ? 'fit' : 'manual'));
   // Espace lu et premier document ouvert : l’adresse peut dès lors piloter l’éditeur.
   const [ready, setReady] = useState(false);
@@ -156,6 +156,8 @@ export function EditorScreen({
   const [mode, setMode] = useState<'menus' | 'assets'>('menus');
   const [assetId, setAssetId] = useState<string | null>(null);
   const [assetDirty, setAssetDirty] = useState(false);
+  // Compteur des demandes d’enregistrement de l’asset (bouton de la barre du haut).
+  const [assetSaveRequest, setAssetSaveRequest] = useState(0);
   const [insertRequest, setInsertRequest] = useState<{ texture: string; source?: Region; nonce: number } | null>(null);
 
   const menu = editor.menu;
@@ -230,7 +232,7 @@ export function EditorScreen({
     try {
       await saveMenu(menu);
       dispatch({ type: 'saved', json });
-      setStatus(`« ${menu.id} » enregistré`);
+      setStatus(`« ${menu.id} » enregistré`);
       void refreshWorkspace();
     } catch (error) {
       setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
@@ -267,13 +269,26 @@ export function EditorScreen({
     [change],
   );
 
+  // Identifiants de couche choisis mais pas encore dans le menu (ajouts en cours, qui attendent
+  // une texture) : deux ajouts rapides ne tirent jamais le même identifiant.
+  const reservedLayerIds = useRef(new Set<string>());
+  const menuId = menu?.id;
+  useEffect(() => {
+    reservedLayerIds.current.clear();
+  }, [menuId]);
+  const reserveLayerId = useCallback((base: string, layers: readonly { id: string }[]) => {
+    const id = uniqueId(base, [...layers.map((layer) => layer.id), ...reservedLayerIds.current]);
+    reservedLayerIds.current.add(id);
+    return id;
+  }, []);
+
   /** Duplique une couche juste au-dessus d’elle ; une texture générée est recopiée sous le nouvel identifiant. */
   const duplicateLayer = useCallback(
     async (layerId: string) => {
       if (!menu) return;
       const original = menu.layers.find((candidate) => candidate.id === layerId);
       if (!original) return;
-      const id = uniqueId(original.id, menu.layers.map((layer) => layer.id));
+      const id = reserveLayerId(original.id, menu.layers);
       const copy = { ...structuredClone(original), id };
       if (original.generator) {
         copy.texture = generatedTexturePath(menu.id, id);
@@ -286,13 +301,14 @@ export function EditorScreen({
       });
       select({ kind: 'layer', id });
     },
-    [menu, change, select, bumpTextures],
+    [menu, change, select, bumpTextures, reserveLayerId],
   );
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       // Écran caché : aucun raccourci. En mode assets, l’éditeur d’assets gère les siens.
-      if (!active || mode === 'assets') return;
+      // Menu contextuel ou dialogue ouvert : les touches sont pour lui, pas pour l’élément derrière.
+      if (!active || mode === 'assets' || event.defaultPrevented || overlayOpen()) return;
       const key = event.key.toLowerCase();
       const withModifier = event.ctrlKey || event.metaKey;
       if (withModifier && key === 's') {
@@ -306,7 +322,8 @@ export function EditorScreen({
         dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
         return;
       }
-      if (withModifier && key === '0') {
+      // Touche physique : sur AZERTY, Ctrl + la touche du 0 produit « à ».
+      if (withModifier && (event.code === 'Digit0' || event.code === 'Numpad0')) {
         event.preventDefault();
         setZoomMode('fit');
         return;
@@ -436,7 +453,7 @@ export function EditorScreen({
     dispatch({ type: 'load', menu: created });
     setPreview(DEFAULT_PREVIEW);
     setDialog(null);
-    setStatus(`Menu « ${id} » créé`);
+    setStatus(`Menu « ${id} » créé`);
   };
 
   const handleLibraryLayer = async (source: LibrarySourceInfo, texture: LibraryTexture, top: number | null) => {
@@ -449,13 +466,13 @@ export function EditorScreen({
       draft.layers.push({ id, texture: imported, x: 0, y: top ?? 0 });
     });
     select({ kind: 'layer', id });
-    setStatus(`Couche « ${id} » ajoutée depuis ${source.name}`);
+    setStatus(`Couche « ${id} » ajoutée depuis ${source.name}`);
     void refreshWorkspace();
   };
 
   const handleImportFont = async (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => {
     if (workspace?.menus.some((candidate) => candidate.id === menuId)) {
-      throw new Error(`Un menu « ${menuId} » existe déjà`);
+      throw new Error(`Un menu « ${menuId} » existe déjà`);
     }
     if (!confirmDiscard()) return;
     const { menu: created, warnings } = await buildMenuFromFont(source, index, fontId, menuId, fontId);
@@ -466,7 +483,7 @@ export function EditorScreen({
     setPreview(DEFAULT_PREVIEW);
     setLeftTab('outline');
     const notes = warnings.length > 0 ? ` · ${warnings.length} avertissement(s), dont : ${warnings[0]}` : '';
-    setStatus(`Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
+    setStatus(`Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
   };
 
   const confirmLeaveAsset = () =>
@@ -540,7 +557,8 @@ export function EditorScreen({
   useEffect(() => {
     handleRequestRef.current = handleRequest;
   });
-  const handledRequest = useRef<number | null>(null);
+  // Une demande déjà présente au montage (éditeur recréé par un changement d’espace) est considérée comme traitée.
+  const handledRequest = useRef<number | null>(request?.nonce ?? null);
   useEffect(() => {
     if (!request || !ready || request.nonce === handledRequest.current) return;
     handledRequest.current = request.nonce;
@@ -557,7 +575,7 @@ export function EditorScreen({
     await saveAsset(asset);
     await uploadTexture(texture, png);
     bumpTextures([texture]);
-    setStatus(`Asset « ${asset.id} » enregistré et exporté dans textures/${texture}`);
+    setStatus(`Asset « ${asset.id} » enregistré et exporté dans textures/${texture}`);
     void refreshWorkspace();
   };
 
@@ -568,7 +586,7 @@ export function EditorScreen({
     setAssetDirty(false);
     setAssetId(id);
     setDialog(null);
-    setStatus(`Asset « ${id} » créé`);
+    setStatus(`Asset « ${id} » créé`);
   };
 
   const handleLibraryToAsset = async (source: LibrarySourceInfo, texture: LibraryTexture) => {
@@ -576,7 +594,7 @@ export function EditorScreen({
     bumpTextures([imported]);
     await refreshWorkspace();
     setInsertRequest({ texture: imported, nonce: Date.now() });
-    setStatus(`Image « ${imported} » ajoutée à l’asset`);
+    setStatus(`Image « ${imported} » ajoutée à l’asset`);
   };
 
   /** Découpe `region` dans une image et l’enregistre sous textures/cropped/ ; renvoie son chemin. */
@@ -592,13 +610,13 @@ export function EditorScreen({
   const handleLibraryRegion = async (source: LibrarySourceInfo, texture: LibraryTexture, region: Region) => {
     if (!menu) return;
     const base = textureBaseName(texture.path);
+    const id = reserveLayerId(sanitizeId(base) || 'sprite', menu.layers);
     const path = await bakeCrop(libraryRawUrl(source.id, texture.path), base, region);
-    const id = uniqueId(sanitizeId(base) || 'sprite', menu.layers.map((layer) => layer.id));
     change((draft) => {
       draft.layers.push({ id, texture: path, x: 0, y: 0 });
     });
     select({ kind: 'layer', id });
-    setStatus(`Couche « ${id} » ajoutée : ${region.width} × ${region.height} px rognés depuis ${source.name}`);
+    setStatus(`Couche « ${id} » ajoutée : ${region.width} × ${region.height} px rognés depuis ${source.name}`);
     void refreshWorkspace();
   };
 
@@ -608,7 +626,7 @@ export function EditorScreen({
     bumpTextures([imported]);
     await refreshWorkspace();
     setInsertRequest({ texture: imported, source: region, nonce: Date.now() });
-    setStatus(`Zone ${region.width} × ${region.height} de « ${imported} » ajoutée à l’asset`);
+    setStatus(`Zone ${region.width} × ${region.height} de « ${imported} » ajoutée à l’asset`);
   };
 
   /** Rogne la texture d’une couche ; la couche se décale pour que la partie gardée reste en place. */
@@ -623,7 +641,7 @@ export function EditorScreen({
       target.x += region.x;
       target.y += region.y;
     });
-    setStatus(`Couche « ${layerId} » rognée à ${region.width} × ${region.height} px`);
+    setStatus(`Couche « ${layerId} » rognée à ${region.width} × ${region.height} px`);
     void refreshWorkspace();
   };
 
@@ -631,12 +649,12 @@ export function EditorScreen({
   const handleExtractLayer = async (layerId: string, region: Region) => {
     const layer = menu?.layers.find((candidate) => candidate.id === layerId);
     if (!layer || !menu) return;
+    const id = reserveLayerId(`${layer.id}_part`, menu.layers);
     const path = await bakeCrop(textureUrl(layer.texture, textureVersions[layer.texture] ?? 0), textureBaseName(layer.texture), region);
-    const id = uniqueId(`${layer.id}_part`, menu.layers.map((candidate) => candidate.id));
     change((draft) => {
       draft.layers.push({ id, texture: path, x: layer.x + region.x, y: layer.y + region.y });
     });
-    setStatus(`Couche « ${id} » extraite de « ${layerId} »`);
+    setStatus(`Couche « ${id} » extraite de « ${layerId} »`);
     void refreshWorkspace();
   };
 
@@ -675,7 +693,7 @@ export function EditorScreen({
     if (target.kind === 'layer') {
       const layer = menu?.layers.find((candidate) => candidate.id === target.id);
       return [
-        { heading: `Couche « ${target.id} »` },
+        { heading: `Couche « ${target.id} »` },
         { label: 'Dupliquer', icon: 'copy', shortcut: 'Ctrl+D', onSelect: () => void duplicateLayer(target.id) },
         {
           label: 'Rogner…',
@@ -700,14 +718,14 @@ export function EditorScreen({
       ];
     }
     return [
-      { heading: `${target.kind === 'text' ? 'Texte' : 'Slot'} « ${target.id} »` },
+      { heading: `${target.kind === 'text' ? 'Texte' : 'Slot'} « ${target.id} »` },
       { label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', danger: true, onSelect: () => deleteElement(target) },
     ];
   };
 
   /** Clic droit sur une zone vide de la toile. */
   const canvasMenu = (): MenuEntry[] => [
-    { heading: menu ? `Menu « ${menu.name} »` : 'Toile' },
+    { heading: menu ? `Menu « ${menu.name} »` : 'Toile' },
     { label: 'Ajouter un texte', icon: 'text', disabled: !menu, onSelect: handleAddText },
     { label: 'Générer une texture…', icon: 'sparkles', disabled: !menu, onSelect: () => setDialog({ kind: 'generator', mode: 'create' }) },
     { separator: true },
@@ -718,10 +736,12 @@ export function EditorScreen({
   const openCanvasMenu = (target: Selection | null, event: ReactMouseEvent) =>
     openContextMenu(event, target ? elementMenu(target) : canvasMenu());
 
-  // Taille de la zone de la toile, suivie en continu pour le zoom « Ajuster ».
+  // Taille de la zone de la toile, suivie en continu pour le zoom « Ajuster ».
   const observeStage = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
     const observer = new ResizeObserver(([entry]) => {
+      // Éditeur caché (autre écran) : taille nulle, le zoom « Ajuster » garde la dernière vraie taille.
+      if (entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
       setStageSize({ width: Math.floor(entry.contentRect.width), height: Math.floor(entry.contentRect.height) });
     });
     observer.observe(node);
@@ -824,13 +844,19 @@ export function EditorScreen({
                 Nouvel asset
               </button>
             </Tooltip>
-            {assetDirty && (
-              <span className="dirty-chip">
-                <span className="dirty-mark" aria-hidden="true" />
-                non enregistré
-                <ShortcutKeys shortcut="Ctrl+S" />
-              </span>
-            )}
+            <Tooltip label={assetDirty ? 'Enregistrer et exporter l’asset' : 'Tout est enregistré'} shortcut="Ctrl+S">
+              <button
+                type="button"
+                className="primary"
+                disabled={!currentAsset || !assetDirty}
+                aria-keyshortcuts="Control+S"
+                onClick={() => setAssetSaveRequest((count) => count + 1)}
+              >
+                <Icon name={assetDirty ? 'save' : 'check'} />
+                {assetDirty ? 'Enregistrer' : 'Enregistré'}
+                {assetDirty && <span className="dirty-mark" aria-hidden="true" />}
+              </button>
+            </Tooltip>
           </div>
         )}
         <span className={statusIsError ? 'status is-error' : 'status'} role="status">
@@ -1002,7 +1028,14 @@ export function EditorScreen({
               />
             </div>
           </div>
-          <div className="stage" ref={observeStage}>
+          <div
+            className="stage"
+            ref={observeStage}
+            onContextMenu={(event) => {
+              // Zone grise autour du coffre : même menu qu’une zone vide de la toile.
+              if (event.target === event.currentTarget) openCanvasMenu(null, event);
+            }}
+          >
           {resolved && context ? (
             <MenuCanvas
               menu={resolved.menu}
@@ -1100,6 +1133,7 @@ export function EditorScreen({
               }
               onSave={handleSaveAsset}
               onDirtyChange={setAssetDirty}
+              saveRequest={assetSaveRequest}
             />
           ) : (
             <section className="stage">
@@ -1172,7 +1206,7 @@ export function EditorScreen({
       )}
       {dialog?.kind === 'crop-layer' && cropLayer && (
         <CropDialog
-          title={`Rogner la couche « ${cropLayer.id} »`}
+          title={`Rogner la couche « ${cropLayer.id} »`}
           url={textureUrl(cropLayer.texture, textureVersions[cropLayer.texture] ?? 0)}
           primary={{ label: 'Rogner la couche', run: (region) => handleCropLayer(cropLayer.id, region) }}
           secondary={{ label: 'Extraire en nouvelle couche', run: (region) => handleExtractLayer(cropLayer.id, region) }}

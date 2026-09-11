@@ -115,7 +115,7 @@ interface ElementDrag {
   position: Point;
   guides: SnapGuide[];
   moved: boolean;
-  /** Élément à sélectionner si le clic se relâche sans bouger (sélection « en dessous »). */
+  /** Élément à sélectionner si le clic se relâche sans bouger (sélection « en dessous »). */
   cycleTo: Selection | null;
 }
 
@@ -214,7 +214,7 @@ function applyInteraction(menu: MenuDefinition, interaction: Interaction | null)
   return menu;
 }
 
-/** Fond de la fenêtre : cases seules (pack « cases seules »), coffre vanilla, ou rien. */
+/** Fond de la fenêtre : cases seules (pack « cases seules »), coffre vanilla, ou rien. */
 function drawWindow(ctx: CanvasRenderingContext2D, rows: number, mode: BackgroundMode) {
   const height = windowHeight(rows);
   if (mode === 'vanilla') drawPanelStyle(ctx, 'panel', 0, 0, WINDOW_WIDTH, height, '#c6c6c6');
@@ -602,7 +602,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
     };
   }, [interacting]);
 
-  // Espace maintenu au-dessus de la toile : mode « main » pour faire défiler.
+  // Espace maintenu au-dessus de la toile : mode « main » pour faire défiler.
   const handleSpaceKey = useEffectEvent((event: KeyboardEvent) => {
     if (event.code !== 'Space') return;
     if (event.type === 'keyup') {

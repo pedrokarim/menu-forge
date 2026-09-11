@@ -68,8 +68,10 @@ export const TOOL_LABELS: Record<AssetTool, { label: string; key: string; hint: 
 export const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8, 10, 12] as const;
 /** Zoom minimal pour afficher la grille de pixels. */
 export const GRID_MIN_ZOOM = 6;
+/** Marge autour de la toile de l’asset (px écran), comptée aussi par le zoom « Ajuster ». */
+export const CANVAS_PAD = 24;
 
-/** Codes « § » reconnus par le rendu (couleurs vanilla, gras, réinitialisation). */
+/** Codes « § » reconnus par le rendu (couleurs vanilla, gras, réinitialisation). */
 export const FORMAT_CODES: ReadonlyArray<{ code: string; label: string; color?: string }> = [
   { code: '0', label: 'noir', color: '#000000' },
   { code: '1', label: 'bleu foncé', color: '#0000aa' },

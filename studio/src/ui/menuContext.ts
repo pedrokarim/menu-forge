@@ -6,7 +6,7 @@ import type { IconName } from './Icon';
 export interface MenuAction {
   label: string;
   icon?: IconName;
-  /** Raccourci affiché à droite (« Ctrl+D »), à titre indicatif. */
+  /** Raccourci affiché à droite (« Ctrl+D »), à titre indicatif. */
   shortcut?: string;
   disabled?: boolean;
   /** Action destructrice (supprimer, retirer) : en rouge. */

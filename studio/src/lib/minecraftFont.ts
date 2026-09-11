@@ -18,14 +18,14 @@ export interface MinecraftFont {
   measure(text: string, bold?: boolean): number;
   /** Dessine un texte simple ; renvoie l’avance totale. `y` = haut de la ligne. */
   draw(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, style?: TextStyle): number;
-  /** Mesure / dessine un texte avec codes « § » (0-9 a-f couleurs vanilla, l gras, r reset ; k m n o ignorés). */
+  /** Mesure / dessine un texte avec codes « § » (0-9 a-f couleurs vanilla, l gras, r reset ; k m n o ignorés). */
   measureFormatted(text: string): number;
   drawFormatted(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, style?: TextStyle): number;
   /** Avance de chaque caractère ASCII imprimable (pour comparer avec nos tables). */
   asciiAdvances(): Record<string, number>;
 }
 
-/** Couleurs des codes « § » vanilla. */
+/** Couleurs des codes « § » vanilla. */
 const LEGACY_COLORS: Record<string, string> = {
   '0': '#000000', '1': '#0000AA', '2': '#00AA00', '3': '#00AAAA',
   '4': '#AA0000', '5': '#AA00AA', '6': '#FFAA00', '7': '#AAAAAA',
@@ -142,7 +142,7 @@ function tintedSheet(sheet: Sheet, color: string): HTMLCanvasElement {
   return canvas;
 }
 
-/** Glyphe « manquant » du jeu : cadre blanc de 5 × 8, avance 6. */
+/** Glyphe « manquant » du jeu : cadre blanc de 5 × 8, avance 6. */
 function missingGlyph(): Glyph {
   const canvas = document.createElement('canvas');
   canvas.width = 5;
@@ -245,7 +245,7 @@ async function buildGlyphs(sourceId: string, fontId: string): Promise<Map<number
   return glyphs;
 }
 
-/** Découpe un texte « § » en morceaux stylés (règles de `StringDecomposer` du jeu). */
+/** Découpe un texte « § » en morceaux stylés (règles de `StringDecomposer` du jeu). */
 function parseFormatted(text: string, color: string, bold: boolean): Run[] {
   const runs: Run[] = [];
   let current: Run = { text: '', color, bold };

@@ -16,7 +16,7 @@ interface TriggerProps {
 interface TooltipProps {
   /** Première ligne, en clair (le nom de l’action). */
   label: ReactNode;
-  /** Raccourci clavier, touches séparées par « + » : « Ctrl+Z », « V »… */
+  /** Raccourci clavier, touches séparées par « + » : « Ctrl+Z », « V »… */
   shortcut?: string;
   /** Seconde ligne, plus discrète. */
   hint?: ReactNode;
