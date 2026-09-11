@@ -1,10 +1,13 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { elementRect as rectOfElement, layerRect, textRect } from '../canvas/menuRects';
 import {
   drawDraftZone,
+  drawGroupFrame,
   drawGuide,
   drawHandle,
   drawHoverFrame,
+  drawMarquee,
   drawSelectionFrame,
   drawSlotZone,
   drawTag,
@@ -16,10 +19,12 @@ import { alignmentGuides, gridSnapLines, snapRect, snapThreshold, withRects } fr
 import type { SnapGuide, SnapLines } from '../canvas/snapping';
 import { labelFont } from '../canvas/theme';
 import { CANVAS_MARGINS, isEditableTarget, scrollParentOf, stepZoom } from '../canvas/viewport';
+import { isAdditiveClick } from '../lib/shortcuts';
 import { alphaAt } from '../lib/textures';
 import type { TextureMap } from '../lib/textures';
+import { intersects, rectBetween, unionRect } from '../model/arrange';
 import { evaluateCondition } from '../model/conditions';
-import { TEXT_HEIGHT, alignedStart, charAdvance, textWidth } from '../model/fontMetrics';
+import { TEXT_HEIGHT, charAdvance } from '../model/fontMetrics';
 import { drawPanelStyle } from '../model/generator';
 import {
   GRID_COLUMNS,
@@ -31,7 +36,6 @@ import {
   chestCell,
   chestCellAt,
   clampedChestCell,
-  moveArea,
   playerCell,
   rectContains,
   resizeArea,
@@ -39,10 +43,14 @@ import {
   windowHeight,
 } from '../model/geometry';
 import type { GridCell, Point, Rect, ResizeHandle } from '../model/geometry';
-import type { Layer, MenuDefinition, Slot, SlotArea, TextElement } from '../model/menu';
+import { hasEditorFlag } from '../model/menu';
+import type { MenuDefinition, Slot, SlotArea } from '../model/menu';
+import { findElement, translateMoves, withMoves } from '../model/menuEdit';
+import type { ElementMove } from '../model/menuEdit';
 import type { PreviewContext } from '../model/preview';
 import { interpolate } from '../model/preview';
 import { elementKey } from '../model/resolve';
+import { mergeSelections, sameSelection, selectionIncludes, toggleSelection } from '../state/editor';
 import type { Selection } from '../state/editor';
 import { SLOT_COLORS } from './slotColors';
 
@@ -85,49 +93,45 @@ interface MenuCanvasProps {
   tool: CanvasTool;
   background: BackgroundMode;
   showSlots: boolean;
-  selection: Selection | null;
-  onSelect: (selection: Selection | null) => void;
-  /** Appelé juste avant `onMove`, au relâchement d’un glisser (point d’historique). */
-  onBeginMove: () => void;
-  onMove: (selection: Selection, x: number, y: number) => void;
+  /** Éléments sélectionnés (le dernier est l’élément actif). */
+  selection: Selection[];
+  onSelect: (selection: Selection[]) => void;
+  /** Déplacement à la souris, validé au relâchement : une seule entrée d’historique. */
+  onMoveElements: (moves: ElementMove[]) => void;
   onCreateSlot: (area: SlotArea) => void;
-  /** Zone de slots déplacée ou redimensionnée à la souris ; sans ce rappel, les zones restent fixes. */
+  /** Zone de slots redimensionnée à la souris ; sans ce rappel, les zones gardent leur taille. */
   onSlotAreaChange?: (id: string, area: SlotArea) => void;
   /** Aimantation des couches et des textes (Alt maintenu la suspend). Vrai par défaut. */
   snapping?: boolean;
   /** Paliers de zoom parcourus au Ctrl + molette. */
   zoomLevels?: readonly number[];
   onZoomChange?: (zoom: number) => void;
-  /** Clic droit : l’élément sous le pointeur (sélectionné au passage), ou `null` sur une zone vide. */
+  /**
+   * Clic droit : l’élément sous le pointeur (sélectionné au passage, sauf s’il
+   * fait déjà partie de la sélection), ou `null` sur une zone vide.
+   */
   onContextMenu?: (target: Selection | null, event: ReactMouseEvent<HTMLCanvasElement>) => void;
 }
 
-/** Glisser d’une couche ou d’un texte. */
-interface ElementDrag {
-  kind: 'element';
-  target: Selection;
+/** Glisser d’un ou plusieurs éléments (couches, textes, zones de slots). */
+interface GroupMove {
+  kind: 'move';
+  members: Selection[];
   startClient: Point;
   start: Point;
-  origin: Point;
-  /** Rectangle visible de l’élément, relatif à son origine `(x, y)`. */
-  offset: Rect;
+  /** Rectangle englobant des couches et textes au départ (aimantation) ; `null` s’il n’y a que des zones. */
+  bounds: Rect | null;
   lines: SnapLines;
-  position: Point;
+  /** Décalage des couches et des textes, en pixels. */
+  delta: Point;
+  /** Décalage des zones de slots, en cellules. */
+  cells: { col: number; row: number };
   guides: SnapGuide[];
   moved: boolean;
-  /** Élément à sélectionner si le clic se relâche sans bouger (sélection « en dessous »). */
+  /** Élément à sélectionner si le clic se relâche sans bouger (sélection « en dessous »). */
   cycleTo: Selection | null;
-}
-
-interface SlotMove {
-  kind: 'slot-move';
-  id: string;
-  startClient: Point;
-  start: Point;
-  origin: SlotArea;
-  area: SlotArea;
-  moved: boolean;
-  cycleTo: Selection | null;
+  /** Clic sur un élément d’une sélection multiple : relâché sans bouger, lui seul reste sélectionné. */
+  narrowTo: Selection | null;
 }
 
 interface SlotResize {
@@ -153,7 +157,19 @@ interface Pan {
   scroller: HTMLElement;
 }
 
-type Interaction = ElementDrag | SlotMove | SlotResize | SlotDraw | Pan;
+/** Rectangle de sélection, tracé en glissant depuis une zone vide. */
+interface Marquee {
+  kind: 'marquee';
+  startClient: Point;
+  start: Point;
+  end: Point;
+  /** Maj ou Ctrl : ajoute à la sélection de départ (`base`) au lieu de la remplacer. */
+  additive: boolean;
+  base: Selection[];
+  moved: boolean;
+}
+
+type Interaction = GroupMove | SlotResize | SlotDraw | Pan | Marquee;
 
 interface Hover {
   target: Selection | null;
@@ -162,11 +178,6 @@ interface Hover {
 }
 
 const NO_HOVER: Hover = { target: null, handle: null, cell: null };
-
-function sameSelection(a: Selection | null, b: Selection | null): boolean {
-  if (!a || !b) return a === b;
-  return a.kind === b.kind && a.id === b.id;
-}
 
 function sameCell(a: GridCell | null, b: GridCell | null): boolean {
   if (!a || !b) return a === b;
@@ -177,44 +188,18 @@ function sameHover(a: Hover, b: Hover): boolean {
   return sameSelection(a.target, b.target) && a.handle === b.handle && sameCell(a.cell, b.cell);
 }
 
-function textRect(text: TextElement, context: PreviewContext): Rect {
-  const width = textWidth(interpolate(text.value, context.variables));
-  return { x: alignedStart(text.x, width, text.align), y: text.y, width: Math.max(width, 2), height: TEXT_HEIGHT };
-}
-
-/** Partie visible d’une couche (pixels opaques), pour le cadre et l’aimantation. */
-function layerRect(layer: Layer, textures: TextureMap): Rect {
-  const texture = textures.get(layer.texture);
-  if (!texture) return { x: layer.x, y: layer.y, width: 16, height: 16 };
-  if (!texture.bounds) return { x: layer.x, y: layer.y, width: texture.width, height: texture.height };
-  const { cropX, cropY, width, height } = texture.bounds;
-  return { x: layer.x + cropX, y: layer.y + cropY, width, height };
-}
-
-/** Menu tel qu’il apparaît pendant un glisser : l’aperçu n’est validé qu’au relâchement. */
-function applyInteraction(menu: MenuDefinition, interaction: Interaction | null): MenuDefinition {
-  if (!interaction) return menu;
-  if (interaction.kind === 'element' && interaction.moved) {
-    const { target, position } = interaction;
-    if (target.kind === 'layer') {
-      return {
-        ...menu,
-        layers: menu.layers.map((layer) => (layer.id === target.id ? { ...layer, ...position } : layer)),
-      };
-    }
-    return {
-      ...menu,
-      texts: menu.texts?.map((text) => (text.id === target.id ? { ...text, ...position } : text)),
-    };
+/** Déplacements en cours pendant un glisser (aperçu validé seulement au relâchement). */
+function pendingMoves(menu: MenuDefinition, interaction: Interaction | null): ElementMove[] {
+  if (interaction?.kind === 'move' && interaction.moved) {
+    return translateMoves(menu, interaction.members, interaction.delta, interaction.cells);
   }
-  if ((interaction.kind === 'slot-move' || interaction.kind === 'slot-resize') && interaction.moved) {
-    const { id, area } = interaction;
-    return { ...menu, slots: menu.slots?.map((slot) => (slot.id === id ? { ...slot, area } : slot)) };
+  if (interaction?.kind === 'slot-resize' && interaction.moved) {
+    return [{ kind: 'slot', id: interaction.id, area: interaction.area }];
   }
-  return menu;
+  return [];
 }
 
-/** Fond de la fenêtre : cases seules (pack « cases seules »), coffre vanilla, ou rien. */
+/** Fond de la fenêtre : cases seules (pack « cases seules »), coffre vanilla, ou rien. */
 function drawWindow(ctx: CanvasRenderingContext2D, rows: number, mode: BackgroundMode) {
   const height = windowHeight(rows);
   if (mode === 'vanilla') drawPanelStyle(ctx, 'panel', 0, 0, WINDOW_WIDTH, height, '#c6c6c6');
@@ -279,7 +264,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
   const zoomAnchorRef = useRef<{ gui: Point; client: Point } | null>(null);
   const wheelRef = useRef(0);
 
-  const shown = applyInteraction(menu, interaction);
+  const shown = withMoves(menu, pendingMoves(menu, interaction));
   const rows = menu.container.rows;
   const viewWidth = WINDOW_WIDTH + MARGIN_X * 2;
   const viewHeight = windowHeight(rows) + MARGIN_TOP + MARGIN_BOTTOM;
@@ -304,23 +289,22 @@ export function MenuCanvas(props: MenuCanvasProps) {
   }
 
   function elementRect(target: Selection, source: MenuDefinition): Rect | null {
-    if (target.kind === 'layer') {
-      const layer = source.layers.find((candidate) => candidate.id === target.id);
-      return layer ? layerRect(layer, textures) : null;
-    }
-    if (target.kind === 'text') {
-      const text = source.texts?.find((candidate) => candidate.id === target.id);
-      return text ? textRect(text, context) : null;
-    }
-    const slot = source.slots?.find((candidate) => candidate.id === target.id);
-    return slot ? areaRect(slot.area) : null;
+    return rectOfElement(source, target, textures, context);
   }
 
-  /** Zone sélectionnée qui accepte les poignées (outil Sélection, zone propre au menu). */
+  /** Élément propre au menu, ni verrouillé ni masqué dans l’éditeur : il réagit à la souris. */
+  function isMovable(target: Selection): boolean {
+    if (inherited.has(elementKey(target.kind, target.id))) return false;
+    const element = findElement(menu, target);
+    return element !== undefined && !hasEditorFlag(element, 'locked') && !hasEditorFlag(element, 'hidden');
+  }
+
+  /** Zone sélectionnée seule qui accepte les poignées (outil Sélection, zone propre au menu). */
   function resizableSlot(): Slot | null {
-    if (tool !== 'select' || !showSlots || !props.onSlotAreaChange || selection?.kind !== 'slot') return null;
-    if (inherited.has(elementKey('slot', selection.id))) return null;
-    return shown.slots?.find((candidate) => candidate.id === selection.id) ?? null;
+    if (tool !== 'select' || !showSlots || !props.onSlotAreaChange || selection.length !== 1) return null;
+    const [only] = selection;
+    if (only.kind !== 'slot' || !isMovable(only)) return null;
+    return shown.slots?.find((candidate) => candidate.id === only.id) ?? null;
   }
 
   function slotHandles(slot: Slot) {
@@ -336,23 +320,33 @@ export function MenuCanvas(props: MenuCanvasProps) {
     return hit?.handle ?? null;
   }
 
+  /** Éléments que la souris peut atteindre, dans l’ordre du menu (couches, textes, zones). */
+  function reachableTargets(): Selection[] {
+    const targets: Selection[] = [];
+    for (const layer of menu.layers) {
+      if (evaluateCondition(layer.visibleWhen, context)) targets.push({ kind: 'layer', id: layer.id });
+    }
+    for (const text of menu.texts ?? []) {
+      if (evaluateCondition(text.visibleWhen, context)) targets.push({ kind: 'text', id: text.id });
+    }
+    if (showSlots) for (const slot of menu.slots ?? []) targets.push({ kind: 'slot', id: slot.id });
+    return targets.filter(isMovable);
+  }
+
   /** Éléments modifiables sous un point, du plus haut au plus bas (zones, textes, couches). */
   function hitStack(point: Point): Selection[] {
     const stack: Selection[] = [];
-    if (showSlots) {
-      for (const slot of [...(menu.slots ?? [])].reverse()) {
-        if (inherited.has(elementKey('slot', slot.id))) continue;
-        if (rectContains(areaRect(slot.area), point)) stack.push({ kind: 'slot', id: slot.id });
-      }
+    const reachable = reachableTargets();
+    const reachableKeys = new Set(reachable.map((target) => elementKey(target.kind, target.id)));
+    const ok = (kind: Selection['kind'], id: string) => reachableKeys.has(elementKey(kind, id));
+    for (const slot of [...(menu.slots ?? [])].reverse()) {
+      if (ok('slot', slot.id) && rectContains(areaRect(slot.area), point)) stack.push({ kind: 'slot', id: slot.id });
     }
     for (const text of [...(menu.texts ?? [])].reverse()) {
-      if (inherited.has(elementKey('text', text.id))) continue;
-      if (!evaluateCondition(text.visibleWhen, context)) continue;
-      if (rectContains(textRect(text, context), point)) stack.push({ kind: 'text', id: text.id });
+      if (ok('text', text.id) && rectContains(textRect(text, context), point)) stack.push({ kind: 'text', id: text.id });
     }
     for (const layer of [...menu.layers].reverse()) {
-      if (inherited.has(elementKey('layer', layer.id))) continue;
-      if (!evaluateCondition(layer.visibleWhen, context)) continue;
+      if (!ok('layer', layer.id)) continue;
       const texture = textures.get(layer.texture);
       if (!texture) continue;
       if (alphaAt(texture, Math.floor(point.x - layer.x), Math.floor(point.y - layer.y)) > 0) {
@@ -362,39 +356,50 @@ export function MenuCanvas(props: MenuCanvasProps) {
     return stack;
   }
 
-  /** L’élément sélectionné garde la main s’il est sous le pointeur ; sinon le plus haut. */
+  /** Un élément déjà sélectionné garde la main s’il est sous le pointeur ; sinon le plus haut. */
   function pick(stack: Selection[]): { target: Selection | null; cycleTo: Selection | null; kept: boolean } {
-    const index = selection ? stack.findIndex((candidate) => sameSelection(candidate, selection)) : -1;
+    const index = stack.findIndex((candidate) => selectionIncludes(selection, candidate));
     if (index < 0) return { target: stack[0] ?? null, cycleTo: null, kept: false };
-    const cycleTo = stack.length > 1 ? stack[(index + 1) % stack.length] : null;
+    const cycleTo = selection.length === 1 && stack.length > 1 ? stack[(index + 1) % stack.length] : null;
     return { target: stack[index], cycleTo, kept: true };
   }
 
-  /** Lignes d’aimantation : grille, fenêtre et autres éléments visibles. */
-  function snapLinesFor(target: Selection): SnapLines {
+  /** Éléments touchés par le rectangle de sélection. */
+  function marqueeHits(area: Rect): Selection[] {
+    return reachableTargets().filter((target) => {
+      const rect = elementRect(target, menu);
+      return rect !== null && intersects(rect, area);
+    });
+  }
+
+  /** Lignes d’aimantation : grille, fenêtre et autres éléments visibles (hors éléments déplacés). */
+  function snapLinesFor(members: readonly Selection[]): SnapLines {
     const rects: Rect[] = [];
     for (const layer of menu.layers) {
-      if (target.kind === 'layer' && layer.id === target.id) continue;
+      if (selectionIncludes(members, { kind: 'layer', id: layer.id }) || hasEditorFlag(layer, 'hidden')) continue;
       if (evaluateCondition(layer.visibleWhen, context)) rects.push(layerRect(layer, textures));
     }
     for (const text of menu.texts ?? []) {
-      if (target.kind === 'text' && text.id === target.id) continue;
+      if (selectionIncludes(members, { kind: 'text', id: text.id }) || hasEditorFlag(text, 'hidden')) continue;
       if (evaluateCondition(text.visibleWhen, context)) rects.push(textRect(text, context));
     }
     return withRects(gridSnapLines(rows), rects);
   }
 
-  function elementPosition(drag: ElementDrag, point: Point, free: boolean): { position: Point; guides: SnapGuide[] } {
-    const raw = { x: drag.origin.x + point.x - drag.start.x, y: drag.origin.y + point.y - drag.start.y };
-    if (!snapping || free) return { position: { x: Math.round(raw.x), y: Math.round(raw.y) }, guides: [] };
-    const rect = { ...drag.offset, x: raw.x + drag.offset.x, y: raw.y + drag.offset.y };
+  function groupDelta(drag: GroupMove, point: Point, free: boolean): Pick<GroupMove, 'delta' | 'cells' | 'guides'> {
+    const raw = { x: point.x - drag.start.x, y: point.y - drag.start.y };
+    const cells = { col: Math.round(raw.x / SLOT_SIZE), row: Math.round(raw.y / SLOT_SIZE) };
+    if (!drag.bounds || !snapping || free) {
+      return { delta: { x: Math.round(raw.x), y: Math.round(raw.y) }, cells, guides: [] };
+    }
+    const rect = { ...drag.bounds, x: drag.bounds.x + raw.x, y: drag.bounds.y + raw.y };
     const snap = snapRect(rect, drag.lines, snapThreshold(zoom));
-    const position = { x: Math.round(raw.x + (snap.dx ?? 0)), y: Math.round(raw.y + (snap.dy ?? 0)) };
-    const placed = { ...drag.offset, x: position.x + drag.offset.x, y: position.y + drag.offset.y };
-    return { position, guides: alignmentGuides(placed, drag.lines) };
+    const delta = { x: Math.round(raw.x + (snap.dx ?? 0)), y: Math.round(raw.y + (snap.dy ?? 0)) };
+    const placed = { ...drag.bounds, x: drag.bounds.x + delta.x, y: drag.bounds.y + delta.y };
+    return { delta, cells, guides: alignmentGuides(placed, drag.lines) };
   }
 
-  function readPointer(event: ReactPointerEvent<HTMLCanvasElement>) {
+  function readPointer(event: ReactPointerEvent<HTMLCanvasElement> | ReactMouseEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     const screen = { x: event.clientX - rect.left, y: event.clientY - rect.top };
     return {
@@ -402,6 +407,33 @@ export function MenuCanvas(props: MenuCanvasProps) {
       point: { x: screen.x / zoom - MARGIN_X, y: screen.y / zoom - MARGIN_TOP },
       client: { x: event.clientX, y: event.clientY },
     };
+  }
+
+  function startMove(targets: Selection[], client: Point, point: Point, cycleTo: Selection | null, narrowTo: Selection | null) {
+    const members = targets.filter(isMovable);
+    if (members.length === 0) return;
+    const rects = members
+      .filter((member) => member.kind !== 'slot')
+      .map((member) => elementRect(member, menu))
+      .filter((rect): rect is Rect => rect !== null);
+    setInteraction({
+      kind: 'move',
+      members,
+      startClient: client,
+      start: point,
+      bounds: rects.length > 0 ? unionRect(rects) : null,
+      lines: snapLinesFor(members),
+      delta: { x: 0, y: 0 },
+      cells: { col: 0, row: 0 },
+      guides: [],
+      moved: false,
+      cycleTo,
+      narrowTo,
+    });
+  }
+
+  function startMarquee(client: Point, point: Point, additive: boolean) {
+    setInteraction({ kind: 'marquee', startClient: client, start: point, end: point, additive, base: selection, moved: false });
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
@@ -442,46 +474,28 @@ export function MenuCanvas(props: MenuCanvasProps) {
       return;
     }
 
-    const { target, cycleTo, kept } = pick(hitStack(point));
-    if (!kept) props.onSelect(target);
-    if (!target) return;
-
-    if (target.kind === 'slot') {
-      const slot = menu.slots?.find((candidate) => candidate.id === target.id);
-      if (!slot) return;
-      setInteraction({
-        kind: 'slot-move',
-        id: slot.id,
-        startClient: client,
-        start: point,
-        origin: slot.area,
-        area: slot.area,
-        moved: false,
-        cycleTo,
-      });
+    const stack = hitStack(point);
+    // Maj ou Ctrl + clic : ajoute l’élément à la sélection, ou l’en retire.
+    if (isAdditiveClick(event)) {
+      const target = stack[0] ?? null;
+      if (!target) {
+        startMarquee(client, point, true);
+        return;
+      }
+      const next = toggleSelection(selection, target);
+      props.onSelect(next);
+      if (selectionIncludes(next, target)) startMove(next, client, point, null, null);
       return;
     }
 
-    const element =
-      target.kind === 'layer'
-        ? menu.layers.find((layer) => layer.id === target.id)
-        : menu.texts?.find((text) => text.id === target.id);
-    const rect = elementRect(target, menu);
-    if (!element || !rect) return;
-    const origin = { x: element.x, y: element.y };
-    setInteraction({
-      kind: 'element',
-      target,
-      startClient: client,
-      start: point,
-      origin,
-      offset: { x: rect.x - origin.x, y: rect.y - origin.y, width: rect.width, height: rect.height },
-      lines: snapLinesFor(target),
-      position: origin,
-      guides: [],
-      moved: false,
-      cycleTo,
-    });
+    const { target, cycleTo, kept } = pick(stack);
+    if (!target) {
+      if (selection.length > 0) props.onSelect([]);
+      startMarquee(client, point, false);
+      return;
+    }
+    if (!kept) props.onSelect([target]);
+    startMove(kept ? selection : [target], client, point, cycleTo, kept && selection.length > 1 ? target : null);
   }
 
   function updateHover(screen: Point, point: Point) {
@@ -518,12 +532,10 @@ export function MenuCanvas(props: MenuCanvasProps) {
     const moved =
       current.moved || Math.hypot(client.x - current.startClient.x, client.y - current.startClient.y) >= DRAG_THRESHOLD;
     if (!moved) return;
-    if (current.kind === 'element') {
-      setInteraction({ ...current, moved, ...elementPosition(current, point, event.altKey) });
-    } else if (current.kind === 'slot-move') {
-      const deltaCol = Math.round((point.x - current.start.x) / SLOT_SIZE);
-      const deltaRow = Math.round((point.y - current.start.y) / SLOT_SIZE);
-      setInteraction({ ...current, moved, area: moveArea(current.origin, deltaCol, deltaRow, rows) });
+    if (current.kind === 'marquee') {
+      setInteraction({ ...current, moved, end: point });
+    } else if (current.kind === 'move') {
+      setInteraction({ ...current, moved, ...groupDelta(current, point, event.altKey) });
     } else {
       setInteraction({ ...current, moved, area: resizeArea(current.origin, current.handle, point, rows) });
     }
@@ -535,21 +547,22 @@ export function MenuCanvas(props: MenuCanvasProps) {
     if (!current) return;
     setInteraction(null);
     switch (current.kind) {
-      case 'element':
+      case 'move': {
         if (!current.moved) {
-          if (current.cycleTo) props.onSelect(current.cycleTo);
-        } else if (current.position.x !== current.origin.x || current.position.y !== current.origin.y) {
-          props.onBeginMove();
-          props.onMove(current.target, current.position.x, current.position.y);
+          if (current.cycleTo) props.onSelect([current.cycleTo]);
+          else if (current.narrowTo) props.onSelect([current.narrowTo]);
+          return;
         }
+        const moves = translateMoves(menu, current.members, current.delta, current.cells);
+        if (moves.length > 0) props.onMoveElements(moves);
         return;
-      case 'slot-move':
-        if (!current.moved) {
-          if (current.cycleTo) props.onSelect(current.cycleTo);
-        } else if (!sameArea(current.area, current.origin)) {
-          props.onSlotAreaChange?.(current.id, current.area);
-        }
+      }
+      case 'marquee': {
+        if (!current.moved) return;
+        const hits = marqueeHits(rectBetween(current.start, current.end));
+        props.onSelect(current.additive ? mergeSelections(current.base, hits) : hits);
         return;
+      }
       case 'slot-resize':
         if (current.moved && !sameArea(current.area, current.origin)) props.onSlotAreaChange?.(current.id, current.area);
         return;
@@ -576,7 +589,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
       if (event.type === 'keydown') setInteraction(null);
       return;
     }
-    if ((event.ctrlKey || event.metaKey) && /^[zy]$/i.test(event.key)) {
+    if ((event.ctrlKey || event.metaKey) && /^(KeyZ|KeyY|KeyW)$/.test(event.code)) {
       event.preventDefault();
       event.stopImmediatePropagation();
       return;
@@ -584,8 +597,8 @@ export function MenuCanvas(props: MenuCanvasProps) {
     if (event.key === 'Alt') {
       event.preventDefault();
       const point = lastPointRef.current;
-      if (current.kind === 'element' && current.moved && point) {
-        setInteraction({ ...current, ...elementPosition(current, point, event.type === 'keydown') });
+      if (current.kind === 'move' && current.moved && point) {
+        setInteraction({ ...current, ...groupDelta(current, point, event.type === 'keydown') });
       }
     }
   });
@@ -602,7 +615,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
     };
   }, [interacting]);
 
-  // Espace maintenu au-dessus de la toile : mode « main » pour faire défiler.
+  // Espace maintenu au-dessus de la toile : mode « main » pour faire défiler.
   const handleSpaceKey = useEffectEvent((event: KeyboardEvent) => {
     if (event.code !== 'Space') return;
     if (event.type === 'keyup') {
@@ -687,21 +700,29 @@ export function MenuCanvas(props: MenuCanvasProps) {
       const size = areaSize(area);
       return { text: `${size.width} × ${size.height}`, rect: areaRect(area) };
     }
-    if (interaction.kind === 'pan' || !interaction.moved) return null;
-    if (interaction.kind === 'element') {
-      const { position, offset } = interaction;
-      return {
-        text: `x ${position.x} · y ${position.y}`,
-        rect: { ...offset, x: position.x + offset.x, y: position.y + offset.y },
-      };
+    if (interaction.kind === 'pan' || interaction.kind === 'marquee' || !interaction.moved) return null;
+    if (interaction.kind === 'slot-resize') {
+      const { area } = interaction;
+      const size = areaSize(area);
+      return { text: `${size.width} × ${size.height} · colonne ${area.col} · ligne ${area.row}`, rect: areaRect(area) };
     }
-    const { area } = interaction;
-    const size = areaSize(area);
-    const text =
-      interaction.kind === 'slot-move'
-        ? `colonne ${area.col} · ligne ${area.row}`
-        : `${size.width} × ${size.height} · colonne ${area.col} · ligne ${area.row}`;
-    return { text, rect: areaRect(area) };
+    const rects = interaction.members
+      .map((member) => elementRect(member, shown))
+      .filter((rect): rect is Rect => rect !== null);
+    if (rects.length === 0) return null;
+    if (interaction.members.length > 1) {
+      const rect = unionRect(rects);
+      return { text: `${interaction.members.length} éléments · x ${rect.x} · y ${rect.y}`, rect };
+    }
+    const [member] = interaction.members;
+    const element = findElement(shown, member);
+    if (!element) return null;
+    if (member.kind === 'slot') {
+      const { area } = element as Slot;
+      return { text: `colonne ${area.col} · ligne ${area.row}`, rect: rects[0] };
+    }
+    const { x, y } = element as { x: number; y: number };
+    return { text: `x ${x} · y ${y}`, rect: rects[0] };
   }
 
   useEffect(() => {
@@ -712,17 +733,18 @@ export function MenuCanvas(props: MenuCanvasProps) {
     canvas.height = viewHeight * zoom;
     ctx.imageSmoothingEnabled = false;
 
-    // 1. Le menu lui-même, en coordonnées fenêtre : jamais recoloré.
+    // 1. Le menu lui-même, en coordonnées fenêtre : jamais recoloré. Les éléments masqués
+    //    dans l’éditeur ne sont pas dessinés (ils restent dans le titre composé).
     ctx.setTransform(zoom, 0, 0, zoom, MARGIN_X * zoom, MARGIN_TOP * zoom);
     drawWindow(ctx, rows, background);
     for (const layer of shown.layers) {
-      if (!evaluateCondition(layer.visibleWhen, context)) continue;
+      if (hasEditorFlag(layer, 'hidden') || !evaluateCondition(layer.visibleWhen, context)) continue;
       const texture = textures.get(layer.texture);
       if (texture) ctx.drawImage(texture.image, layer.x, layer.y);
       else drawMissing(ctx, layer.x, layer.y, texture === null);
     }
     for (const text of shown.texts ?? []) {
-      if (!evaluateCondition(text.visibleWhen, context)) continue;
+      if (hasEditorFlag(text, 'hidden') || !evaluateCondition(text.visibleWhen, context)) continue;
       const rect = textRect(text, context);
       drawText(ctx, interpolate(text.value, context.variables), rect.x, rect.y, text.color ?? '#404040');
     }
@@ -732,6 +754,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
     if (showSlots) {
       const fontSize = Math.round(Math.min(16, Math.max(10, zoom * 3.5)));
       for (const slot of shown.slots ?? []) {
+        if (hasEditorFlag(slot, 'hidden')) continue;
         drawSlotZone(ctx, toScreenRect(areaRect(slot.area)), {
           color: SLOT_COLORS[slot.kind],
           visible: evaluateCondition(slot.visibleWhen, context),
@@ -750,12 +773,12 @@ export function MenuCanvas(props: MenuCanvasProps) {
       drawHoverFrame(ctx, toScreenRect({ ...cell, width: SLOT_SIZE, height: SLOT_SIZE }));
     }
 
-    if (tool === 'select' && !interaction && hover.target && !sameSelection(hover.target, selection)) {
+    if (tool === 'select' && !interaction && hover.target && !selectionIncludes(selection, hover.target)) {
       const rect = elementRect(hover.target, shown);
       if (rect) drawHoverFrame(ctx, toScreenRect(rect));
     }
 
-    if (interaction?.kind === 'element') {
+    if (interaction?.kind === 'move') {
       for (const guide of interaction.guides) {
         const position =
           guide.axis === 'x' ? (MARGIN_X + guide.position) * zoom : (MARGIN_TOP + guide.position) * zoom;
@@ -763,8 +786,21 @@ export function MenuCanvas(props: MenuCanvasProps) {
       }
     }
 
-    const selected = selection ? elementRect(selection, shown) : null;
-    if (selected) drawSelectionFrame(ctx, toScreenRect(selected));
+    // Rectangle de sélection : les éléments qu’il touche sont surlignés avant le relâchement.
+    if (interaction?.kind === 'marquee' && interaction.moved) {
+      const area = rectBetween(interaction.start, interaction.end);
+      for (const target of marqueeHits(area)) {
+        const rect = elementRect(target, shown);
+        if (rect) drawHoverFrame(ctx, toScreenRect(rect));
+      }
+      drawMarquee(ctx, toScreenRect(area));
+    }
+
+    const selectedRects = selection
+      .map((target) => elementRect(target, shown))
+      .filter((rect): rect is Rect => rect !== null);
+    for (const rect of selectedRects) drawSelectionFrame(ctx, toScreenRect(rect));
+    if (selectedRects.length > 1) drawGroupFrame(ctx, toScreenRect(unionRect(selectedRects)));
     const resizable = resizableSlot();
     if (resizable) for (const point of slotHandles(resizable)) drawHandle(ctx, point.x, point.y);
 
@@ -776,7 +812,8 @@ export function MenuCanvas(props: MenuCanvasProps) {
     if (interaction?.kind === 'pan') return 'grabbing';
     if (spaceHeld) return 'grab';
     if (interaction?.kind === 'slot-resize') return HANDLE_CURSORS[interaction.handle];
-    if (interaction?.kind === 'element' || interaction?.kind === 'slot-move') return 'move';
+    if (interaction?.kind === 'move') return 'move';
+    if (interaction?.kind === 'marquee') return 'crosshair';
     if (tool === 'slot') return 'crosshair';
     if (hover.handle) return HANDLE_CURSORS[hover.handle];
     if (hover.target) return 'move';
@@ -803,13 +840,8 @@ export function MenuCanvas(props: MenuCanvasProps) {
       onContextMenu={(event: ReactMouseEvent<HTMLCanvasElement>) => {
         event.preventDefault();
         if (!props.onContextMenu) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const point = {
-          x: (event.clientX - rect.left) / zoom - MARGIN_X,
-          y: (event.clientY - rect.top) / zoom - MARGIN_TOP,
-        };
-        const { target } = pick(hitStack(point));
-        if (target) props.onSelect(target);
+        const { target } = pick(hitStack(readPointer(event).point));
+        if (target && !selectionIncludes(selection, target)) props.onSelect([target]);
         props.onContextMenu(target, event);
       }}
       // Empêche le défilement automatique du clic molette sous Windows.

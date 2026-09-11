@@ -27,6 +27,19 @@ export interface GeneratorSpec {
   cellColor?: string;
 }
 
+/**
+ * État d’un élément dans l’éditeur (métadonnée du studio, ignorée par la lib :
+ * l’élément reste exporté et affiché en jeu).
+ */
+export interface EditorFlags {
+  /** Verrouillé : non sélectionnable sur la toile (toujours dans la liste). */
+  locked?: boolean;
+  /** Masqué sur la toile de l’éditeur seulement. */
+  hidden?: boolean;
+}
+
+export type EditorFlag = keyof EditorFlags;
+
 export interface Layer {
   id: string;
   texture: string;
@@ -34,6 +47,7 @@ export interface Layer {
   y: number;
   visibleWhen?: Condition;
   generator?: GeneratorSpec;
+  editor?: EditorFlags;
 }
 
 export type TextAlign = 'left' | 'center' | 'right';
@@ -46,6 +60,7 @@ export interface TextElement {
   color?: string;
   value: string;
   visibleWhen?: Condition;
+  editor?: EditorFlags;
 }
 
 export interface SlotArea {
@@ -80,6 +95,7 @@ export interface Slot {
   onClick?: Action[];
   visibleWhen?: Condition;
   enabledWhen?: Condition;
+  editor?: EditorFlags;
 }
 
 export type StateDefinition =
@@ -126,6 +142,24 @@ export function sanitizeId(label: string): string {
     .replace(/[^a-z0-9_]+/g, '_')
     .replace(/^_+|_+$/g, '');
   return cleaned || 'element';
+}
+
+/** Vrai si l’élément porte le drapeau d’éditeur `flag` (verrouillé, masqué). */
+export function hasEditorFlag(element: { editor?: EditorFlags }, flag: EditorFlag): boolean {
+  return element.editor?.[flag] === true;
+}
+
+/** Pose ou retire un drapeau d’éditeur ; la clé `editor` disparaît quand elle est vide. */
+export function setEditorFlag(element: { editor?: EditorFlags }, flag: EditorFlag, value: boolean) {
+  if (value) {
+    element.editor = { ...element.editor, [flag]: true };
+    return;
+  }
+  if (!element.editor) return;
+  const rest = { ...element.editor };
+  delete rest[flag];
+  if (Object.keys(rest).length > 0) element.editor = rest;
+  else delete element.editor;
 }
 
 /** Premier identifiant libre de la forme `base`, `base_2`, `base_3`… */

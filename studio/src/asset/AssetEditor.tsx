@@ -62,6 +62,11 @@ export interface AssetEditorProps {
   defaultZoom?: number;
   /** Demande d’enregistrement venue de la barre du haut ; change à chaque demande. */
   saveRequest?: number;
+  /**
+   * Importe une image venue de l’extérieur (fichier déposé, image collée) dans
+   * `textures/` ; renvoie le chemin de la nouvelle texture.
+   */
+  onImportImage?: (blob: Blob, fileName: string) => Promise<string>;
 }
 
 const TOOLS: readonly AssetTool[] = ['select', 'box', 'text', 'image'];

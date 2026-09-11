@@ -45,7 +45,7 @@ import type { EditorMode } from './shell/router';
 import { Icon } from './ui/Icon';
 import './shell/shell.css';
 
-const DEFAULT_PREFERENCES: EditorPreferences = { defaultZoom: 0, showGrid: true, confirmDiscard: true };
+const DEFAULT_PREFERENCES: EditorPreferences = { defaultZoom: 0, showGrid: true, confirmDiscard: true, confirmDelete: true };
 const SCREEN_ORDER: RailScreen[] = ['home', 'editor', 'libraries', 'settings', 'about'];
 
 function errorMessage(error: unknown): string {
@@ -171,6 +171,7 @@ export default function App() {
             defaultZoom: settings.ui.defaultZoom,
             showGrid: settings.ui.showGrid,
             confirmDiscard: settings.ui.confirmations.discardChanges,
+            confirmDelete: settings.ui.confirmations.delete,
           }
         : DEFAULT_PREFERENCES,
     [settings],

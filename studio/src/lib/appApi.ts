@@ -121,6 +121,22 @@ export interface RecentDocument {
   modified: string;
 }
 
+export type DocumentType = RecentDocument['type'];
+
+/** Réponse des routes de documents (renommer, dupliquer). */
+export interface DocumentSummary {
+  type: DocumentType;
+  id: string;
+  name: string;
+}
+
+export interface TrashedDocument {
+  type: DocumentType;
+  id: string;
+  /** Chemin du fichier dans la corbeille, relatif à l’espace de travail. */
+  trashed: string;
+}
+
 export interface LibraryCounts {
   id: string;
   textures: number;
@@ -162,6 +178,14 @@ export const openWorkspace = (path: string, name?: string) =>
   call<WorkspaceSummary>('/workspaces/open', 'POST', name ? { path, name } : { path });
 export const forgetWorkspace = (path: string) => call<void>('/workspaces', 'DELETE', { path });
 export const fetchRecentDocuments = () => call<RecentDocument[]>('/documents/recent');
+/** Change l’identifiant d’un document (et son nom si `name` est donné). */
+export const renameDocument = (type: DocumentType, from: string, to: string, name?: string) =>
+  call<DocumentSummary>('/documents/rename', 'POST', name ? { type, from, to, name } : { type, from, to });
+export const duplicateDocument = (type: DocumentType, from: string, to: string, name?: string) =>
+  call<DocumentSummary>('/documents/duplicate', 'POST', name ? { type, from, to, name } : { type, from, to });
+/** Déplace un document dans la corbeille de l’espace (`.trash/`) : rien n’est supprimé. */
+export const trashDocument = (type: DocumentType, id: string) =>
+  call<TrashedDocument>('/documents/trash', 'POST', { type, id });
 export const addLibrary = (library: LibrarySetting) => call<LibrarySetting>('/libraries', 'POST', library);
 export const removeLibrary = (id: string) => call<void>(`/libraries/${encodeURIComponent(id)}`, 'DELETE');
 export const updatePresence = (activity: PresenceActivity) => call<void>('/presence', 'PUT', activity);

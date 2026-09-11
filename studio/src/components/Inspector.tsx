@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react';
+import type { AlignMode, AlignReference, DistributeAxis } from '../model/arrange';
 import { MAX_ROWS } from '../model/geometry';
+import type { Rect } from '../model/geometry';
 import type {
   Action,
   Condition,
+  EditorFlag,
   ItemSpec,
   Layer,
   MenuDefinition,
@@ -12,12 +15,14 @@ import type {
   TextAlign,
   TextElement,
 } from '../model/menu';
-import { ID_PATTERN } from '../model/menu';
+import { ID_PATTERN, hasEditorFlag } from '../model/menu';
+import { findElement, setFlagOn } from '../model/menuEdit';
 import type { ElementKind } from '../model/resolve';
 import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
 import { ArrowKeys, ShortcutKeys } from '../ui/Keys';
 import { Tooltip } from '../ui/Tooltip';
+import { AlignBar } from './AlignBar';
 import { CommitField, Field, JsonField, NumberField } from './fields';
 import { SLOT_COLORS } from './slotColors';
 
@@ -28,14 +33,24 @@ interface InspectorProps {
   menu: MenuDefinition;
   /** États disponibles, gabarits inclus, pour les conditions rapides. */
   states: Record<string, StateDefinition>;
-  selection: Selection | null;
+  selection: Selection[];
   textures: string[];
   onChange: (recipe: Recipe) => void;
-  onSelect: (selection: Selection | null) => void;
+  onSelect: (selection: Selection[]) => void;
   onEditGenerator: (layerId: string) => void;
   /** Rogner la texture d’une couche (garder un sprite d’un atlas). */
   onCropLayer: (layerId: string) => void;
-  onDuplicateLayer: (layerId: string) => void;
+  onDuplicate: (targets: Selection[]) => void;
+  onCopy: (targets: Selection[]) => void;
+  onDelete: (targets: Selection[]) => void;
+  /** Rectangle englobant de la sélection (pixels fenêtre). */
+  selectionBounds: Rect | null;
+  /** Déplace toute la sélection (couches et textes au pixel, zones à la cellule). */
+  onMoveSelection: (dx: number, dy: number) => void;
+  alignReference: AlignReference;
+  onAlignReferenceChange: (reference: AlignReference) => void;
+  onAlign: (mode: AlignMode) => void;
+  onDistribute: (axis: DistributeAxis) => void;
 }
 
 const SLOT_KIND_LABELS: Record<SlotKind, string> = {
@@ -64,6 +79,12 @@ const ACTION_PRESETS: Array<{ label: string; action: Action }> = [
   { label: 'Commande', action: { type: 'command', command: 'say {viewer.name}', as: 'player' } },
   { label: 'Action serveur', action: { type: 'custom', id: 'mon_action' } },
 ];
+
+const KIND_WORDS: Record<ElementKind, [string, string]> = {
+  layer: ['couche', 'couches'],
+  text: ['texte', 'textes'],
+  slot: ['zone de slots', 'zones de slots'],
+};
 
 function collectionOf(draft: MenuDefinition, kind: ElementKind): Array<{ id: string }> {
   if (kind === 'layer') return draft.layers;
@@ -142,10 +163,88 @@ function ConditionField({
   );
 }
 
+/** Case à cocher d’un drapeau d’éditeur, à trois états pour une sélection multiple. */
+function FlagCheckbox({
+  label,
+  hint,
+  flag,
+  menu,
+  targets,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  flag: EditorFlag;
+  menu: MenuDefinition;
+  targets: Selection[];
+  onChange: (recipe: Recipe) => void;
+}) {
+  const values = targets.map((target) => {
+    const element = findElement(menu, target);
+    return element ? hasEditorFlag(element, flag) : false;
+  });
+  const all = values.length > 0 && values.every(Boolean);
+  const some = values.some(Boolean);
+  return (
+    <label className="checkbox" title={hint}>
+      <input
+        type="checkbox"
+        checked={all}
+        ref={(node) => {
+          if (node) node.indeterminate = some && !all;
+        }}
+        onChange={(event) => {
+          const value = event.target.checked;
+          onChange((draft) => setFlagOn(draft, targets, flag, value));
+        }}
+      />
+      {label}
+    </label>
+  );
+}
+
+/** Disposition : alignement et drapeaux d’éditeur (verrou, masque). */
+function ArrangeSection({ props, targets }: { props: InspectorProps; targets: Selection[] }) {
+  const multiple = targets.length > 1;
+  return (
+    <div className="field-group arrange-section">
+      <span className="field-label">{multiple ? 'Aligner et répartir' : 'Aligner sur la toile'}</span>
+      <AlignBar
+        count={targets.length}
+        reference={multiple ? props.alignReference : 'canvas'}
+        onReferenceChange={multiple ? props.onAlignReferenceChange : undefined}
+        onAlign={props.onAlign}
+        onDistribute={props.onDistribute}
+      />
+      <div className="flag-row">
+        <FlagCheckbox
+          label="Verrouillé"
+          hint="Ne se sélectionne plus sur la toile (reste dans la liste)"
+          flag="locked"
+          menu={props.menu}
+          targets={targets}
+          onChange={props.onChange}
+        />
+        <FlagCheckbox
+          label="Masqué sur la toile"
+          hint="Dans l’éditeur seulement : l’élément reste affiché en jeu"
+          flag="hidden"
+          menu={props.menu}
+          targets={targets}
+          onChange={props.onChange}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function Inspector(props: InspectorProps) {
   const { menu, selection } = props;
+  const own = selection.filter((target) => findElement(menu, target) !== undefined);
 
-  if (!selection) return <MenuProperties {...props} />;
+  if (own.length === 0) return <MenuProperties {...props} />;
+  if (own.length > 1) return <SelectionInspector props={props} targets={own} />;
+  const [only] = own;
 
   const validateId = (kind: ElementKind, current: string) => (next: string) => {
     if (!ID_PATTERN.test(next)) return 'Lettres minuscules, chiffres et _ uniquement';
@@ -158,11 +257,11 @@ export function Inspector(props: InspectorProps) {
       const element = collectionOf(draft, kind).find((candidate) => candidate.id === current);
       if (element) element.id = next;
     });
-    props.onSelect({ kind, id: next });
+    props.onSelect([{ kind, id: next }]);
   };
 
-  if (selection.kind === 'layer') {
-    const layer = menu.layers.find((candidate) => candidate.id === selection.id);
+  if (only.kind === 'layer') {
+    const layer = menu.layers.find((candidate) => candidate.id === only.id);
     if (!layer) return null;
     const update = (recipe: (target: Layer) => void) =>
       props.onChange((draft) => {
@@ -201,7 +300,7 @@ export function Inspector(props: InspectorProps) {
             </button>
           </Tooltip>
           <Tooltip label="Dupliquer la couche" shortcut="Ctrl+D">
-            <button type="button" className="sm" onClick={() => props.onDuplicateLayer(layer.id)}>
+            <button type="button" className="sm" onClick={() => props.onDuplicate([only])}>
               <Icon name="copy" />
               Dupliquer
             </button>
@@ -213,6 +312,7 @@ export function Inspector(props: InspectorProps) {
             Modifier la texture générée
           </button>
         )}
+        <ArrangeSection props={props} targets={own} />
         <ConditionField
           label="Visible si"
           value={layer.visibleWhen}
@@ -223,8 +323,8 @@ export function Inspector(props: InspectorProps) {
     );
   }
 
-  if (selection.kind === 'text') {
-    const text = menu.texts?.find((candidate) => candidate.id === selection.id);
+  if (only.kind === 'text') {
+    const text = menu.texts?.find((candidate) => candidate.id === only.id);
     if (!text) return null;
     const update = (recipe: (target: TextElement) => void) =>
       props.onChange((draft) => {
@@ -264,6 +364,7 @@ export function Inspector(props: InspectorProps) {
             />
           </Field>
         </div>
+        <ArrangeSection props={props} targets={own} />
         <ConditionField
           label="Visible si"
           value={text.visibleWhen}
@@ -274,7 +375,7 @@ export function Inspector(props: InspectorProps) {
     );
   }
 
-  const slot = menu.slots?.find((candidate) => candidate.id === selection.id);
+  const slot = menu.slots?.find((candidate) => candidate.id === only.id);
   if (!slot) return null;
   const update = (recipe: (target: Slot) => void) =>
     props.onChange((draft) => {
@@ -310,6 +411,7 @@ export function Inspector(props: InspectorProps) {
         <NumberField label="Largeur" value={slot.area.width ?? 1} min={1} max={9} onChange={(value) => update((target) => (target.area.width = value))} />
         <NumberField label="Hauteur" value={slot.area.height ?? 1} min={1} max={MAX_ROWS} onChange={(value) => update((target) => (target.area.height = value))} />
       </div>
+      <ArrangeSection props={props} targets={own} />
       {slot.kind === 'list' ? (
         <Field label="Source de données" hint="Nom de la liste fournie par le serveur">
           <input className="mono" value={slot.list ?? ''} onChange={(event) => update((target) => (target.list = event.target.value))} />
@@ -386,6 +488,78 @@ export function Inspector(props: InspectorProps) {
   );
 }
 
+/** Sélection multiple : résumé, position de l’ensemble, disposition et ce qui est commun. */
+function SelectionInspector({ props, targets }: { props: InspectorProps; targets: Selection[] }) {
+  const { menu, selectionBounds } = props;
+  const counts = (Object.keys(KIND_WORDS) as ElementKind[])
+    .map((kind) => [kind, targets.filter((target) => target.kind === kind).length] as const)
+    .filter(([, count]) => count > 0);
+  const conditions = targets.map((target) => JSON.stringify(findElement(menu, target)?.visibleWhen ?? null));
+  const sameCondition = conditions.every((condition) => condition === conditions[0]);
+  const common = sameCondition ? findElement(menu, targets[0])?.visibleWhen : undefined;
+  return (
+    <section className="panel-section inspector">
+      <InspectorHeader>
+        <Icon name="marquee" />
+        sélection · {targets.length} éléments
+      </InspectorHeader>
+      <ul className="selection-summary">
+        {counts.map(([kind, count]) => (
+          <li key={kind}>
+            <span className={`kind-dot ${kind === 'slot' ? 'slot' : kind}`} />
+            {count} {KIND_WORDS[kind][count > 1 ? 1 : 0]}
+          </li>
+        ))}
+      </ul>
+      {selectionBounds && (
+        <>
+          <div className="field-row">
+            <NumberField label="x" value={selectionBounds.x} onChange={(value) => props.onMoveSelection(value - selectionBounds.x, 0)} />
+            <NumberField label="y" value={selectionBounds.y} onChange={(value) => props.onMoveSelection(0, value - selectionBounds.y)} />
+          </div>
+          <p className="field-hint">
+            Ensemble de {selectionBounds.width} × {selectionBounds.height} px ; les zones de slots se déplacent par case.
+          </p>
+        </>
+      )}
+      <ArrangeSection props={props} targets={targets} />
+      <ConditionField
+        label={sameCondition ? 'Visible si (tous)' : 'Visible si (valeurs différentes)'}
+        value={common}
+        states={props.states}
+        onCommit={(condition) =>
+          props.onChange((draft) => {
+            for (const target of targets) {
+              const element = findElement(draft, target);
+              if (element) element.visibleWhen = condition;
+            }
+          })
+        }
+      />
+      <div className="button-row wrap">
+        <Tooltip label="Dupliquer la sélection" shortcut="Ctrl+D">
+          <button type="button" className="sm" onClick={() => props.onDuplicate(targets)}>
+            <Icon name="copy" />
+            Dupliquer
+          </button>
+        </Tooltip>
+        <Tooltip label="Copier la sélection" shortcut="Ctrl+C">
+          <button type="button" className="sm" onClick={() => props.onCopy(targets)}>
+            <Icon name="clipboard" />
+            Copier
+          </button>
+        </Tooltip>
+        <Tooltip label="Supprimer la sélection" shortcut="Suppr">
+          <button type="button" className="sm danger" onClick={() => props.onDelete(targets)}>
+            <Icon name="trash" />
+            Supprimer
+          </button>
+        </Tooltip>
+      </div>
+    </section>
+  );
+}
+
 function MenuProperties({ menu, onChange }: InspectorProps) {
   return (
     <section className="panel-section inspector">
@@ -428,7 +602,10 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
         placeholder={'{ "tab": { "type": "enum", "values": ["a", "b"], "default": "a" } }'}
         onCommit={(state) => onChange((draft) => (draft.state = state))}
       />
-      <p className="field-hint">Sélectionne un élément sur la toile ou dans la liste pour le modifier.</p>
+      <p className="field-hint">
+        Sélectionne un élément sur la toile ou dans la liste pour le modifier ; Maj ou Ctrl + clic, ou un rectangle tracé
+        sur une zone vide, pour en sélectionner plusieurs.
+      </p>
       <details className="shortcuts">
         <summary>
           <Icon name="keyboard" />
@@ -447,13 +624,25 @@ function MenuProperties({ menu, onChange }: InspectorProps) {
           </dt>
           <dd>Outil Slots</dd>
           <dt>
+            <ShortcutKeys shortcut="Maj+Clic" />
+          </dt>
+          <dd>Ajouter à la sélection</dd>
+          <dt>
+            <ShortcutKeys shortcut="Ctrl+A" />
+          </dt>
+          <dd>Tout sélectionner</dd>
+          <dt>
             <ShortcutKeys shortcut="Suppr" />
           </dt>
-          <dd>Supprimer l’élément</dd>
+          <dd>Supprimer la sélection</dd>
           <dt>
             <ShortcutKeys shortcut="Ctrl+D" />
           </dt>
-          <dd>Dupliquer la couche</dd>
+          <dd>Dupliquer</dd>
+          <dt>
+            <ShortcutKeys shortcut="Ctrl+C" />
+          </dt>
+          <dd>Copier (Ctrl+X couper, Ctrl+V coller)</dd>
           <dt>
             <ArrowKeys />
           </dt>
