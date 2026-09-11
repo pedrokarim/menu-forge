@@ -59,10 +59,11 @@ function sourceOf(icon: FormIcon | undefined): IconSource {
   return 'path' in icon ? 'vanilla' : 'url';
 }
 
-function describe(icon: FormIcon): string {
-  if ('texture' in icon) return `Texture de l’espace : ${icon.texture}`;
-  if ('path' in icon) return `Texture Bedrock : ${icon.path}`;
-  return `Adresse : ${icon.url}`;
+/** Origine de l’icône et sa valeur (chemin ou adresse), affichées sur deux lignes. */
+function describe(icon: FormIcon): { kind: string; value: string } {
+  if ('texture' in icon) return { kind: 'Texture de l’espace', value: icon.texture };
+  if ('path' in icon) return { kind: 'Texture Bedrock', value: icon.path };
+  return { kind: 'Adresse', value: icon.url };
 }
 
 /** Choix de l’icône d’un bouton de formulaire : texture de l’espace, texture Bedrock vanilla ou adresse web. */
@@ -119,14 +120,21 @@ export function IconPicker({ icon, onChange, textures, textureVersions, onDraw, 
         <span className="field-label">Icône</span>
         {icon && <IconButton icon="close" label="Sans icône" hint="Retirer l’image du bouton" variant="ghost" onClick={() => onChange(undefined)} />}
       </div>
-      <p className="icon-current">
+      <div className="icon-current">
         {icon && 'texture' in icon ? (
           <img src={textureUrl(icon.texture, textureVersions[icon.texture] ?? 0)} alt="" />
         ) : (
           <Icon name={icon ? 'image' : 'box'} />
         )}
-        <span className="muted small">{icon ? describe(icon) : 'Aucune image : la disposition affiche le texte seul.'}</span>
-      </p>
+        {icon ? (
+          <span className="icon-current-text">
+            <span className="muted small">{describe(icon).kind}</span>
+            <span className="icon-path">{describe(icon).value}</span>
+          </span>
+        ) : (
+          <span className="muted small">Aucune image : la disposition affiche le texte seul.</span>
+        )}
+      </div>
       <div className="segmented-mini" role="radiogroup" aria-label="Origine de l’icône">
         {(
           [
