@@ -116,8 +116,41 @@ Le serveur n’écoute que sur 127.0.0.1 et refuse tout en-tête `Host` ou
 `Origin` non local (protection contre le « DNS rebinding » et les requêtes
 intersites).
 
+## Export
+
+Deux exports, depuis l’éditeur de menus : boutons **Exporter** et **Pack ZIP**
+de la barre d’outils, menu contextuel de la toile, Ctrl+E et Ctrl+Maj+E. Le
+menu ouvert est d’abord enregistré s’il a changé ; tous les menus de l’espace
+sont exportés, **gabarits appliqués** (les gabarits eux-mêmes ne le sont pas).
+
+| Export | Ce qui est écrit | Où |
+|---|---|---|
+| Vers le plugin | Menus résolus (sans `extends`, `template` ni métadonnées `generator`) et PNG qu’ils utilisent | `<dossier des paramètres « Export vers le plugin »>/menuforge/` (`menus/`, `textures/`) et le manifeste `.menu-forge-export.json` |
+| Pack ZIP de test | Polices et textures générées (même algorithme que la lib), `pack.mcmeta` (`pack_format` des paramètres) | `<espace>/exports/<namespace>-pack.zip` |
+
+Un export vers le plugin ne supprime que les fichiers listés par le manifeste
+du précédent et absents du nouveau : un fichier déposé à la main n’est jamais
+touché.
+
+**Où vit la génération.** En TypeScript (`src/export/`), à côté de
+`compose.ts` et `resolve.ts` : l’export produit exactement ce que montre
+l’éditeur, et un seul code TypeScript suit la lib. Lecture et écriture des PNG
+sans canvas (les pixels semi-transparents restent exacts) et archive zip, par
+les flux de compression standard. Le backend Rust ne fait qu’écrire, dans ces
+deux dossiers seulement (`POST /api/export/plugin`,
+`PUT /api/exports/<nom>.zip`, voir l’en-tête de `backend/src/app.rs`). La
+parité avec la lib est vérifiée par une fixture partagée (`npm test`).
+
+Le pack ZIP ne contient pas le `generic_54.png` « cases seules » (visuel de
+coffre fourni par le pack du serveur) : dans un coffre vanilla, le cadre reste
+visible sous les couches.
+
 ## Tests
 
 ```sh
-cd backend && cargo test
+cd backend && cargo test   # backend Rust
+npm test                   # génération du pack : PNG, zip, parité avec la lib
 ```
+
+`npm test` exécute `tests/*.test.ts` avec Node (types retirés à la volée,
+`tests/resolve-ts.mjs` résout les imports sans extension).

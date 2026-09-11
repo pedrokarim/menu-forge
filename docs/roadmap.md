@@ -54,8 +54,9 @@
 - Les interactions à la souris dans un vrai navigateur : glisser une couche,
   dessiner une zone, générateur, création depuis un gabarit.
 - Largeurs des caractères non encore affichés en jeu (table ASCII complète).
-- Le plugin `MenuForge` n’a jamais tourné sur un serveur et n’a pas de tests
-  automatisés.
+- `/profile` d’Enderium ouvert par un vrai client : le serveur de test charge
+  MenuForge et l’adaptateur et fusionne les polices dans le pack sans erreur,
+  mais aucun joueur ne s’y est connecté (rendu, clics, retour de la modale).
 - La grille des caractères accentués d’`ascii.png` (lignes 0–1 et 8–15) est
   reprise de mémoire ; une erreur n’affecterait que ces caractères.
 - `pack_format` 46 par défaut, à ajuster selon la version du serveur.
@@ -110,17 +111,35 @@ Détails et commandes : [`../studio/README.md`](../studio/README.md).
 Reste à faire : brancher les écrans (choix d’espace, sélecteur de dossier,
 réglages, récents) sur ces routes.
 
+## Chaîne jusqu’au jeu (2026-09-11)
+
+- **Plugin testé** : 28 tests sur un serveur simulé (MockBukkit, paper-api
+  1.20.6) : ouverture et titre, clics verrouillés sauf `input`, `setState`,
+  pagination, pile `open` / `back`, actions `custom`, drapeaux, variables,
+  commandes, espaces de travail supplémentaires.
+- **API de la lib** : espaces de travail supplémentaires (`addWorkspace` : un
+  plugin embarque ses menus), écouteurs de rechargement, retrait des SPI,
+  publication Maven locale.
+- **Export depuis le studio** : « Exporter vers le plugin » (menus résolus et
+  textures, dans le dossier réglé, avec un manifeste) et « Pack ZIP » de test
+  (polices, textures, `pack.mcmeta`). Génération en TypeScript ; parité avec la
+  lib vérifiée par une fixture partagée (polices octet pour octet, textures
+  pixel pour pixel, titres).
+- **Adaptateur Enderium** (dans enderium-core) : actions `custom` →
+  ClickActions, drapeaux → requirements, placeholders, items, polices
+  fusionnées dans le pack actif ; lib consommée en build composite.
+- **Premier vrai menu** : `/profile` d’Enderium recréé avec des textures
+  générées par le studio ; le serveur de test le charge (29 fichiers ajoutés
+  au pack d’Enderium).
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et
    confirmer (ou corriger) le modèle de rendu.
-2. **Adaptateur Enderium** (dans enderium-core) : ClickActions, requirements,
-   placeholders, fusion des polices générées dans `ResourcePack`.
-3. **Premier vrai menu** : recréer `/profile` avec menu-forge, avec des
-   textures générées à la place des assets du pack de référence.
-4. **Studio** :
+2. **Valider `/profile` en jeu** avec un client, puis migrer les autres
+   écrans du prototype d’Enderium (succès, royaumes, maisons).
+3. **Studio** :
    - police pixel fidèle pour l’aperçu des textes ;
    - éditeur visuel des états et des actions (sans passer par le JSON) ;
-   - export d’un pack ZIP pour tester sans serveur ;
    - copier / coller, multi-sélection, repères.
-5. **Décider** du sort de `generic_54.png` (effet global sur tous les coffres).
+4. **Décider** du sort de `generic_54.png` (effet global sur tous les coffres).
