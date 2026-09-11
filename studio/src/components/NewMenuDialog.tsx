@@ -111,7 +111,7 @@ export function NewMenuDialog({ templates, existingIds, generate = false, onCanc
           Générer une interface…
         </strong>
         <span className="muted small">
-          Boutique, grille, modale, liste paginée ou onglets, en style Deepslate ou mc-rs, avec aperçu.
+          Boutique, grille, modale, liste paginée ou onglets, en style Deepslate, mc-rs ou sombre à accent, avec aperçu.
         </span>
       </button>
       <div className="template-gallery" role="radiogroup" aria-label="Point de départ">

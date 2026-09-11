@@ -25,7 +25,7 @@ const QUICK_ACTIONS: ReadonlyArray<{ kind: QuickAction; icon: IconName; title: s
     kind: 'generate-menu',
     icon: 'sparkles',
     title: 'Générer une interface',
-    text: `Boutique, grille, modale, liste ou onglets${NBSP}: un menu complet, en style Deepslate ou mc-rs.`,
+    text: `Boutique, grille, modale, liste ou onglets${NBSP}: un menu complet, en style Deepslate, mc-rs ou sombre à accent.`,
   },
   { kind: 'new-asset', icon: 'image', title: 'Nouvel asset', text: 'Composition libre (boîtes, images, texte) exportée en PNG et en glyphe.' },
   {

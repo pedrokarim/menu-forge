@@ -118,7 +118,7 @@ interface… », aussi action rapide de l’accueil. On choisit un type – bou
 (grille d’articles paginée et barre d’actions), grille simple, modale de
 confirmation, liste paginée, barre d’onglets –, le nombre de lignes du coffre,
 le nombre et la disposition des boutons (à gauche, centrés, à droite,
-répartis), la famille de styles (Deepslate ou mc-rs) et une couleur d’accent ;
+répartis), la famille de styles (Deepslate, mc-rs ou sombre à accent) et une couleur d’accent ;
 l’aperçu suit en direct, et un clic sur un onglet ou une flèche y change
 l’état. Le menu créé est complet : couches aux textures générées (fond et
 cases, boutons, variantes allumées ou actives), zones de slots et leurs
@@ -128,10 +128,12 @@ retouche ensuite à la main comme n’importe quel menu ; « Modifier la textu
 générée… » rouvre chaque couche dans le générateur de textures.
 
 **Générateur de textures.** « Générer une texture… » dessine une couche au
-pixel près, dans un style Deepslate (biseauté façon vanilla) ou mc-rs
+pixel près, dans un style Deepslate (biseauté façon vanilla), mc-rs
 (panneaux sombres et arrondis, boutons plats à trois états, boutons en relief,
-bandes, cases, grille de chargement), avec aperçu et paramètres propres à la
-famille (rayon, bordure, accent, état, ombre). Format : [`format.md`](format.md)
+bandes, cases, grille de chargement) ou sombre à accent (fenêtre plate à cadre
+fin, cases creusées, onglets et boutons plats, bouton fermer, store rayé,
+lignes de liste, cartouches, barres de progression), avec aperçu et paramètres propres à la
+famille (rayon, bordure, accent, état, ombre, progression). Format : [`format.md`](format.md)
 § Couches.
 
 **Éditeur de pixels** (`#/editeur/pixels/<id>`, troisième mode après Menus et

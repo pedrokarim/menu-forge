@@ -16,14 +16,14 @@ import {
   placeButtons,
   textBox,
 } from '../src/model/interfaceGenerator.ts';
-import { DEFAULT_PREVIEW, buildPreviewContext } from '../src/model/preview.ts';
+import { DEFAULT_PREVIEW, buildPreviewContext, interpolate } from '../src/model/preview.ts';
 import { resolveMenu } from '../src/model/resolve.ts';
 import { clickSlot, currentFrame, startSession } from '../src/model/simulate.ts';
 import { renderGeneratorImage } from '../src/model/textureRender.ts';
 import { validate } from './jsonSchema.mjs';
 
 const schema = JSON.parse(readFileSync(new URL('../../docs/menu.schema.json', import.meta.url), 'utf8'));
-const FAMILIES = ['deepslate', 'mcrs'];
+const FAMILIES = ['deepslate', 'mcrs', 'dark'];
 
 function* everyOption() {
   for (const kind of INTERFACE_KIND_ORDER) {
@@ -84,8 +84,10 @@ function problems(menu) {
     if (layer.x < 0 || layer.y < 0 || layer.x + spec.width > WINDOW_WIDTH || layer.y + spec.height > height) errors.push(`${layer.id} : hors de la fenêtre`);
     if (layer.texture !== `generated/${menu.id}/${layer.id}.png`) errors.push(`${layer.id} : texture ${layer.texture}`);
   }
+  // Les textes sont mesurés tels qu'affichés, variables remplacées par les valeurs les plus larges.
+  const widest = { 'page.number': '99', 'page.count': '99' };
   for (const text of menu.texts) {
-    const box = textBox(text);
+    const box = textBox({ ...text, value: interpolate(text.value, widest) });
     if (box.x < 0 || box.x + box.width > WINDOW_WIDTH || box.y < 0 || box.y + box.height > height) errors.push(`${text.id} : hors de la fenêtre`);
   }
   return errors;
@@ -144,6 +146,28 @@ test('chaque état de chaque type a un titre composé complet (textures non vide
       }
     }
   }
+});
+
+test('sombre à accent : store, cartouche, croix dessinée, onglets collés au panneau du contenu', () => {
+  const layer = (menu, id) => menu.layers.find((candidate) => candidate.id === id);
+  const shop = generateInterface({ ...defaultInterfaceOptions('shop', 'dark'), id: 'marche', name: 'Marché', accent: '#58d000' });
+  assert.equal(layer(shop, 'awning').generator.style, 'dark_awning');
+  assert.equal(layer(shop, 'awning').generator.color, '#58d000', 'store vert d’un marché');
+  assert.equal(layer(shop, 'page_badge').generator.style, 'dark_badge');
+  assert.equal(shop.texts.find((text) => text.id === 'page_label').align, 'center', 'numéro centré dans la cartouche');
+  assert.equal(layer(shop, 'close').generator.style, 'dark_close');
+  assert.equal(shop.texts.some((text) => text.id === 'close_label'), false, 'la croix est dessinée, pas écrite');
+  assert.equal(shop.texts.find((text) => text.id === 'title').color, '#58d000', 'titre à l’accent');
+  assert.equal(layer(shop, 'background').generator.cellStyle, 'dark_slot');
+
+  const tabs = generateInterface({ ...defaultInterfaceOptions('tabs', 'dark'), id: 'profil', name: 'Profil' });
+  const panel = layer(tabs, 'content_panel');
+  assert.equal(panel.generator.cells.length, 1, 'cases dans le panneau du contenu');
+  assert.equal(layer(tabs, 'background').generator.cells.length, 0);
+  assert.equal(layer(tabs, 'tab_1_active').generator.state, 'pressed');
+  const tab = layer(tabs, 'tab_2');
+  assert.equal(tab.generator.style, 'dark_tab');
+  assert.equal(tab.y + tab.generator.height, panel.y + 1, 'bas de l’onglet sur le cadre du panneau');
 });
 
 test('onglets et pagination générés fonctionnent dans le mode « Essayer »', () => {

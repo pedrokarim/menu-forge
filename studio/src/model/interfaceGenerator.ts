@@ -2,6 +2,7 @@ import { NBSP } from '../lib/format';
 import { alignedStart, textWidth } from './fontMetrics';
 import { GRID_COLUMNS, MAX_ROWS, SLOT_SIZE, TITLE_X, TITLE_Y, WINDOW_WIDTH, chestCell } from './geometry';
 import type { Rect } from './geometry';
+import { DARK_COLORS } from './darkStyles';
 import { MCRS_COLORS } from './mcrs';
 import type {
   Action,
@@ -26,7 +27,7 @@ import { generatedTexturePath } from './menuEdit';
  */
 
 export type InterfaceKind = 'shop' | 'grid' | 'confirm' | 'list' | 'tabs';
-export type StyleFamily = 'deepslate' | 'mcrs';
+export type StyleFamily = 'deepslate' | 'mcrs' | 'dark';
 export type ButtonLayout = 'start' | 'center' | 'end' | 'spread';
 
 export interface InterfaceOptions {
@@ -119,11 +120,13 @@ export const INTERFACE_KIND_ORDER: readonly InterfaceKind[] = ['shop', 'grid', '
 export const FAMILY_LABELS: Record<StyleFamily, string> = {
   deepslate: 'Deepslate (biseauté)',
   mcrs: 'mc-rs (sombre, arrondi)',
+  dark: 'Sombre à accent (plat)',
 };
 
 export const DEFAULT_ACCENTS: Record<StyleFamily, string> = {
   deepslate: '#52a535',
   mcrs: MCRS_COLORS.gold,
+  dark: DARK_COLORS.accent,
 };
 
 export const LAYOUT_LABELS: Record<ButtonLayout, string> = {
@@ -185,11 +188,29 @@ export function placeButtons(count: number, width: number, from: number, to: num
 /** Rôle visuel d’un bouton. */
 type Tone = 'neutral' | 'accent' | 'confirm' | 'danger' | 'special' | 'off' | 'active';
 
+/** Couche de décor posée juste au-dessus du fond (bande de titre, store…). */
+interface HeaderLayer {
+  id: string;
+  x: number;
+  y: number;
+  spec: GeneratorSpec;
+}
+
 interface Theme {
   background(height: number, cells: SlotArea[]): GeneratorSpec;
-  titleStrip: GeneratorSpec | null;
+  header(kind: InterfaceKind): HeaderLayer[];
   button(width: number, height: number, tone: Tone): GeneratorSpec;
+  /** Bouton « Fermer » dessiné (croix), sans libellé. */
+  closeButton?: (width: number, height: number) => GeneratorSpec;
+  /** Onglet plat, actif ou non. */
+  tab?: (width: number, height: number, active: boolean) => GeneratorSpec;
+  /** Panneau sous le contenu des onglets, où ceux-ci viennent se coller. */
+  contentPanel?: (width: number, height: number, cells: SlotArea[]) => GeneratorSpec;
+  /** Cartouche derrière le numéro de page. */
+  pageBadge?: (width: number, height: number) => GeneratorSpec;
   titleColor: string;
+  /** Autres textes : message, numéro de page, onglet courant. */
+  textColor: string;
   labelColor(tone: Tone): string;
   /** Décalage vertical du libellé : les boutons en relief ont leur corps plus haut. */
   labelOffset(tone: Tone): number;
@@ -207,9 +228,10 @@ function deepslateTheme(accent: string): Theme {
   };
   return {
     background: (height, cells) => ({ style: 'panel', width: WINDOW_WIDTH, height, color: '#c6c6c6', cells }),
-    titleStrip: null,
+    header: () => [],
     button: (width, height, tone) => ({ style: 'button', width, height, color: colors[tone] }),
     titleColor: '#404040',
+    textColor: '#404040',
     labelColor: (tone) => (tone === 'off' ? '#5a5a5a' : '#ffffff'),
     labelOffset: () => 4,
   };
@@ -229,7 +251,9 @@ function mcrsTheme(accent: string): Theme {
       borderWidth: 1,
       borderColor: MCRS_COLORS.panelBorder,
     }),
-    titleStrip: { style: 'mcrs_strip', width: WINDOW_WIDTH - 2 * TITLE_X, height: 1, color: accent },
+    header: () => [
+      { id: 'title_strip', x: TITLE_X, y: TITLE_Y + 9, spec: { style: 'mcrs_strip', width: WINDOW_WIDTH - 2 * TITLE_X, height: 1, color: accent } },
+    ],
     button: (width, height, tone) => {
       const color = raised[tone];
       if (color) return { style: 'mcrs_raised', width, height, color, shadow: 2 };
@@ -238,10 +262,61 @@ function mcrsTheme(accent: string): Theme {
       return { style: 'mcrs_button', width, height, color: MCRS_COLORS.button, state, accent };
     },
     titleColor: MCRS_COLORS.text,
+    textColor: MCRS_COLORS.text,
     labelColor: (tone) => (tone === 'off' ? '#6c6c80' : tone === 'active' ? accent : MCRS_COLORS.text),
     labelOffset: (tone) => (raised[tone] ? 3 : 4),
   };
 }
+
+/**
+ * Sombre à accent : fenêtre plate à cadre fin, bandeau de titre, titre à
+ * l’accent, boutons plats, croix pour fermer, onglets collés au panneau du
+ * contenu, store rayé au-dessus d’une boutique, numéro de page en cartouche.
+ */
+function darkTheme(accent: string): Theme {
+  const pressed: Partial<Record<Tone, string>> = { active: accent, confirm: DARK_COLORS.market, danger: DARK_COLORS.accent, special: '#8a3ab0' };
+  const band = (height: number): GeneratorSpec => ({ style: 'flat', width: WINDOW_WIDTH - 4, height, color: DARK_COLORS.band });
+  return {
+    background: (height, cells) => ({
+      style: 'dark_panel',
+      width: WINDOW_WIDTH,
+      height,
+      color: DARK_COLORS.panel,
+      borderWidth: 1,
+      cells,
+      cellStyle: 'dark_slot',
+    }),
+    header: (kind) =>
+      kind === 'shop'
+        ? [
+            { id: 'awning', x: 2, y: 1, spec: { style: 'dark_awning', width: WINDOW_WIDTH - 4, height: 5, color: accent, tile: 4 } },
+            { id: 'title_band', x: 2, y: 6, spec: band(10) },
+          ]
+        : [{ id: 'title_band', x: 2, y: 2, spec: band(13) }],
+    button: (width, height, tone) => {
+      const fill = pressed[tone];
+      if (fill) return { style: 'dark_button', width, height, color: DARK_COLORS.panel, state: 'pressed', accent: fill };
+      if (tone === 'off') return { style: 'dark_button', width, height, color: '#202028', borderColor: '#303038' };
+      if (tone === 'accent') return { style: 'dark_button', width, height, color: '#303038', state: 'hover', accent };
+      return { style: 'dark_button', width, height, color: '#303038' };
+    },
+    closeButton: (width, height) => ({ style: 'dark_close', width, height, color: accent }),
+    tab: (width, height, active) =>
+      active ? { style: 'dark_tab', width, height, color: '#303038', state: 'pressed', accent } : { style: 'dark_tab', width, height, color: '#303038' },
+    contentPanel: (width, height, cells) => ({ style: 'dark_panel', width, height, color: '#202028', borderWidth: 1, cells, cellStyle: 'dark_slot' }),
+    pageBadge: (width, height) => ({ style: 'dark_badge', width, height, color: DARK_COLORS.hollow, accent }),
+    titleColor: accent,
+    textColor: DARK_COLORS.text,
+    labelColor: (tone) => (tone === 'off' ? DARK_COLORS.muted : DARK_COLORS.text),
+    labelOffset: () => 4,
+  };
+}
+
+const THEMES: Record<StyleFamily, (accent: string) => Theme> = {
+  deepslate: deepslateTheme,
+  mcrs: mcrsTheme,
+  dark: darkTheme,
+};
 
 /* Construction */
 
@@ -250,6 +325,8 @@ interface ButtonDef {
   label: string;
   /** Libellé court (un caractère) pour un bouton d’une case. */
   symbol?: string;
+  /** Bouton dessiné par le thème (croix) plutôt qu’un libellé. */
+  icon?: 'close';
   tone: Tone;
   /** Balise MiniMessage de couleur du nom de l’item. */
   tag: string;
@@ -262,6 +339,8 @@ class MenuBuilder {
   readonly slots: Slot[] = [];
   readonly state: Record<string, StateDefinition> = {};
   readonly cells: SlotArea[] = [];
+  /** Cellules dessinées dans le panneau du contenu (onglets), plutôt que dans le fond. */
+  readonly panelCells: SlotArea[] = [];
   readonly menuId: string;
   readonly theme: Theme;
 
@@ -292,13 +371,13 @@ class MenuBuilder {
   titleSide(id: string, value: string, visibleWhen?: Condition, sample = value) {
     const title = this.texts.find((text) => text.id === 'title');
     const room = WINDOW_WIDTH - 2 * TITLE_X - (title ? textWidth(title.value) : 0) - 6;
-    if (textWidth(sample) <= room) this.text(id, WINDOW_WIDTH - TITLE_X, TITLE_Y, value, this.theme.titleColor, 'right', visibleWhen);
+    if (textWidth(sample) <= room) this.text(id, WINDOW_WIDTH - TITLE_X, TITLE_Y, value, this.theme.textColor, 'right', visibleWhen);
   }
 
   /** Bouton dessiné (couche + libellé éventuel) sur une zone d’une ligne. */
-  buttonLayer(id: string, area: SlotArea, tone: Tone, label: string | undefined, visibleWhen?: Condition) {
+  buttonLayer(id: string, area: SlotArea, tone: Tone, label: string | undefined, visibleWhen?: Condition, spec?: GeneratorSpec) {
     const rect = buttonRect(area);
-    this.layer(id, rect.x, rect.y, this.theme.button(rect.width, rect.height, tone), visibleWhen);
+    this.layer(id, rect.x, rect.y, spec ?? this.theme.button(rect.width, rect.height, tone), visibleWhen);
     if (label && textWidth(label) <= rect.width - 2) {
       this.text(
         `${id}_label`,
@@ -314,7 +393,9 @@ class MenuBuilder {
 
   button(def: ButtonDef, area: SlotArea) {
     const wide = (area.width ?? 1) > 1;
-    this.buttonLayer(def.id, area, def.tone, wide ? def.label : def.symbol);
+    const rect = buttonRect(area);
+    const drawn = def.icon === 'close' && this.theme.closeButton ? this.theme.closeButton(rect.width, rect.height) : undefined;
+    this.buttonLayer(def.id, area, def.tone, drawn ? undefined : wide ? def.label : def.symbol, undefined, drawn);
     this.slots.push({
       id: def.id,
       kind: 'button',
@@ -345,7 +426,23 @@ class MenuBuilder {
         onClick: [{ type: arrow.type, list }],
       });
     }
-    this.titleSide('page_label', '{page.number}/{page.count}', undefined, '99/99');
+    this.pageLabel();
+  }
+
+  /** Numéro de page en haut à droite, dans une cartouche si le thème en dessine une. */
+  pageLabel() {
+    const value = '{page.number}/{page.count}';
+    const badge = this.theme.pageBadge;
+    const width = 30;
+    const title = this.texts.find((text) => text.id === 'title');
+    const room = WINDOW_WIDTH - 2 * TITLE_X - (title ? textWidth(title.value) : 0) - 6;
+    if (!badge || width > room) {
+      this.titleSide('page_label', value, undefined, '99/99');
+      return;
+    }
+    const x = WINDOW_WIDTH - TITLE_X - width;
+    this.layer('page_badge', x, TITLE_Y - 2, badge(width, 11));
+    this.text('page_label', x + width / 2, TITLE_Y, value, this.theme.textColor, 'center');
   }
 
   list(id: string, list: string, area: SlotArea, visibleWhen?: Condition) {
@@ -365,7 +462,15 @@ function rowArea(col: number, row: number, width = 1): SlotArea {
   return width > 1 ? { col, row, width } : { col, row };
 }
 
-const CLOSE: ButtonDef = { id: 'close', label: 'Fermer', symbol: 'x', tone: 'danger', tag: '<red>', actions: [{ type: 'close' }] };
+const CLOSE: ButtonDef = {
+  id: 'close',
+  label: 'Fermer',
+  symbol: 'x',
+  icon: 'close',
+  tone: 'danger',
+  tag: '<red>',
+  actions: [{ type: 'close' }],
+};
 const BACK: ButtonDef = { id: 'back', label: 'Retour', tone: 'neutral', tag: '<white>', actions: [{ type: 'back' }] };
 
 function customButton(index: number): ButtonDef {
@@ -433,7 +538,7 @@ function buildGrid(b: MenuBuilder, options: InterfaceOptions) {
 
 function buildConfirm(b: MenuBuilder, options: InterfaceOptions) {
   const top = chestCell(0, 0).y;
-  b.text('message', WINDOW_WIDTH / 2, top + 5, `Confirmer cette action${NBSP}?`, b.theme.titleColor, 'center');
+  b.text('message', WINDOW_WIDTH / 2, top + 5, `Confirmer cette action${NBSP}?`, b.theme.textColor, 'center');
   const subject = { col: 4, row: Math.max(1, Math.floor((options.rows - 1) / 2)) };
   b.cells.push(subject);
   b.slots.push({
@@ -470,8 +575,9 @@ function buildTabs(b: MenuBuilder, options: InterfaceOptions) {
     const active: Condition = { state: 'tab', is: value };
     const rect = buttonRect(area);
     const text = textWidth(label) <= rect.width - 2 ? label : String(index + 1);
-    b.buttonLayer(value, area, 'neutral', text, { not: active });
-    b.buttonLayer(`${value}_active`, area, 'active', text, active);
+    const tab = b.theme.tab;
+    b.buttonLayer(value, area, 'neutral', text, { not: active }, tab?.(rect.width, rect.height, false));
+    b.buttonLayer(`${value}_active`, area, 'active', text, active, tab?.(rect.width, rect.height, true));
     b.slots.push({
       id: value,
       kind: 'button',
@@ -482,7 +588,8 @@ function buildTabs(b: MenuBuilder, options: InterfaceOptions) {
     b.slots.push({ id: `content_${index + 1}`, kind: 'list', list: `${value}_items`, area: content, visibleWhen: active });
     b.titleSide(`${value}_title`, label, active);
   });
-  b.cells.push(content);
+  if (b.theme.contentPanel) b.panelCells.push(content);
+  else b.cells.push(content);
 }
 
 const BUILDERS: Record<InterfaceKind, (builder: MenuBuilder, options: InterfaceOptions) => void> = {
@@ -500,14 +607,20 @@ export function backgroundHeight(rows: number): number {
 
 export function generateInterface(input: InterfaceOptions): MenuDefinition {
   const options = normalizeOptions(input);
-  const theme = options.family === 'mcrs' ? mcrsTheme(options.accent) : deepslateTheme(options.accent);
+  const theme = THEMES[options.family](options.accent);
   const builder = new MenuBuilder(options.id, theme);
   builder.text('title', TITLE_X, TITLE_Y, options.title, theme.titleColor);
   BUILDERS[options.kind](builder, options);
 
   const decor = new MenuBuilder(options.id, theme);
   decor.layer('background', 0, 0, theme.background(backgroundHeight(options.rows), builder.cells));
-  if (theme.titleStrip) decor.layer('title_strip', TITLE_X, TITLE_Y + 9, theme.titleStrip);
+  for (const header of theme.header(options.kind)) decor.layer(header.id, header.x, header.y, header.spec);
+  if (builder.panelCells.length > 0 && theme.contentPanel) {
+    // Panneau du contenu des onglets : deux pixels autour des cases ; son cadre du haut passe sous les onglets.
+    const top = chestCell(0, 1).y - 2;
+    const height = chestCell(0, options.rows).y + 1 - top;
+    decor.layer('content_panel', 5, top, theme.contentPanel(WINDOW_WIDTH - 10, height, builder.panelCells));
+  }
 
   return {
     formatVersion: 1,

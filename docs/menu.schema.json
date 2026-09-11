@@ -155,21 +155,22 @@
       "description": "Paramètres d’une texture générée par le studio (métadonnée libre, ignorée par la lib ; forme écrite par le studio ci-dessous).",
       "properties": {
         "style": {
-          "enum": ["panel", "button", "cell", "veil", "flat", "mcrs_panel", "mcrs_border", "mcrs_button", "mcrs_raised", "mcrs_strip", "mcrs_slot", "mcrs_grid"]
+          "enum": ["panel", "button", "cell", "veil", "flat", "mcrs_panel", "mcrs_border", "mcrs_button", "mcrs_raised", "mcrs_strip", "mcrs_slot", "mcrs_grid", "dark_panel", "dark_slot", "dark_tab", "dark_button", "dark_close", "dark_awning", "dark_row", "dark_badge", "dark_progress"]
         },
         "width": { "type": "integer", "minimum": 1 },
         "height": { "type": "integer", "minimum": 1 },
         "color": { "type": "string" },
         "cells": { "type": "array", "items": { "$ref": "#/$defs/slotArea" } },
         "cellColor": { "type": "string" },
-        "cellStyle": { "enum": ["cell", "mcrs_slot"] },
+        "cellStyle": { "enum": ["cell", "mcrs_slot", "dark_slot"] },
         "radius": { "type": "integer", "minimum": 0, "maximum": 32, "description": "mc-rs : rayon des coins." },
         "borderWidth": { "type": "integer", "minimum": 0, "maximum": 32, "description": "mc-rs : épaisseur de la bordure." },
         "borderColor": { "type": "string", "description": "mc-rs : couleur de la bordure (sinon calculée)." },
         "accent": { "type": "string", "description": "mc-rs : accent des états survol et pressé." },
         "state": { "enum": ["normal", "hover", "pressed"], "description": "mc-rs : état dessiné d’un bouton." },
         "shadow": { "type": "integer", "minimum": 0, "maximum": 32, "description": "mc-rs : hauteur de l’ombre portée." },
-        "tile": { "type": "integer", "minimum": 2, "maximum": 64, "description": "mc-rs : côté des cases de la grille." }
+        "tile": { "type": "integer", "minimum": 2, "maximum": 64, "description": "mc-rs : côté des cases de la grille ; sombre à accent : largeur des bandes du store." },
+        "progress": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Sombre à accent : remplissage d’une barre de progression, en pour cent." }
       }
     },
     "layer": {

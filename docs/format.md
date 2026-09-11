@@ -122,7 +122,7 @@ creusée), `mcrs_grid` (grille de chargement).
 
 | Clé | Rôle | Styles |
 |---|---|---|
-| `cellStyle` | Style des `cells` : `cell` (défaut) ou `mcrs_slot` | tous |
+| `cellStyle` | Style des `cells` : `cell` (défaut), `mcrs_slot` ou `dark_slot` | tous |
 | `radius` | Rayon des coins, en pixels (0 à 32) | mc-rs |
 | `borderWidth` | Épaisseur de la bordure, 0 = sans bordure | `mcrs_panel`, `mcrs_border`, `mcrs_button`, `mcrs_raised` |
 | `borderColor` | Couleur de la bordure (sinon calculée depuis `color`), ou des lignes de la grille | `mcrs_panel`, `mcrs_button`, `mcrs_raised`, `mcrs_grid` |
@@ -136,6 +136,25 @@ survol : `state` sert aux variantes d’un même bouton (onglet actif, flèche
 de page allumée), départagées par `visibleWhen`. La texture ne dépend que de
 ces paramètres : le studio la recuit à l’identique, octet pour octet
 (tampon RVBA et PNG écrit sans canvas).
+
+Famille « sombre à accent » (dessinée par le studio) : `dark_panel` (fenêtre
+plate, cadre fin, coins nets, ombre douce facultative), `dark_slot` (case
+creusée à contour clair de 2 px, sans biseau), `dark_tab` (onglet plat :
+inactif, fermé en bas ; actif, accent plein et ouvert vers le panneau),
+`dark_button` (bouton plat : cadre, cadre à l’accent au survol, accent plein
+pressé), `dark_close` (carré à croix claire), `dark_awning` (store rayé à
+festons), `dark_row` (ligne de liste ; sélectionnée : violet sombre et cadre en
+sucre d’orge), `dark_badge` (cartouche de valeur à contour d’accent),
+`dark_progress` (barre de progression). Coins nets : `radius` est ignoré.
+
+| Clé | Rôle pour « sombre à accent » |
+|---|---|
+| `borderWidth` | Épaisseur du cadre (2 par défaut pour `dark_slot`, 1 sinon) |
+| `borderColor` | Cadre ; seconde bande du store ; croix du bouton fermer |
+| `accent` | Onglet actif, bouton pressé, barre, contour des cartouches (`#e83820` par défaut) |
+| `state` | `hover` ou `pressed` : onglet actif, ligne sélectionnée, bouton survolé ou pressé |
+| `tile` | Largeur des bandes du store (4 par défaut) |
+| `progress` | Remplissage de la barre, de 0 à 100 (60 par défaut) |
 
 ## Textes (`texts`)
 

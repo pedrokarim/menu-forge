@@ -1,24 +1,50 @@
 import { useEffect, useRef, useState } from 'react';
-import { GENERATOR_PRESETS, PANEL_STYLE_LABELS } from '../model/generator';
-import {
-  BUTTON_STATE_LABELS,
-  DEFAULT_TILE,
-  MCRS_COLORS,
-  MCRS_PARAMS,
-  MCRS_PRESETS,
-  MCRS_STYLE_LABELS,
-  isMcrsStyle,
-  mcrsNumber,
-} from '../model/mcrs';
+import { NBSP } from '../lib/format';
+import { BUTTON_STATE_LABELS } from '../model/mcrs';
 import { ID_PATTERN } from '../model/menu';
 import type { ButtonState, CellStyle, GeneratorSpec, GeneratorStyle, SlotArea } from '../model/menu';
-import { defaultCellColor, imageToCanvas, renderGeneratorImage } from '../model/textureRender';
+import {
+  PRESETS_BY_FAMILY,
+  STYLE_FAMILY_NAMES,
+  STYLE_FAMILY_ORDER,
+  STYLE_LABELS,
+  defaultAccent,
+  defaultBorderColor,
+  defaultCellColor,
+  imageToCanvas,
+  paramNumber,
+  renderGeneratorImage,
+  styleFamily,
+  styleParams,
+} from '../model/textureRender';
+import type { StyleFamilyId } from '../model/textureRender';
 import { Icon } from '../ui/Icon';
 import { Field, FieldError, Modal, NumberField } from './fields';
 import './generator.css';
 
-/** Modèles des deux familles, dans l’ordre du sélecteur (Deepslate puis mc-rs). */
-const ALL_PRESETS = [...GENERATOR_PRESETS, ...MCRS_PRESETS];
+/** Modèles des trois familles, dans l’ordre du sélecteur (Deepslate, mc-rs, sombre à accent). */
+const ALL_PRESETS = STYLE_FAMILY_ORDER.flatMap((family) => PRESETS_BY_FAMILY[family]);
+
+/** Rang du premier modèle de chaque famille dans `ALL_PRESETS`. */
+const PRESET_OFFSETS = Object.fromEntries(
+  STYLE_FAMILY_ORDER.map((family, index) => [
+    family,
+    STYLE_FAMILY_ORDER.slice(0, index).reduce((sum, previous) => sum + PRESETS_BY_FAMILY[previous].length, 0),
+  ]),
+) as Record<StyleFamilyId, number>;
+
+const PARAMS_LEGEND: Record<StyleFamilyId, string> = {
+  deepslate: '',
+  mcrs: 'Paramètres mc-rs',
+  dark: `Paramètres «${NBSP}sombre à accent${NBSP}»`,
+};
+
+function borderColorLabel(style: GeneratorStyle): string {
+  if (style === 'mcrs_grid') return 'Couleur des lignes';
+  if (style === 'dark_awning') return 'Seconde bande';
+  if (style === 'dark_close') return 'Couleur de la croix';
+  return 'Couleur de bordure';
+}
 
 /** Garde les cellules de la spécification courante quand on change de modèle. */
 function keepCells(next: GeneratorSpec, current: GeneratorSpec): GeneratorSpec {
@@ -73,8 +99,8 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
 
   const cells = spec.cells?.[0];
   const setCells = (next: SlotArea | undefined) => setSpec({ ...spec, cells: next ? [next] : undefined });
-  const mcrs = isMcrsStyle(spec.style) ? spec.style : null;
-  const params = mcrs ? MCRS_PARAMS[mcrs] : [];
+  const family = styleFamily(spec.style);
+  const params = styleParams(spec.style);
   /** Pose ou retire un paramètre (une clé absente reprend la valeur par défaut du style). */
   const setParam = <K extends keyof GeneratorSpec>(key: K, value: GeneratorSpec[K] | undefined) => {
     const next = { ...spec };
@@ -130,20 +156,15 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
               }}
             >
               <option value="">Partir d’un modèle…</option>
-              <optgroup label="Deepslate">
-                {GENERATOR_PRESETS.map((preset, index) => (
-                  <option key={preset.label} value={index}>
-                    {preset.label}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="mc-rs">
-                {MCRS_PRESETS.map((preset, index) => (
-                  <option key={preset.label} value={GENERATOR_PRESETS.length + index}>
-                    {preset.label}
-                  </option>
-                ))}
-              </optgroup>
+              {STYLE_FAMILY_ORDER.map((familyId) => (
+                <optgroup key={familyId} label={STYLE_FAMILY_NAMES[familyId]}>
+                  {PRESETS_BY_FAMILY[familyId].map((preset, index) => (
+                    <option key={preset.label} value={PRESET_OFFSETS[familyId] + index}>
+                      {preset.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </Field>
           {mode === 'create' ? (
@@ -156,20 +177,15 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
           )}
           <Field label="Style">
             <select value={spec.style} onChange={(event) => setSpec({ ...spec, style: event.target.value as GeneratorStyle })}>
-              <optgroup label="Deepslate">
-                {Object.entries(PANEL_STYLE_LABELS).map(([style, label]) => (
-                  <option key={style} value={style}>
-                    {label}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="mc-rs">
-                {Object.entries(MCRS_STYLE_LABELS).map(([style, label]) => (
-                  <option key={style} value={style}>
-                    {label}
-                  </option>
-                ))}
-              </optgroup>
+              {STYLE_FAMILY_ORDER.map((familyId) => (
+                <optgroup key={familyId} label={STYLE_FAMILY_NAMES[familyId]}>
+                  {Object.entries(STYLE_LABELS[familyId]).map(([style, label]) => (
+                    <option key={style} value={style}>
+                      {label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </Field>
           <div className="field-row">
@@ -190,14 +206,14 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
               <input value={spec.color} onChange={(event) => setSpec({ ...spec, color: event.target.value })} />
             </div>
           </Field>
-          {mcrs && (
+          {params.length > 0 && (
             <fieldset className="generator-params">
-              <legend>Paramètres mc-rs</legend>
+              <legend>{PARAMS_LEGEND[family]}</legend>
               <div className="field-row">
                 {params.includes('radius') && (
                   <NumberField
                     label="Rayon des coins"
-                    value={spec.radius ?? mcrsNumber(mcrs, spec, 'radius')}
+                    value={paramNumber(spec.style, spec, 'radius')}
                     min={0}
                     max={32}
                     onChange={(value) => setParam('radius', clampInt(value, 0, 32))}
@@ -206,7 +222,7 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
                 {params.includes('borderWidth') && (
                   <NumberField
                     label="Bordure (px)"
-                    value={spec.borderWidth ?? mcrsNumber(mcrs, spec, 'borderWidth')}
+                    value={paramNumber(spec.style, spec, 'borderWidth')}
                     min={0}
                     max={32}
                     onChange={(value) => setParam('borderWidth', clampInt(value, 0, 32))}
@@ -215,7 +231,7 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
                 {params.includes('shadow') && (
                   <NumberField
                     label="Ombre (px)"
-                    value={spec.shadow ?? mcrsNumber(mcrs, spec, 'shadow')}
+                    value={paramNumber(spec.style, spec, 'shadow')}
                     min={0}
                     max={32}
                     onChange={(value) => setParam('shadow', clampInt(value, 0, 32))}
@@ -223,11 +239,20 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
                 )}
                 {params.includes('tile') && (
                   <NumberField
-                    label="Côté des cases (px)"
-                    value={spec.tile ?? DEFAULT_TILE}
+                    label={spec.style === 'dark_awning' ? 'Largeur des bandes (px)' : 'Côté des cases (px)'}
+                    value={paramNumber(spec.style, spec, 'tile')}
                     min={2}
                     max={64}
                     onChange={(value) => setParam('tile', clampInt(value, 2, 64))}
+                  />
+                )}
+                {params.includes('progress') && (
+                  <NumberField
+                    label="Progression (%)"
+                    value={paramNumber(spec.style, spec, 'progress')}
+                    min={0}
+                    max={100}
+                    onChange={(value) => setParam('progress', clampInt(value, 0, 100))}
                   />
                 )}
                 {params.includes('state') && (
@@ -247,22 +272,22 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
                   <div className="color-input">
                     <input
                       type="color"
-                      value={(spec.accent ?? MCRS_COLORS.gold).slice(0, 7)}
+                      value={(spec.accent ?? defaultAccent(spec.style)).slice(0, 7)}
                       onChange={(event) => setParam('accent', event.target.value)}
                     />
-                    <input value={spec.accent ?? MCRS_COLORS.gold} onChange={(event) => setParam('accent', event.target.value)} />
+                    <input value={spec.accent ?? defaultAccent(spec.style)} onChange={(event) => setParam('accent', event.target.value)} />
                   </div>
                 </Field>
               )}
               {params.includes('borderColor') && (
                 <div className="field">
-                  <span className="field-label">{mcrs === 'mcrs_grid' ? 'Couleur des lignes' : 'Couleur de bordure'}</span>
+                  <span className="field-label">{borderColorLabel(spec.style)}</span>
                   <div className="color-input generator-optional-color">
                     <label className="checkbox">
                       <input
                         type="checkbox"
                         checked={Boolean(spec.borderColor)}
-                        onChange={(event) => setParam('borderColor', event.target.checked ? MCRS_COLORS.panelBorder : undefined)}
+                        onChange={(event) => setParam('borderColor', event.target.checked ? defaultBorderColor(spec.style) : undefined)}
                       />
                       Personnalisée
                     </label>
@@ -274,7 +299,9 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
                         onChange={(event) => setParam('borderColor', event.target.value)}
                       />
                     ) : (
-                      <span className="muted small">calculée depuis la couleur</span>
+                      <span className="muted small">
+                        {spec.style === 'dark_awning' || spec.style === 'dark_close' ? 'blanc par défaut' : 'calculée depuis la couleur'}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -311,6 +338,7 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
                   >
                     <option value="cell">Cellule Deepslate</option>
                     <option value="mcrs_slot">Case sombre mc-rs</option>
+                    <option value="dark_slot">Case creusée (sombre à accent)</option>
                   </select>
                 </Field>
                 <Field label="Couleur des cellules">

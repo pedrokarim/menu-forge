@@ -27,13 +27,25 @@ export type McrsStyle =
   | 'mcrs_slot'
   | 'mcrs_grid';
 
-export type GeneratorStyle = PanelStyle | McrsStyle;
+/** Famille « sombre à accent » : fenêtres plates à cadre fin, cases creusées, onglets et boutons plats, un accent vif. */
+export type DarkStyle =
+  | 'dark_panel'
+  | 'dark_slot'
+  | 'dark_tab'
+  | 'dark_button'
+  | 'dark_close'
+  | 'dark_awning'
+  | 'dark_row'
+  | 'dark_badge'
+  | 'dark_progress';
+
+export type GeneratorStyle = PanelStyle | McrsStyle | DarkStyle;
 
 /** État dessiné d’un bouton mc-rs (le coffre n’a pas de survol : l’état sert aux variantes de couche). */
 export type ButtonState = 'normal' | 'hover' | 'pressed';
 
 /** Style des cellules de slots dessinées dans une texture générée. */
-export type CellStyle = 'cell' | 'mcrs_slot';
+export type CellStyle = 'cell' | 'mcrs_slot' | 'dark_slot';
 
 /** Paramètres d’une texture générée par le studio (métadonnée ignorée par la lib). */
 export interface GeneratorSpec {
@@ -58,8 +70,10 @@ export interface GeneratorSpec {
   state?: ButtonState;
   /** mc-rs : hauteur de l’ombre portée sous la forme, en pixels. */
   shadow?: number;
-  /** mc-rs : côté des cases de la grille de chargement, en pixels. */
+  /** mc-rs : côté des cases de la grille de chargement ; sombre à accent : largeur des bandes du store (pixels). */
   tile?: number;
+  /** Sombre à accent : remplissage d’une barre de progression, en pour cent. */
+  progress?: number;
 }
 
 /**

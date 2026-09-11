@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import type { RgbaImage } from '../src/export/image.ts';
 import { decodePng } from '../src/export/png.ts';
-import { GENERATOR_PRESETS } from '../src/model/generator.ts';
+import { DARK_PRESETS, DARK_STYLES } from '../src/model/darkStyles.ts';
+import { GENERATOR_PRESETS, lighten, parseColor } from '../src/model/generator.ts';
 import { MCRS_COLORS, MCRS_PRESETS, MCRS_STYLES, roundedSpan } from '../src/model/mcrs.ts';
 import type { GeneratorSpec } from '../src/model/menu.ts';
 import { renderGeneratorImage, renderGeneratorPng } from '../src/model/textureRender.ts';
@@ -116,11 +117,25 @@ const GOLDEN: Record<string, string> = {
   'Bande orange': '107e9dc598b5d84b',
   'Case sombre': 'e176351c388a59d1',
   'Grille de chargement': 'd76a4f1308665f36',
+  'Fenêtre sombre': 'b48b7bde02c7e281',
+  'Case creusée': 'f3a811f1b8a7541e',
+  // Onglet inactif et bouton sombre : même fond, même cadre fermé, donc même PNG.
+  'Onglet inactif': 'b78bd9250ed1f9ad',
+  'Onglet actif': 'a0b78c6e0680e80b',
+  'Bouton sombre': 'b78bd9250ed1f9ad',
+  'Bouton sombre pressé': '0f7b25663413b753',
+  'Bouton fermer': 'deef543595b1fe68',
+  'Store rayé': '697503d8b211b702',
+  'Store rayé (marché)': '7ab8ddb7efbaa72e',
+  'Ligne de liste': '85c23596f0ec7a09',
+  'Ligne sélectionnée': 'dc4583254924ab27',
+  'Cartouche de solde': '4e33dce065028add',
+  'Barre de progression': 'aa5a39b139d4f8db',
 };
 
 test('cuisson reproductible : mêmes octets à chaque fois, PNG relu identique au tampon', async () => {
   const hashes: Record<string, string> = {};
-  for (const preset of [...GENERATOR_PRESETS, ...MCRS_PRESETS]) {
+  for (const preset of [...GENERATOR_PRESETS, ...MCRS_PRESETS, ...DARK_PRESETS]) {
     const first = await renderGeneratorPng(preset.spec, { x: 0, y: 0 });
     const second = await renderGeneratorPng(structuredClone(preset.spec), { x: 0, y: 0 });
     assert.deepEqual(first, second, preset.label);
@@ -130,6 +145,56 @@ test('cuisson reproductible : mêmes octets à chaque fois, PNG relu identique a
   }
   if (Object.keys(GOLDEN).length === 0) console.log(JSON.stringify(hashes, null, 2));
   else assert.deepEqual(hashes, GOLDEN);
+});
+
+const frameOf = (hex: string, amount: number) => {
+  const color = lighten(parseColor(hex), amount);
+  return [color.r, color.g, color.b, 255];
+};
+
+test('sombre à accent : cadre net, case creusée, onglets inactif et actif', () => {
+  const panel = render({ style: 'dark_panel', width: 20, height: 10, color: '#282830' });
+  assert.deepEqual(pixel(panel, 0, 0), frameOf('#282830', 0.12), 'coin net : le cadre');
+  const inside = pixel(panel, 5, 1);
+  assert.ok(inside[0] >= 40 && inside[0] <= 46 && inside[3] === 255, 'fond en léger dégradé');
+  const slot = render({ style: 'dark_slot', width: 18, height: 18, color: '#101018' });
+  assert.deepEqual(pixel(slot, 1, 1), frameOf('#101018', 0.2), 'contour de 2 px');
+  assert.deepEqual(pixel(slot, 2, 2), [16, 16, 24, 255], 'creux');
+  const tab: GeneratorSpec = { style: 'dark_tab', width: 20, height: 16, color: '#303038' };
+  assert.deepEqual(pixel(render(tab), 10, 15), frameOf('#303038', 0.12), 'inactif : fermé en bas');
+  assert.deepEqual(pixel(render({ ...tab, state: 'pressed' }), 10, 15), [232, 56, 32, 255], 'actif : accent plein, ouvert vers le panneau');
+});
+
+test('sombre à accent : fermer, store, ligne sélectionnée, cartouche, progression', () => {
+  const close = render({ style: 'dark_close', width: 16, height: 16, color: '#e83820' });
+  assert.deepEqual(pixel(close, 0, 0), [232, 56, 32, 255]);
+  assert.deepEqual(pixel(close, 7, 7), [248, 248, 248, 255], 'croix claire au centre');
+  assert.deepEqual(pixel(close, 4, 11), [248, 248, 248, 255], 'branche montante de la croix');
+  const awning = render({ style: 'dark_awning', width: 12, height: 5, color: '#58d000', tile: 4 });
+  assert.deepEqual(pixel(awning, 1, 2), [88, 208, 0, 255], 'bande verte');
+  assert.deepEqual(pixel(awning, 5, 2), [248, 248, 248, 255], 'bande blanche');
+  assert.deepEqual(pixel(awning, 4, 4), [0, 0, 0, 0], 'feston : coin de bande découpé');
+  assert.deepEqual(pixel(awning, 5, 4), [248, 248, 248, 255]);
+  const row = render({ style: 'dark_row', width: 20, height: 18, color: '#101018', state: 'pressed' });
+  assert.deepEqual(pixel(row, 0, 0), [232, 56, 32, 255], 'cadre en sucre d’orge : accent');
+  assert.deepEqual(pixel(row, 2, 0), [248, 248, 248, 255], 'puis blanc');
+  assert.deepEqual(pixel(row, 10, 9), [107, 31, 74, 255], 'violet sombre de la sélection');
+  const badge = render({ style: 'dark_badge', width: 30, height: 11, color: '#101018', accent: '#58d000' });
+  assert.deepEqual(pixel(badge, 0, 5), [88, 208, 0, 255], 'contour à l’accent');
+  assert.deepEqual(pixel(badge, 5, 5), [16, 16, 24, 255]);
+  const bar = render({ style: 'dark_progress', width: 22, height: 6, color: '#101018', progress: 50 });
+  assert.deepEqual(pixel(bar, 10, 2), [232, 56, 32, 255], 'rempli jusqu’à la moitié');
+  assert.deepEqual(pixel(bar, 11, 2), [16, 16, 24, 255], 'rail au-delà');
+});
+
+test('chaque style « sombre à accent » a un modèle ; les libellés des modèles sont uniques', () => {
+  for (const style of DARK_STYLES) {
+    const preset = DARK_PRESETS.find((candidate) => candidate.spec.style === style);
+    assert.ok(preset, `modèle pour ${style}`);
+    assert.ok(render(preset.spec).data.some((value, index) => index % 4 === 3 && value > 0), `${style} n’est pas vide`);
+  }
+  const labels = [...GENERATOR_PRESETS, ...MCRS_PRESETS, ...DARK_PRESETS].map((preset) => preset.label);
+  assert.equal(new Set(labels).size, labels.length);
 });
 
 test('chaque style mc-rs a un modèle et dessine quelque chose', () => {

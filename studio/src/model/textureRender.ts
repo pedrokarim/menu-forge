@@ -1,9 +1,10 @@
 import { encodePng } from '../export/png';
 import type { RgbaImage } from '../export/image';
-import { paintPanelStyle } from './generator';
+import { DARK_COLORS, DARK_PARAMS, DARK_PRESETS, DARK_STYLE_LABELS, darkNumber, isDarkStyle, paintDarkStyle } from './darkStyles';
+import { GENERATOR_PRESETS, PANEL_STYLE_LABELS, paintPanelStyle } from './generator';
 import { SLOT_SIZE, chestCell } from './geometry';
 import type { Point } from './geometry';
-import { MCRS_COLORS, isMcrsStyle, paintMcrsStyle } from './mcrs';
+import { DEFAULT_TILE, MCRS_COLORS, MCRS_PARAMS, MCRS_PRESETS, MCRS_STYLE_LABELS, isMcrsStyle, mcrsNumber, paintMcrsStyle } from './mcrs';
 import type { CellStyle, GeneratorSpec, GeneratorStyle } from './menu';
 import { createImage, rasterPainter } from './painter';
 import type { Painter } from './painter';
@@ -26,12 +27,15 @@ export function paintGeneratorStyle(
   spec: Partial<GeneratorSpec> = {},
 ) {
   if (isMcrsStyle(style)) paintMcrsStyle(painter, style, x, y, width, height, color, spec);
+  else if (isDarkStyle(style)) paintDarkStyle(painter, style, x, y, width, height, color, spec);
   else paintPanelStyle(painter, style, x, y, width, height, color);
 }
 
 /** Couleur par défaut des cellules de slots d’un style. */
 export function defaultCellColor(style: CellStyle | undefined): string {
-  return style === 'mcrs_slot' ? MCRS_COLORS.slot : '#8b8b8b';
+  if (style === 'mcrs_slot') return MCRS_COLORS.slot;
+  if (style === 'dark_slot') return DARK_COLORS.hollow;
+  return '#8b8b8b';
 }
 
 /**
@@ -74,4 +78,68 @@ export function imageToCanvas(image: RgbaImage): HTMLCanvasElement {
   const ctx = canvas.getContext('2d');
   if (ctx) ctx.putImageData(new ImageData(new Uint8ClampedArray(image.data), image.width, image.height), 0, 0);
   return canvas;
+}
+
+/* Familles de styles (dialogue du générateur de textures) */
+
+export type StyleFamilyId = 'deepslate' | 'mcrs' | 'dark';
+
+export const STYLE_FAMILY_ORDER: readonly StyleFamilyId[] = ['deepslate', 'mcrs', 'dark'];
+
+export const STYLE_FAMILY_NAMES: Record<StyleFamilyId, string> = {
+  deepslate: 'Deepslate',
+  mcrs: 'mc-rs',
+  dark: 'Sombre à accent',
+};
+
+export const STYLE_LABELS: Record<StyleFamilyId, Readonly<Record<string, string>>> = {
+  deepslate: PANEL_STYLE_LABELS,
+  mcrs: MCRS_STYLE_LABELS,
+  dark: DARK_STYLE_LABELS,
+};
+
+export const PRESETS_BY_FAMILY: Record<StyleFamilyId, ReadonlyArray<{ label: string; spec: GeneratorSpec }>> = {
+  deepslate: GENERATOR_PRESETS,
+  mcrs: MCRS_PRESETS,
+  dark: DARK_PRESETS,
+};
+
+export function styleFamily(style: GeneratorStyle): StyleFamilyId {
+  if (isMcrsStyle(style)) return 'mcrs';
+  if (isDarkStyle(style)) return 'dark';
+  return 'deepslate';
+}
+
+/** Paramètres réglables d’un style (aucun pour les styles Deepslate). */
+export type StyleParam = 'radius' | 'borderWidth' | 'borderColor' | 'accent' | 'state' | 'shadow' | 'tile' | 'progress';
+
+export function styleParams(style: GeneratorStyle): readonly StyleParam[] {
+  if (isMcrsStyle(style)) return MCRS_PARAMS[style];
+  if (isDarkStyle(style)) return DARK_PARAMS[style];
+  return [];
+}
+
+/** Valeur effective d’un paramètre numérique : celle de la spécification, sinon le défaut du style. */
+export function paramNumber(
+  style: GeneratorStyle,
+  spec: Partial<GeneratorSpec>,
+  param: 'radius' | 'borderWidth' | 'shadow' | 'tile' | 'progress',
+): number {
+  if (isMcrsStyle(style)) {
+    if (param === 'tile') return spec.tile ?? DEFAULT_TILE;
+    if (param === 'progress') return 0;
+    return mcrsNumber(style, spec, param);
+  }
+  if (isDarkStyle(style)) return param === 'radius' ? 0 : darkNumber(style, spec, param);
+  return 0;
+}
+
+export function defaultAccent(style: GeneratorStyle): string {
+  return isDarkStyle(style) ? DARK_COLORS.accent : MCRS_COLORS.gold;
+}
+
+/** Couleur proposée quand on personnalise la bordure (ou la seconde bande, ou la croix). */
+export function defaultBorderColor(style: GeneratorStyle): string {
+  if (style === 'dark_awning' || style === 'dark_close') return DARK_COLORS.text;
+  return isDarkStyle(style) ? DARK_COLORS.frame : MCRS_COLORS.panelBorder;
 }
