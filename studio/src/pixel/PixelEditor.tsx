@@ -92,9 +92,9 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement && !['range', 'checkbox', 'radio', 'color', 'button'].includes(target.type);
 }
 
-/** Contrôle de formulaire ou bouton : flèches, Entrée et Suppr lui reviennent. */
+/** Champ de formulaire (curseur, liste, saisie) : les flèches et Suppr lui reviennent. */
 function isControl(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && target.closest('input, textarea, select, button, [contenteditable="true"]') !== null;
+  return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]') !== null;
 }
 
 /** Charge l’image puis ouvre l’éditeur (un éditeur par image : historique propre). */
@@ -640,11 +640,16 @@ function PixelWorkbench(props: WorkbenchProps) {
       else deselect();
       return;
     }
-    // Un curseur, un bouton ou une case gardent leurs touches (flèches, Entrée, Suppr).
-    if (isControl(event.target)) return;
-    if (event.key === 'Enter') {
+    // Entrée pose le contenu déplacé, même si un bouton du panneau a gardé le focus après un clic
+    // (sans preventDefault, le bouton serait aussi activé).
+    if (event.key === 'Enter' && present.floating) {
+      event.preventDefault();
       dropContent();
-    } else if (event.key === 'Delete' || event.key === 'Backspace') {
+      return;
+    }
+    // Un curseur ou une liste gardent leurs touches (flèches, Suppr) ; un bouton, non.
+    if (isControl(event.target)) return;
+    if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
       deleteContent();
     } else if (event.key.startsWith('Arrow')) {
@@ -822,14 +827,14 @@ function PixelWorkbench(props: WorkbenchProps) {
           <div className="asset-toolbar-group" role="group" aria-label="Symétrie">
             {toggle(
               options.symmetry.horizontal,
-              'flip-h',
+              'symmetry-h',
               'Symétrie horizontale',
               'Le dessin se reflète de part et d’autre de l’axe vertical',
               () => setOption('symmetry', { ...options.symmetry, horizontal: !options.symmetry.horizontal }),
             )}
             {toggle(
               options.symmetry.vertical,
-              'flip-v',
+              'symmetry-v',
               'Symétrie verticale',
               'Le dessin se reflète de part et d’autre de l’axe horizontal',
               () => setOption('symmetry', { ...options.symmetry, vertical: !options.symmetry.vertical }),

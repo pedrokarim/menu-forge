@@ -219,6 +219,32 @@ const Layers = pixelIcon([
 
 /** Pivoter d’un quart de tour (sens horaire) : flèche circulaire de pixelarticons. */
 const RotateClockwise: IconComponent = (props) => <Reload {...props} />;
+
+/** Symétrie horizontale : un bloc plein et son reflet creux, de part et d’autre d’un axe vertical en tirets. */
+const SymmetryHorizontal = pixelIcon([
+  [11, 2, 2, 3],
+  [11, 7, 2, 3],
+  [11, 12, 2, 3],
+  [11, 17, 2, 3],
+  [3, 9, 6, 6],
+  [15, 9, 6, 2],
+  [15, 13, 6, 2],
+  [15, 11, 2, 2],
+  [19, 11, 2, 2],
+]);
+
+/** Symétrie verticale : la même, de part et d’autre d’un axe horizontal. */
+const SymmetryVertical = pixelIcon([
+  [2, 11, 3, 2],
+  [7, 11, 3, 2],
+  [12, 11, 3, 2],
+  [17, 11, 3, 2],
+  [9, 3, 6, 6],
+  [9, 15, 6, 2],
+  [9, 19, 6, 2],
+  [9, 17, 2, 2],
+  [13, 17, 2, 2],
+]);
 /** Pivoter d’un quart de tour (sens antihoraire) : la même, en miroir. */
 const RotateCounterClockwise: IconComponent = (props) => <Reload {...props} style={{ transform: 'scaleX(-1)' }} />;
 
@@ -300,6 +326,8 @@ const ICONS = {
   'rotate-ccw': RotateCounterClockwise,
   'rotate-cw': RotateClockwise,
   swap: ArrowsHorizontal,
+  'symmetry-h': SymmetryHorizontal,
+  'symmetry-v': SymmetryVertical,
   wand: Wand,
   'zoom-in': ZoomIn,
   'zoom-out': ZoomOut,
