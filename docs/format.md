@@ -103,7 +103,39 @@ ne lit que le PNG pointé par `texture`.
 
 Styles : `panel` (panneau biseauté façon vanilla), `button` (bouton coloré),
 `cell` (cellule de slot), `veil` (voile de modale, couleur avec alpha),
-`flat` (aplat).
+`flat` (aplat). Ce sont les styles « Deepslate ».
+
+Famille « mc-rs » (esprit du pack d’interface de mc-rs, textures recalculées
+au pixel près par le studio, à toute taille) : `mcrs_panel` (panneau sombre et
+arrondi, bordure d’un pixel), `mcrs_border` (bordure arrondie seule),
+`mcrs_button` (bouton plat à trois états), `mcrs_raised` (bouton en relief :
+reflet, dégradé, lèvre sombre, ombre portée ; vert ou « spécial » selon la
+couleur), `mcrs_strip` (bande or ou orange), `mcrs_slot` (case sombre
+creusée), `mcrs_grid` (grille de chargement).
+
+```json
+"generator": {
+  "style": "mcrs_button", "width": 34, "height": 16, "color": "#1e1e2ee6",
+  "state": "hover", "accent": "#ffd933", "radius": 1
+}
+```
+
+| Clé | Rôle | Styles |
+|---|---|---|
+| `cellStyle` | Style des `cells` : `cell` (défaut) ou `mcrs_slot` | tous |
+| `radius` | Rayon des coins, en pixels (0 à 32) | mc-rs |
+| `borderWidth` | Épaisseur de la bordure, 0 = sans bordure | `mcrs_panel`, `mcrs_border`, `mcrs_button`, `mcrs_raised` |
+| `borderColor` | Couleur de la bordure (sinon calculée depuis `color`), ou des lignes de la grille | `mcrs_panel`, `mcrs_button`, `mcrs_raised`, `mcrs_grid` |
+| `accent` | Accent des états : bordure du survol, fond et bordure du pressé (or `#ffd933` par défaut) | `mcrs_button`, `mcrs_raised` |
+| `state` | État dessiné : `normal`, `hover` ou `pressed` | `mcrs_button`, `mcrs_raised` |
+| `shadow` | Hauteur de l’ombre portée, en pixels | `mcrs_panel`, `mcrs_button`, `mcrs_raised` |
+| `tile` | Côté des cases, en pixels (2 à 64) | `mcrs_grid` |
+
+Une clé absente prend la valeur par défaut du style. Le coffre n’a pas de
+survol : `state` sert aux variantes d’un même bouton (onglet actif, flèche
+de page allumée), départagées par `visibleWhen`. La texture ne dépend que de
+ces paramètres : le studio la recuit à l’identique, octet pour octet
+(tampon RVBA et PNG écrit sans canvas).
 
 ## Textes (`texts`)
 

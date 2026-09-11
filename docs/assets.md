@@ -73,7 +73,7 @@ identifiant du groupe de l’élément).
 `width`, `height`, et un `style` :
 
 - `{ "kind": "procedural", "preset": "panel" | "button" | "cell" | "flat" | "veil", "color": "#…", "border"?: "#…" }`
-  – mêmes styles que le générateur de textures des menus (`border` remplace la
+  – mêmes styles Deepslate que le générateur de textures des menus (`border` remplace la
   couleur de bordure calculée) ;
 - `{ "kind": "slice", "texture": "…", "source"?: { x, y, width, height }, "insets": { top, right, bottom, left } }`
   – **nine-slice** : la zone `source` de la texture (toute l’image par défaut)

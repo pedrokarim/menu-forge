@@ -14,17 +14,52 @@ export type Condition =
   | { any: Condition[] }
   | { not: Condition };
 
+/** Styles « Deepslate » (biseautés façon vanilla), partagés avec les boxes des assets. */
 export type PanelStyle = 'panel' | 'button' | 'cell' | 'veil' | 'flat';
+
+/** Famille « mc-rs » : panneaux sombres et arrondis, boutons plats à états, bandes (cf. docs/format.md). */
+export type McrsStyle =
+  | 'mcrs_panel'
+  | 'mcrs_border'
+  | 'mcrs_button'
+  | 'mcrs_raised'
+  | 'mcrs_strip'
+  | 'mcrs_slot'
+  | 'mcrs_grid';
+
+export type GeneratorStyle = PanelStyle | McrsStyle;
+
+/** État dessiné d’un bouton mc-rs (le coffre n’a pas de survol : l’état sert aux variantes de couche). */
+export type ButtonState = 'normal' | 'hover' | 'pressed';
+
+/** Style des cellules de slots dessinées dans une texture générée. */
+export type CellStyle = 'cell' | 'mcrs_slot';
 
 /** Paramètres d’une texture générée par le studio (métadonnée ignorée par la lib). */
 export interface GeneratorSpec {
-  style: PanelStyle;
+  style: GeneratorStyle;
   width: number;
   height: number;
   color: string;
   /** Cellules de slots à dessiner dans la texture, en coordonnées de grille du coffre. */
   cells?: SlotArea[];
   cellColor?: string;
+  /** Style des cellules (défaut `cell`). */
+  cellStyle?: CellStyle;
+  /** mc-rs : rayon des coins, en pixels. */
+  radius?: number;
+  /** mc-rs : épaisseur de la bordure, en pixels (0 = sans bordure). */
+  borderWidth?: number;
+  /** mc-rs : couleur de la bordure (sinon calculée depuis `color`). */
+  borderColor?: string;
+  /** mc-rs : couleur d’accent des états survol et pressé. */
+  accent?: string;
+  /** mc-rs : état dessiné d’un bouton. */
+  state?: ButtonState;
+  /** mc-rs : hauteur de l’ombre portée sous la forme, en pixels. */
+  shadow?: number;
+  /** mc-rs : côté des cases de la grille de chargement, en pixels. */
+  tile?: number;
 }
 
 /**
