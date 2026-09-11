@@ -22,6 +22,7 @@ import type {
   StudioSettings,
   WorkspaceList,
 } from './lib/appApi';
+import type { DocumentType } from './lib/appApi';
 import { NBSP } from './lib/format';
 import { isTauri } from './lib/native';
 import { SCREEN_TITLES, describeActivity } from './shell/activity';
@@ -186,9 +187,17 @@ export default function App() {
   );
   const confirmRemoval = settings?.ui.confirmations.delete ?? true;
 
+  /** Identifiants déjà pris pour ce type de document (copie ou renommage sans collision). */
+  const knownIds = (type: DocumentType): string[] =>
+    type === 'menu'
+      ? (snapshot?.menus ?? []).map((candidate) => candidate.id)
+      : type === 'asset'
+        ? (snapshot?.assets ?? []).map((candidate) => candidate.id)
+        : (recent ?? []).filter((candidate) => candidate.type === 'pixel').map((candidate) => candidate.id);
+
   /** Le document est ouvert dans l’éditeur avec des modifications non enregistrées. */
   const openAndDirty = (document: RecentDocument) =>
-    editorDirty && editorRoute.id === document.id && editorRoute.mode === (document.type === 'menu' ? 'menus' : 'assets');
+    editorDirty && editorRoute.id === document.id && editorRoute.mode === (document.type === 'menu' ? 'menus' : document.type === 'asset' ? 'assets' : 'pixels');
 
   /** Accueil : renommer, dupliquer ou mettre à la corbeille un document récent ; l’éditeur suit. */
   const documentAction = async (document: RecentDocument, action: DocumentAction) => {
@@ -197,14 +206,13 @@ export default function App() {
       !preferences.confirmDiscard ||
       window.confirm(`« ${document.name} » a des modifications non enregistrées dans l’éditeur. Continuer quand même${NBSP}?`);
     if (action === 'rename') {
-      // Un menu renommé garde ses modifications en cours ; un asset ouvert est relu du disque.
-      if (document.type === 'asset' && !discardAllowed()) return;
+      // Un menu renommé garde ses modifications en cours ; un asset ou une image ouverts sont relus du disque.
+      if (document.type !== 'menu' && !discardAllowed()) return;
       setRenaming(document);
       return;
     }
     if (action === 'duplicate') {
-      const known = (document.type === 'menu' ? snapshot?.menus : snapshot?.assets) ?? [];
-      const summary = await duplicateWithFreeId(document.type, document.id, document.name, known.map((candidate) => candidate.id));
+      const summary = await duplicateWithFreeId(document.type, document.id, document.name, knownIds(document.type));
       setDocumentEvent({ kind: 'duplicated', type: document.type, from: document.id, to: summary.id, name: summary.name, nonce: Date.now() });
       setHomeVersion((version) => version + 1);
       return;
@@ -436,7 +444,7 @@ export default function App() {
           type={renaming.type}
           id={renaming.id}
           name={renaming.name}
-          existingIds={((renaming.type === 'menu' ? snapshot?.menus : snapshot?.assets) ?? []).map((candidate) => candidate.id)}
+          existingIds={knownIds(renaming.type)}
           references={renaming.type === 'menu' ? menuReferences(snapshot?.menus ?? [], renaming.id) : []}
           onCancel={() => setRenaming(null)}
           onConfirm={confirmRename}

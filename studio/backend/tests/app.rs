@@ -539,6 +539,41 @@ fn pixel_document(id: &str, texture: &str) -> Value {
 }
 
 #[test]
+fn pixel_documents_follow_rename_duplicate_and_trash() {
+    let dir = TempDir::new("pixel-documents");
+    let backend = Backend::new(config(&dir));
+    let root = dir.path("default");
+    let (status, _, message) = call(&backend, "PUT", "/pixels/epee", pixel_document("epee", "pixels/epee.png"));
+    assert!((200..300).contains(&status), "{message}");
+    assert_eq!(backend.handle(&Request::new("PUT", "/textures/pixels/epee.png", png())).status, 204);
+
+    // Copie : un export à elle, l’original reste.
+    let body = json!({"type": "pixel", "from": "epee", "to": "epee_2"});
+    let (status, summary, message) = call(&backend, "POST", "/documents/duplicate", body);
+    assert!((200..300).contains(&status), "{message}");
+    assert_eq!((&summary["type"], &summary["id"]), (&json!("pixel"), &json!("epee_2")));
+    assert_eq!(call(&backend, "GET", "/pixels/epee_2", Value::Null).1["export"]["texture"], "pixels/epee_2.png");
+    assert!(root.join("textures/pixels/epee_2.png").is_file() && root.join("textures/pixels/epee.png").is_file());
+
+    // Renommage : l’export par défaut est recopié sous le nouveau nom, jamais déplacé.
+    let (status, _, message) = call(&backend, "POST", "/documents/rename", json!({"type": "pixel", "from": "epee", "to": "lame"}));
+    assert!((200..300).contains(&status), "{message}");
+    assert!(!root.join("pixels/epee.pixel.json").exists() && root.join("pixels/lame.pixel.json").is_file());
+    assert_eq!(call(&backend, "GET", "/pixels/lame", Value::Null).1["export"]["texture"], "pixels/lame.png");
+    assert!(root.join("textures/pixels/epee.png").is_file() && root.join("textures/pixels/lame.png").is_file());
+
+    // Conflit, puis corbeille : le document part, ses textures restent.
+    let (status, _, message) = call(&backend, "POST", "/documents/rename", json!({"type": "pixel", "from": "lame", "to": "epee_2"}));
+    assert_eq!(status, 409, "{message}");
+    assert!(message.contains("Une image"), "{message}");
+    let (status, trashed, message) = call(&backend, "POST", "/documents/trash", json!({"type": "pixel", "id": "lame"}));
+    assert!((200..300).contains(&status), "{message}");
+    assert!(trashed["trashed"].as_str().unwrap().ends_with("/pixels/lame.pixel.json"), "{trashed}");
+    assert!(!root.join("pixels/lame.pixel.json").exists());
+    assert!(root.join("textures/pixels/lame.png").is_file());
+}
+
+#[test]
 fn pixel_documents_round_trip_inside_the_workspace() {
     let dir = TempDir::new("pixels");
     let backend = Backend::new(config(&dir));

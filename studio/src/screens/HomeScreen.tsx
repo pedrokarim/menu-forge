@@ -143,10 +143,10 @@ export function HomeScreen({
   const documentMenu = (document: RecentDocument): MenuEntry[] => [
     { heading: `${document.type === 'menu' ? 'Menu' : document.type === 'asset' ? 'Asset' : 'Image'} « ${document.name} »` },
     { label: 'Ouvrir', icon: 'open', onSelect: () => onOpenDocument(document) },
-    { label: 'Renommer…', icon: 'pencil', disabled: document.type === 'pixel', onSelect: () => act(document, 'rename') },
-    { label: 'Dupliquer', icon: 'copy', disabled: document.type === 'pixel', onSelect: () => act(document, 'duplicate') },
+    { label: 'Renommer…', icon: 'pencil', onSelect: () => act(document, 'rename') },
+    { label: 'Dupliquer', icon: 'copy', onSelect: () => act(document, 'duplicate') },
     { separator: true },
-    { label: 'Mettre à la corbeille', icon: 'trash', danger: true, disabled: document.type === 'pixel', onSelect: () => act(document, 'trash') },
+    { label: 'Mettre à la corbeille', icon: 'trash', danger: true, onSelect: () => act(document, 'trash') },
   ];
   const others = workspaces.filter((candidate) => !candidate.active).slice(0, 5);
   const documents = (recent ?? []).slice(0, RECENT_LIMIT);

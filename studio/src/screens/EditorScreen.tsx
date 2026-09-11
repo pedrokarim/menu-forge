@@ -831,9 +831,12 @@ export function EditorScreen({
       const next = snapshot?.menus.find((candidate) => !candidate.template) ?? snapshot?.menus[0] ?? null;
       dispatch({ type: 'load', menu: next });
       setPreview(DEFAULT_PREVIEW);
-    } else {
+    } else if (type === 'asset') {
       setAssetDirty(false);
       setAssetId(snapshot?.assets[0]?.id ?? null);
+    } else {
+      setPixelDirty(false);
+      void refreshPixels().then((list) => setPixelId(list?.[0]?.id ?? null));
     }
   };
 
@@ -846,6 +849,15 @@ export function EditorScreen({
     snapshot: WorkspaceSnapshot | null,
     updated: readonly string[],
   ) => {
+    if (type === 'pixel') {
+      void refreshPixels().then(() => {
+        if (pixelId === from) {
+          setPixelDirty(false);
+          setPixelId(to);
+        }
+      });
+      return;
+    }
     if (type === 'asset') {
       if (assetId === from) {
         setAssetDirty(false);
@@ -867,11 +879,15 @@ export function EditorScreen({
     }
   };
 
+  /** Identifiant du document ouvert pour ce type (menu, asset ou image). */
+  const openDocumentId = (type: DocumentType) => (type === 'menu' ? menu?.id : type === 'asset' ? assetId : pixelId);
+
   const handleDocumentEvent = useEffectEvent(async (event: DocumentEvent) => {
     const snapshot = await refreshWorkspace();
+    if (event.type === 'pixel') await refreshPixels();
     if (event.kind === 'renamed' && event.to) {
       followRename(event.type, event.from, event.to, event.name ?? event.to, snapshot, event.updated ?? []);
-    } else if (event.kind === 'trashed' && (event.type === 'menu' ? menu?.id === event.from : assetId === event.from)) {
+    } else if (event.kind === 'trashed' && openDocumentId(event.type) === event.from) {
       openFallback(event.type, snapshot);
     }
   });
@@ -886,11 +902,15 @@ export function EditorScreen({
   const knownAssets = workspace?.assets ?? [];
   const currentAsset = knownAssets.find((candidate) => candidate.id === assetId) ?? null;
   const menuIsOnDisk = menu !== null && knownMenus.some((candidate) => candidate.id === menu.id);
+  /** Document ouvert pour ce type (`id` et `name`), ou `null`. */
+  const documentSource = (type: DocumentType) => (type === 'menu' ? menu : type === 'asset' ? currentAsset : currentPixel);
 
   const startRename = (type: DocumentType) => {
     if (type === 'menu' && menu) setDialog({ kind: 'rename', type, id: menu.id, name: menu.name });
     else if (type === 'asset' && currentAsset && confirmLeaveAsset()) {
       setDialog({ kind: 'rename', type, id: currentAsset.id, name: currentAsset.name });
+    } else if (type === 'pixel' && currentPixel && confirmLeavePixel()) {
+      setDialog({ kind: 'rename', type, id: currentPixel.id, name: currentPixel.name });
     }
   };
 
@@ -913,18 +933,21 @@ export function EditorScreen({
   };
 
   const duplicateDocumentNow = async (type: DocumentType) => {
-    const source = type === 'menu' ? menu : currentAsset;
+    const source = documentSource(type);
     if (!source) return;
     try {
-      const ids = (type === 'menu' ? knownMenus : knownAssets).map((candidate) => candidate.id);
+      const ids = (type === 'menu' ? knownMenus : type === 'asset' ? knownAssets : pixelList).map((candidate) => candidate.id);
       const summary = await duplicateWithFreeId(type, source.id, source.name, ids);
       const snapshot = await refreshWorkspace();
-      const unsaved = type === 'menu' ? dirty : assetDirty;
+      const unsaved = type === 'menu' ? dirty : type === 'asset' ? assetDirty : pixelDirty;
       if (type === 'menu' && !unsaved) {
         const created = snapshot?.menus.find((candidate) => candidate.id === summary.id);
         if (created) dispatch({ type: 'load', menu: created });
       } else if (type === 'asset' && !unsaved) {
         setAssetId(summary.id);
+      } else if (type === 'pixel') {
+        await refreshPixels();
+        if (!unsaved) setPixelId(summary.id);
       }
       const note = unsaved ? ' (copie de la version enregistrée)' : '';
       setStatus(`« ${summary.id} » créé, copie de « ${source.id} »${note}`);
@@ -934,9 +957,9 @@ export function EditorScreen({
   };
 
   const trashDocumentNow = async (type: DocumentType) => {
-    const source = type === 'menu' ? menu : currentAsset;
+    const source = documentSource(type);
     if (!source) return;
-    if (type === 'menu' ? !confirmDiscard() : !confirmLeaveAsset()) return;
+    if (type === 'menu' ? !confirmDiscard() : type === 'asset' ? !confirmLeaveAsset() : !confirmLeavePixel()) return;
     try {
       const trashed = await trashWithConfirmation(type, source.id, source.name, preferences.confirmDelete);
       if (!trashed) return;
@@ -949,9 +972,9 @@ export function EditorScreen({
   };
 
   const documentMenu = (type: DocumentType): MenuEntry[] => {
-    const source = type === 'menu' ? menu : currentAsset;
-    const onDisk = type === 'menu' ? menuIsOnDisk : currentAsset !== null;
-    const noun = type === 'menu' ? 'Menu' : 'Asset';
+    const source = documentSource(type);
+    const onDisk = type === 'menu' ? menuIsOnDisk : source !== null;
+    const noun = type === 'menu' ? 'Menu' : type === 'asset' ? 'Asset' : 'Image';
     return [
       { heading: source ? `${noun} « ${source.name} »` : noun },
       { label: 'Renommer…', icon: 'pencil', disabled: !onDisk, onSelect: () => startRename(type) },
@@ -1497,6 +1520,7 @@ export function EditorScreen({
               className="menu-picker"
               value={pixelId ?? ''}
               onChange={(event) => openPixel(event.target.value)}
+              onContextMenu={(event) => openContextMenu(event, documentMenu('pixel'))}
               disabled={pixelList.length === 0}
               aria-label="Image ouverte"
             >
@@ -1507,6 +1531,14 @@ export function EditorScreen({
                 </option>
               ))}
             </select>
+            <IconButton
+              icon="more"
+              label="Actions de l’image"
+              hint="Renommer, dupliquer, mettre à la corbeille"
+              size={24}
+              disabled={!currentPixel}
+              onClick={(event) => openContextMenu(event, documentMenu('pixel'))}
+            />
             <Tooltip label="Nouvelle image" hint="Dessin au pixel près, exporté en PNG dans textures/">
               <button type="button" onClick={() => setDialog({ kind: 'new-pixel' })}>
                 <Icon name="plus" />
@@ -1959,7 +1991,7 @@ export function EditorScreen({
           type={renameDialog.type}
           id={renameDialog.id}
           name={renameDialog.name}
-          existingIds={(renameDialog.type === 'menu' ? knownMenus : knownAssets).map((candidate) => candidate.id)}
+          existingIds={(renameDialog.type === 'menu' ? knownMenus : renameDialog.type === 'asset' ? knownAssets : pixelList).map((candidate) => candidate.id)}
           references={renameDialog.type === 'menu' ? menuReferences(knownMenus, renameDialog.id) : []}
           onCancel={() => setDialog(null)}
           onConfirm={handleRename}

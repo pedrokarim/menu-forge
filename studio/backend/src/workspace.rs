@@ -38,6 +38,7 @@ pub const TRASH_DIR: &str = ".trash";
 pub enum DocumentKind {
     Menu,
     Asset,
+    Pixel,
 }
 
 impl DocumentKind {
@@ -46,7 +47,8 @@ impl DocumentKind {
         match value.and_then(Value::as_str) {
             Some("menu") => Ok(Self::Menu),
             Some("asset") => Ok(Self::Asset),
-            _ => Err(HttpError::new(400, "« type » doit valoir « menu » ou « asset »")),
+            Some("pixel") => Ok(Self::Pixel),
+            _ => Err(HttpError::new(400, "« type » doit valoir « menu », « asset » ou « pixel »")),
         }
     }
 
@@ -54,6 +56,7 @@ impl DocumentKind {
         match self {
             Self::Menu => "menu",
             Self::Asset => "asset",
+            Self::Pixel => "pixel",
         }
     }
 
@@ -62,6 +65,7 @@ impl DocumentKind {
         match self {
             Self::Menu => "menus",
             Self::Asset => "assets",
+            Self::Pixel => "pixels",
         }
     }
 
@@ -69,6 +73,7 @@ impl DocumentKind {
         match self {
             Self::Menu => MENU_SUFFIX,
             Self::Asset => ASSET_SUFFIX,
+            Self::Pixel => PIXEL_SUFFIX,
         }
     }
 
@@ -77,6 +82,16 @@ impl DocumentKind {
         match self {
             Self::Menu => "Menu",
             Self::Asset => "Asset",
+            Self::Pixel => "Image",
+        }
+    }
+
+    /// Nom avec son article indéfini, pour les messages (« Un menu », « Une image »).
+    fn indefinite(self) -> &'static str {
+        match self {
+            Self::Menu => "Un menu",
+            Self::Asset => "Un asset",
+            Self::Pixel => "Une image",
         }
     }
 }
@@ -414,6 +429,7 @@ impl Workspace {
         let dir = match kind {
             DocumentKind::Menu => &self.menus_dir,
             DocumentKind::Asset => &self.assets_dir,
+            DocumentKind::Pixel => &self.pixels_dir,
         };
         join(dir, &format!("{id}{}", kind.suffix()))
     }
@@ -484,6 +500,44 @@ impl Workspace {
         Ok(())
     }
 
+    /// Export PNG d’une image de pixels. Pour une copie (toujours), ou pour un
+    /// renommage quand il est à sa place par défaut (`pixels/<from>.png`), il
+    /// est recopié sous un chemin libre (`pixels/<to>.png`, sinon
+    /// `pixels/<to>_2.png`…) et le document suit : sans cela, la copie
+    /// réécrirait le PNG de l’original. L’original n’est jamais déplacé (un
+    /// menu peut l’utiliser) ; un chemin personnalisé reste tel quel au renommage.
+    fn copy_pixel_export(
+        &self,
+        from: &str,
+        to: &str,
+        document: &mut Map<String, Value>,
+        duplicate: bool,
+    ) -> Result<(), HttpError> {
+        let Some(current) = document.get("export").and_then(|export| export.get("texture")).and_then(Value::as_str) else {
+            return Ok(());
+        };
+        let current = current.to_owned();
+        if !duplicate && current != format!("pixels/{from}.png") {
+            return Ok(());
+        }
+        let mut candidate = format!("pixels/{to}.png");
+        let mut index = 2;
+        while Path::new(&join(&self.textures_dir, &candidate)).exists() {
+            candidate = format!("pixels/{to}_{index}.png");
+            index += 1;
+        }
+        let source = inside_root(&self.textures_dir, &current)?;
+        if Path::new(&source).is_file() {
+            let target = join(&self.textures_dir, &candidate);
+            ensure_parent(&target)?;
+            fs::copy(&source, &target).map_err(|error| fs_error(&error, "copyfile", &target))?;
+        }
+        if let Some(Value::Object(export)) = document.get_mut("export") {
+            export.insert("texture".into(), Value::String(candidate));
+        }
+        Ok(())
+    }
+
     /// Écrit une copie du document `from` sous l’identifiant `to` (jamais
     /// par-dessus un document existant) et renvoie son contenu.
     fn copy_document(
@@ -492,11 +546,12 @@ impl Workspace {
         from: &str,
         to: &str,
         name: Option<String>,
+        duplicate: bool,
     ) -> Result<Map<String, Value>, HttpError> {
         let mut document = self.read_document(kind, from)?;
         let target = self.document_path(kind, to);
         if Path::new(&target).exists() {
-            return Err(HttpError::new(409, format!("Un {} « {to} » existe déjà", kind.as_str())));
+            return Err(HttpError::new(409, format!("{} « {to} » existe déjà", kind.indefinite())));
         }
         document.insert("id".into(), Value::String(to.to_owned()));
         if let Some(name) = name {
@@ -505,6 +560,7 @@ impl Workspace {
         match kind {
             DocumentKind::Menu => self.copy_generated_textures(from, to, &mut document)?,
             DocumentKind::Asset => self.copy_asset_export(from, to)?,
+            DocumentKind::Pixel => self.copy_pixel_export(from, to, &mut document, duplicate)?,
         }
         ensure_parent(&target)?;
         let content = format!("{}\n", stringify_pretty(&Value::Object(document.clone())));
@@ -514,7 +570,7 @@ impl Workspace {
             .open(&target)
             .map_err(|error| match error.kind() {
                 std::io::ErrorKind::AlreadyExists => {
-                    HttpError::new(409, format!("Un {} « {to} » existe déjà", kind.as_str()))
+                    HttpError::new(409, format!("{} « {to} » existe déjà", kind.indefinite()))
                 }
                 _ => fs_error(&error, "open", &target),
             })?;
@@ -528,7 +584,7 @@ impl Workspace {
         let from = body_id(body, "from")?;
         let to = body_id(body, "to")?;
         let name = body_name(body)?;
-        let document = self.copy_document(kind, &from, &to, name)?;
+        let document = self.copy_document(kind, &from, &to, name, true)?;
         Ok(document_summary(kind, &to, &document))
     }
 
@@ -539,7 +595,7 @@ impl Workspace {
         let from = body_id(body, "from")?;
         let to = body_id(body, "to")?;
         let name = body_name(body)?;
-        let document = self.copy_document(kind, &from, &to, name)?;
+        let document = self.copy_document(kind, &from, &to, name, false)?;
         let old = self.document_path(kind, &from);
         if let Err(error) = fs::remove_file(&old) {
             // L’ancien fichier reste : on retire la copie pour ne pas laisser deux documents.
@@ -550,7 +606,7 @@ impl Workspace {
     }
 
     /// `POST /documents/trash` : `{ type, id }`. Le fichier est déplacé dans
-    /// `.trash/<date>/<menus|assets>/` ; ses textures restent en place.
+    /// `.trash/<date>/<menus|assets|pixels>/` ; ses textures restent en place.
     pub fn trash_document(&self, body: &Map<String, Value>) -> Result<Value, HttpError> {
         let kind = DocumentKind::parse(body.get("type"))?;
         let id = body_id(body, "id")?;

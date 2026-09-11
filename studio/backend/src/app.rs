@@ -12,9 +12,9 @@
 //! | `POST /workspaces/open` | `{ path, name? }` : ouvre (et ajoute) un espace, qui devient actif |
 //! | `DELETE /workspaces` | `{ path }` : retire de la liste, **ne supprime aucun fichier** |
 //! | `GET /documents/recent` | menus, assets et images de pixels de l’espace actif, du plus récent au plus ancien (`texture`  PNG exporté d’une image de pixels) |
-//! | `POST /documents/rename` | `{ type: "menu" \| "asset", from, to, name? }` : change l’identifiant (nom du fichier et champ `id`, `name` remplacé s’il est fourni) → `{ type, id, name }` ; 404 si `from` n’existe pas, 409 si `to` existe déjà. Les textures sont **copiées, jamais déplacées** : `generated/<from>/` d’un menu vers un dossier libre (`generated/<to>/`, sinon `generated/<to>_2/`…), chemins des couches mis à jour ; export `assets/<from>.png` d’un asset vers `assets/<to>.png` s’il n’existe pas |
+//! | `POST /documents/rename` | `{ type: "menu" \| "asset" \| "pixel", from, to, name? }` : change l’identifiant (nom du fichier et champ `id`, `name` remplacé s’il est fourni) → `{ type, id, name }` ; 404 si `from` n’existe pas, 409 si `to` existe déjà. Les textures sont **copiées, jamais déplacées** : `generated/<from>/` d’un menu vers un dossier libre (`generated/<to>/`, sinon `generated/<to>_2/`…), chemins des couches mis à jour ; export `assets/<from>.png` d’un asset vers `assets/<to>.png` s’il n’existe pas ; export d’une image de pixels recopié vers `pixels/<to>.png` (chemin libre) s’il était à sa place par défaut, et toujours pour une copie |
 //! | `POST /documents/duplicate` | même corps et mêmes règles ; l’original reste → `{ type, id, name }` |
-//! | `POST /documents/trash` | `{ type, id }` : déplace le fichier dans `<espace>/.trash/<date>/<menus\|assets>/`, **ne supprime jamais rien** (textures laissées en place) → `{ type, id, trashed }`, chemin relatif à l’espace |
+//! | `POST /documents/trash` | `{ type, id }` : déplace le fichier dans `<espace>/.trash/<date>/<menus\|assets\|pixels>/`, **ne supprime jamais rien** (textures laissées en place) → `{ type, id, trashed }`, chemin relatif à l’espace |
 //! | `POST /libraries` | `{ id, name, root, ownership }` : branche un pack extrait |
 //! | `DELETE /libraries/:id` | débranche un pack (rien n’est supprimé sur le disque) |
 //! | `POST /libraries/:id/reindex` | reconstruit l’index en ignorant les caches |
