@@ -1,0 +1,50 @@
+# Publie le dossier site/ sur GitHub Pages (source : « GitHub Actions » dans
+# Settings → Pages). Seuls la page et ses ressources sont publiés : ni les
+# scripts de capture ni leur package.json.
+name: Site (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois ; celui en cours va à son terme.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v5
+
+      - name: Configurer Pages
+        uses: actions/configure-pages@v5
+
+      - name: Assembler le site
+        run: |
+          mkdir -p _site
+          cp site/index.html _site/
+          cp -r site/assets _site/
+
+      - name: Téléverser l’artefact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Déployer
+        id: deployment
+        uses: actions/deploy-pages@v4
