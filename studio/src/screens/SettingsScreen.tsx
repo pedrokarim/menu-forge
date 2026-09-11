@@ -89,6 +89,16 @@ function SettingRow({ title, text, children }: { title: string; text?: ReactNode
   );
 }
 
+/** Chemin réglé, répété en entier sous l’explication : le champ n’en montre qu’une partie. */
+function PathEcho({ path }: { path: string | null }) {
+  if (!path) return null;
+  return (
+    <span className="setting-path mono" style={{ display: 'block', marginTop: 4, overflowWrap: 'anywhere' }}>
+      {path}
+    </span>
+  );
+}
+
 interface SettingsScreenProps {
   pill: ReactNode;
   app: AppInfo | null;
@@ -260,7 +270,13 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
           Export vers le plugin
         </h2>
         <div className="card setting-list">
-          <SettingRow title="Ressources d’enderium-core" text={<>Le dossier <code>core/src/main/resources</code> du plugin.</>}>
+          <SettingRow title="Ressources d’enderium-core" text={
+              <>
+                Le dossier <code>core/src/main/resources</code> du plugin.
+                <PathEcho path={exportSettings.enderiumResources} />
+              </>
+            }
+          >
             <CommitInput
               mono
               label="Ressources d’enderium-core"
@@ -312,6 +328,7 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
               <>
                 Reçoit le pack (<code>pack/</code>) et le descripteur d’exécution (<code>runtime.json</code>)&nbsp;; pour
                 mc-rs, le dossier <code>menu_forge/export</code>.
+                <PathEcho path={exportSettings.bedrockDirectory} />
               </>
             }
           >
