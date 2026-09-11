@@ -8,13 +8,15 @@
 
 <p align="center">
   <strong>Draw custom Minecraft inventories pixel by pixel, then open them in game without computing a single offset.</strong><br>
-  A local studio (desktop app or browser) and a Paper library, linked by an open JSON format.
+  A local studio (desktop app or browser), a Paper library for Java and a Bedrock export, linked by an open JSON format.
 </p>
 
 <p align="center">
   <a href="https://pedrokarim.github.io/menu-forge/en/">Project website</a> ·
   <a href="docs/rendering.md">Rendering model</a> ·
   <a href="docs/format.md">Format</a> ·
+  <a href="docs/guide.md">Guide</a> ·
+  <a href="docs/bedrock.md">Bedrock</a> ·
   <a href="docs/roadmap.md">Roadmap</a>
 </p>
 
@@ -33,6 +35,14 @@ depends on no Enderium type and works with any Paper server.
 Its `/profile` screen is the first real menu rebuilt in the studio, with
 generated textures: Enderium's test server loads it, pending validation in
 game with a client.
+
+**Java and Bedrock.** On Java, the MenuForge Paper plugin opens a vanilla
+chest whose title carries the visuals as font glyphs. On Bedrock, a menu
+becomes a server form drawn with JSON UI: chest menus go through a generated
+layout, **Bedrock forms** through the eight layouts of the `mcrs_ui` pack. The
+native mc-rs server runs them (`/mf open <id>`), and they have been checked in
+game on a Bedrock client. See [`docs/bedrock.md`](docs/bedrock.md) and the
+[getting-started guide](docs/guide.md) (both in French).
 
 ## Why
 
@@ -53,6 +63,9 @@ Menu Forge automates the whole chain:
 3. **Library** (`lib/`): on the Paper server, it reads those files, generates
    the resource-pack fonts and opens the menus (title composed from the current
    state, slots, actions, pagination).
+4. **Bedrock export**: the studio also writes a Bedrock resource pack (JSON UI
+   layouts) and a runtime descriptor, `runtime.json`, read by the native mc-rs
+   server.
 
 ## Features
 
@@ -102,6 +115,15 @@ Menu Forge automates the whole chain:
 - **Export**: "Export to the plugin" (`Ctrl+E`, resolved menus and textures in
   the configured folder) and a test "ZIP pack" (`Ctrl+Shift+E`, fonts,
   textures, `pack.mcmeta`); fonts identical, byte for byte, to the library's.
+- **Bedrock form**: a menu type of its own (`form` key)—the Bedrock client's
+  button form, in one of the eight layouts of the `mcrs_ui` pack (grid, image
+  grid, square image, store, buttons on the left, buttons at the bottom,
+  message of the day, recap). Buttons with text, subtitle, role (banner,
+  special button), icon (workspace texture, imported or drawn, game texture
+  referenced by its path, web address), click actions and a "Sent if"
+  condition (`visibleWhen`); a preview true to the layouts and "Try" mode.
+  "Export for Bedrock" writes the pack and `runtime.json`: see
+  [`docs/bedrock.md`](docs/bedrock.md) (in French).
 - **JSON schemas** for menus and assets
   ([`docs/menu.schema.json`](docs/menu.schema.json),
   [`docs/asset.schema.json`](docs/asset.schema.json)) to validate a
@@ -143,6 +165,8 @@ Menu Forge automates the whole chain:
 
 | | |
 |---|---|
+| ![The Bedrock form editor: layout, buttons, grid preview and the selected button's inspector](site/assets/screens/bedrock-form.png) | !["New menu": the eight layouts of Bedrock forms](site/assets/screens/bedrock-layouts.png) |
+| **Bedrock form**: layout, buttons, icons, a preview true to the pack. | **Eight layouts**: picked at creation, changeable later. |
 | ![Interface generator: a tab bar in the "dark with accent" style, with its preview](site/assets/screens/interface-generator.png) | ![A shop created by the generator, in the mc-rs style, open in the editor](site/assets/screens/generated-menu.png) |
 | **Interface generator**: five kinds, three style families, clickable preview. | **Generated menu**: ordinary layers, texts and slots, ready to edit. |
 | !["Generate a texture": the model's image and the texture snapped to 16 × 16 and the Menu Forge palette](site/assets/screens/ai-texture.png) | !["Generate an interface": a first attempt rejected, fixed on the second](site/assets/screens/ai-interface.png) |
@@ -263,6 +287,12 @@ workspace: fonts and textures generated with the same algorithm as the
 library (parity checked byte for byte against a shared fixture) and
 `pack.mcmeta`, to try without a server.
 
+**Bedrock** (toolbar button, or the canvas context menu) writes the resource
+pack (`pack/`) and the runtime descriptor (`runtime.json`) into the folder set
+in **Settings › Export for Bedrock**; for mc-rs, `menu_forge/export`. On the
+server, `/mf reload` reloads the export, `/mf list` lists the menus and
+`/mf open <id>` opens one. Step by step: [`docs/guide.md`](docs/guide.md).
+
 ## Repository layout
 
 | Folder | Role |
@@ -278,10 +308,14 @@ library (parity checked byte for byte against a shared fixture) and
 
 The documentation is written in French.
 
+- [`docs/guide.md`](docs/guide.md): getting started step by step, from a first
+  Java menu to a first Bedrock form.
 - [`docs/rendering.md`](docs/rendering.md): how a layer becomes a glyph,
   coordinates, `ascent`, advance, known pitfalls.
 - [`docs/format.md`](docs/format.md): the `*.menu.json` format (layers, texts,
   slots, state, conditions, actions, templates).
+- [`docs/bedrock.md`](docs/bedrock.md): Menu Forge on Bedrock—export,
+  `runtime.json`, forms and layouts, server-side execution.
 - [`docs/assets.md`](docs/assets.md): the free-mode `*.asset.json` format.
 - [`docs/pixels.md`](docs/pixels.md): the pixel editor's `*.pixel.json` format,
   its tools and shortcuts.
@@ -298,7 +332,8 @@ The documentation is written in French.
 ## Roadmap
 
 Living details in [`docs/roadmap.md`](docs/roadmap.md).
-Recently landed: the interface generator and its three style families,
+Recently landed: **Bedrock** support (exporter, Bedrock forms, port of the
+mc-rs screens), the interface generator and its three style families,
 multi-provider AI generation and Menu Forge's pixel font; before them, the
 pixel editor, editing gestures, visual editors and "Try"
 mode, components, export to the plugin and the ZIP pack, JSON schemas. Next
@@ -313,6 +348,8 @@ steps:
 - pixel editor: animations and sprite sheets, saved palettes, gradients;
 - AI: try each provider with a real key (default model identifiers, actual
   image transparency, content refusals, response times);
+- Bedrock: go through Geyser and Floodgate (E4), advanced Bedrock preview
+  (E5), "overloaded chest" rendering for `input` slots (E6);
 - decide what to do with the global chest texture (`generic_54.png`).
 
 ## Contributing

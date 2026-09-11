@@ -8,13 +8,15 @@
 
 <p align="center">
   <strong>Dessinez des inventaires Minecraft custom au pixel près, ouvrez-les en jeu sans calculer un seul décalage.</strong><br>
-  Un studio local (appli de bureau ou navigateur) et une lib Paper, reliés par un format JSON ouvert.
+  Un studio local (appli de bureau ou navigateur), une lib Paper pour Java et un export pour Bedrock, reliés par un format JSON ouvert.
 </p>
 
 <p align="center">
   <a href="https://pedrokarim.github.io/menu-forge/">Site du projet</a> ·
   <a href="docs/rendering.md">Modèle de rendu</a> ·
   <a href="docs/format.md">Format</a> ·
+  <a href="docs/guide.md">Guide</a> ·
+  <a href="docs/bedrock.md">Bedrock</a> ·
   <a href="docs/roadmap.md">Feuille de route</a>
 </p>
 
@@ -32,6 +34,14 @@ Paper.
 Son écran `/profile` est le premier vrai menu recréé dans le studio, avec des
 textures générées : le serveur de test d’Enderium le charge, en attendant sa
 validation en jeu avec un client.
+
+**Java et Bedrock.** Sur Java, le plugin Paper MenuForge ouvre un coffre
+vanilla dont le titre porte le visuel, en glyphes de police. Sur Bedrock, un
+menu devient un formulaire serveur dessiné en JSON UI : les menus coffre
+passent par une disposition générée, les **formulaires Bedrock** par les huit
+dispositions du pack `mcrs_ui`. Le serveur natif mc-rs les exécute
+(`/mf open <id>`) ; ils sont vérifiés en jeu sur un client Bedrock. Voir
+[`docs/bedrock.md`](docs/bedrock.md) et le [guide de prise en main](docs/guide.md).
 
 ## Pourquoi
 
@@ -52,6 +62,9 @@ Menu Forge automatise toute la chaîne :
 3. **Lib** (`lib/`) : côté serveur Paper, elle lit ces fichiers, génère les
    polices du resource pack et ouvre les menus (titre composé selon l’état,
    slots, actions, pagination).
+4. **Export Bedrock** : le studio écrit aussi un pack de ressources Bedrock
+   (dispositions JSON UI) et un descripteur d’exécution, `runtime.json`, lu
+   par le serveur natif mc-rs.
 
 ## Fonctionnalités
 
@@ -107,6 +120,15 @@ Menu Forge automatise toute la chaîne :
   textures dans le dossier réglé) et « Pack ZIP » de test (`Ctrl+Maj+E`,
   polices, textures, `pack.mcmeta`) ; polices identiques, octet pour octet,
   à celles de la lib.
+- **Formulaire Bedrock** : un type de menu à part (clé `form`), le formulaire
+  à boutons du client Bedrock, dans l’une des huit dispositions du pack
+  `mcrs_ui` (grille, grille d’images, image carrée, boutique, boutons à
+  gauche, boutons en bas, message du jour, récap). Boutons avec texte,
+  sous-titre, rôle (bannière, bouton spécial), icône (texture de l’espace,
+  importée ou dessinée, texture du jeu citée par son chemin, adresse web),
+  actions au clic et condition « Envoyé si » (`visibleWhen`) ; aperçu fidèle
+  aux dispositions et mode « Essayer ». « Exporter pour Bedrock » écrit le
+  pack et `runtime.json` : voir [`docs/bedrock.md`](docs/bedrock.md).
 - **Schémas JSON** des menus et des assets
   ([`docs/menu.schema.json`](docs/menu.schema.json),
   [`docs/asset.schema.json`](docs/asset.schema.json)) pour valider un fichier
@@ -149,6 +171,8 @@ Menu Forge automatise toute la chaîne :
 
 | | |
 |---|---|
+| ![L’éditeur de formulaires Bedrock : disposition, boutons, aperçu de la grille et inspecteur du bouton sélectionné](site/assets/screens/bedrock-form.png) | ![« Nouveau menu » : les huit dispositions des formulaires Bedrock](site/assets/screens/bedrock-layouts.png) |
+| **Formulaire Bedrock** : disposition, boutons, icônes, aperçu fidèle au pack. | **Huit dispositions** : choisies à la création, modifiables ensuite. |
 | ![Générateur d’interfaces : une barre d’onglets en style « sombre à accent », avec son aperçu](site/assets/screens/interface-generator.png) | ![Une boutique créée par le générateur, en style mc-rs, ouverte dans l’éditeur](site/assets/screens/generated-menu.png) |
 | **Générateur d’interfaces** : cinq types, trois familles de styles, aperçu cliquable. | **Menu généré** : couches, textes et slots ordinaires, à retoucher. |
 | ![« Générer une texture » : l’image du modèle et la texture ramenée sur 16 × 16 et la palette Menu Forge](site/assets/screens/ai-texture.png) | ![« Générer une interface » : un premier essai refusé, corrigé au second](site/assets/screens/ai-interface.png) |
@@ -270,6 +294,13 @@ l’espace de travail : polices et textures générées avec le même algorithm
 que la lib (parité vérifiée octet pour octet par une fixture partagée) et
 `pack.mcmeta`, à essayer sans serveur.
 
+**Bedrock** (bouton de la barre d’outils, ou menu contextuel de la toile)
+écrit le pack de ressources (`pack/`) et le descripteur d’exécution
+(`runtime.json`) dans le dossier réglé dans **Paramètres › Export pour
+Bedrock** ; pour mc-rs, `menu_forge/export`. Sur le serveur, `/mf reload`
+relit l’export, `/mf list` liste les menus et `/mf open <id>` en ouvre un.
+Pas à pas : [`docs/guide.md`](docs/guide.md).
+
 ## Structure du dépôt
 
 | Dossier | Rôle |
@@ -283,10 +314,14 @@ que la lib (parité vérifiée octet pour octet par une fixture partagée) et
 
 ## Documentation
 
+- [`docs/guide.md`](docs/guide.md) : prise en main pas à pas, d’un premier
+  menu Java à un premier formulaire Bedrock.
 - [`docs/rendering.md`](docs/rendering.md) : comment une couche devient un glyphe,
   coordonnées, `ascent`, avance, pièges connus.
 - [`docs/format.md`](docs/format.md) : le format `*.menu.json` (couches, textes,
   slots, état, conditions, actions, gabarits).
+- [`docs/bedrock.md`](docs/bedrock.md) : Menu Forge sur Bedrock – export,
+  `runtime.json`, formulaires et dispositions, exécution par le serveur.
 - [`docs/assets.md`](docs/assets.md) : le format `*.asset.json` du mode libre.
 - [`docs/pixels.md`](docs/pixels.md) : le format `*.pixel.json` de l’éditeur de
   pixels, ses outils et ses raccourcis.
@@ -303,7 +338,8 @@ que la lib (parité vérifiée octet pour octet par une fixture partagée) et
 ## Feuille de route
 
 Détail vivant dans [`docs/roadmap.md`](docs/roadmap.md).
-Arrivés récemment : le générateur d’interfaces et ses trois familles de
+Arrivés récemment : le support **Bedrock** (exporteur, formulaires Bedrock,
+portage des écrans de mc-rs), le générateur d’interfaces et ses trois familles de
 styles, la génération par IA multi-fournisseurs et la police pixel de Menu
 Forge ; avant eux : l’éditeur de pixels, les gestes d’édition, les éditeurs
 visuels et le mode « Essayer », les composants, l’export vers le plugin et le
@@ -318,6 +354,8 @@ pack ZIP, les schémas JSON. Prochaines étapes :
   enregistrées, dégradés ;
 - IA : essayer chaque fournisseur avec une vraie clé (identifiants des modèles
   par défaut, transparence réelle des images, refus de contenu, délais) ;
+- Bedrock : passer par Geyser et Floodgate (E4), aperçu Bedrock avancé (E5),
+  rendu « coffre surchargé » pour les slots `input` (E6) ;
 - décider du sort de la texture globale du coffre (`generic_54.png`).
 
 ## Contribuer
