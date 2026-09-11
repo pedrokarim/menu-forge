@@ -1762,6 +1762,7 @@ export function EditorScreen({
                   type="button"
                   className={!trySession && tool === 'select' ? 'active' : ''}
                   aria-pressed={!trySession && tool === 'select'}
+                  aria-label="Sélection"
                   aria-keyshortcuts="V"
                   onClick={() => {
                     stopTry();
@@ -1778,6 +1779,7 @@ export function EditorScreen({
                   type="button"
                   className={!trySession && tool === 'slot' ? 'active' : ''}
                   aria-pressed={!trySession && tool === 'slot'}
+                  aria-label="Slots"
                   aria-keyshortcuts="S"
                   onClick={() => {
                     stopTry();
@@ -1794,6 +1796,7 @@ export function EditorScreen({
                   type="button"
                   className={trySession ? 'active' : ''}
                   aria-pressed={trySession !== null}
+                  aria-label="Essayer"
                   aria-keyshortcuts="E"
                   disabled={!menu}
                   onClick={() => (trySession ? stopTry() : startTry())}
