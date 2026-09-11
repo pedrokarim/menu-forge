@@ -152,6 +152,63 @@ Le pack ZIP ne contient pas le `generic_54.png` « cases seules » (visuel de
 coffre fourni par le pack du serveur) : dans un coffre vanilla, le cadre reste
 visible sous les couches.
 
+## Tests de bout en bout
+
+```sh
+npm run e2e                     # toute la suite
+npm run e2e -- pixels exports   # les scénarios ou tests dont le nom contient ces mots
+```
+
+`e2e/run.mjs` (Node, sans dépendance ajoutée au studio) :
+
+1. compile `studio-api` en release (`cargo build --release`, rapide s’il est à jour) ;
+2. crée un espace de travail temporaire (`<temp>/menu-forge-e2e-*`) : copie des
+   gabarits de `../templates/`, menus, assets et image de démonstration de
+   `../site/scripts/demo-workspace.mjs` (textures générées par le studio
+   lui-même, aucun asset tiers), réglages avec `"libraries": []` ;
+3. démarre l’API (`--no-discord`, réglages, bibliothèques, gabarits et caches
+   dans l’espace temporaire) et un Vite de test (config générée dans `.cache/`) ;
+4. joue les scénarios de `e2e/scenarios/` avec Playwright ;
+5. arrête ce qu’il a lancé (par PID) et supprime ce qu’il a créé, même en cas
+   d’échec ou d’interruption (Ctrl+C).
+
+Le code de sortie est non nul si un test échoue ; la page au moment de l’échec
+est capturée dans `e2e/results/` (ignoré par git). Une suite complète dure
+de deux à quatre minutes selon la machine.
+
+Playwright n’est pas une dépendance du studio : il est cherché dans
+`PLAYWRIGHT_DIR`, puis dans les dépendances du studio et du site. Le navigateur
+est le Chromium de Playwright (sous Windows, `%LOCALAPPDATA%\ms-playwright`),
+sinon Edge. Sur un poste qui n’a pas Playwright : `npm install playwright-core`
+dans un dossier **hors du dépôt**, puis, par exemple sous PowerShell,
+`$env:PLAYWRIGHT_DIR = "C:\chemin\vers\ce-dossier\node_modules"`.
+
+| Variable | Rôle | Par défaut |
+|---|---|---|
+| `PLAYWRIGHT_DIR` | dossier `node_modules` qui contient `playwright` ou `playwright-core` | résolution normale |
+| `MF_E2E_UI_PORT`, `MF_E2E_API_PORT` | ports de Vite et de l’API (un port occupé arrête la suite, rien n’est tué) | 5390 et 5391 |
+| `MF_BROWSER_CHANNEL` | navigateur installé à utiliser (`msedge`, `chrome`…) | Chromium de Playwright, sinon Edge |
+| `MF_STUDIO_API` | binaire `studio-api` déjà compilé | compilé par cargo |
+| `MF_E2E_HEADED=1` | navigateur visible | sans fenêtre |
+| `MF_E2E_KEEP=1` | garder l’espace temporaire pour l’inspecter | supprimé |
+| `MF_VERBOSE=1` | journaux de l’API et de Vite | silencieux |
+
+| Scénario | Ce qui est vérifié |
+|---|---|
+| `01-navigation` | rail d’écrans et adresse, Ctrl+1…5, Ctrl+O, « ? », aussi en AZERTY (lettres sur la touche produite, chiffres sur la touche physique) ; à 1180 × 700, audit des écrans, des éditeurs et des dialogues : rien ne dépasse de son conteneur visible, pas de défilement horizontal |
+| `02-menu-editor` | nouveau menu depuis un gabarit ou vierge, zones de slots (tracer, glisser, poignée, Échap pendant un glisser, annuler / rétablir), aimantation et Alt, Ctrl+molette, défilement, clic répété (élément du dessous), menus contextuels, rognage d’atlas (grille, sprite, extraction) relu octet pour octet |
+| `03-editing` | sélection multiple (liste, plage, toile, rectangle, Ctrl+A), copier / couper / coller / dupliquer, aligner / répartir, verrou et masquage, renommer / dupliquer / corbeille depuis l’accueil et l’éditeur, glisser-déposer d’un PNG |
+| `04-asset-editor` | nouvel asset, boîte, texte, image, groupes, clavier, presse-papiers, PNG exporté relu (un élément masqué n’y est pas) |
+| `05-pixel-editor` | crayon, ligne, rectangle plein, sélection et Suppr, pot de peinture, calques, gomme, pipette, annuler / rétablir, PNG exporté relu octet pour octet, fusion et duplication de calques |
+| `06-visual-editors` | actions au clic (ajout, Alt+↑, suppression, menu visé), conditions, item et aperçu MiniMessage, variables d’état renommées avec leurs références, mode « Essayer », composants (instance, détacher, créer depuis une sélection) |
+| `07-interface-generator` | les cinq types et les trois familles en aperçu, aperçu cliquable, un menu créé par type (textures cuites sur le disque) |
+| `08-exports` | dossier d’export réglé par les Paramètres sur l’espace temporaire (jamais un vrai projet), « Exporter vers le plugin » (menus résolus, textures, manifeste), « Pack ZIP » (`pack.mcmeta`, polices, textures), Ctrl+E, Ctrl+Maj+E, fichiers d’un menu disparu retirés |
+
+Les vérifications portent sur des valeurs (inspecteur, fichiers écrits, JSON,
+pixels des PNG), jamais sur des captures comparées pixel à pixel. Chaque test
+échoue aussi sur toute erreur de page, de console ou réponse HTTP en erreur
+(hors police vanilla introuvable, voulue sans bibliothèque).
+
 ## Police des aperçus
 
 Les textes du jeu (toile des menus, vignettes de l’accueil, éditeur et export
