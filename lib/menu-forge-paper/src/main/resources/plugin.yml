@@ -2,15 +2,15 @@ name: MenuForge
 version: '${version}'
 main: dev.menuforge.paper.MenuForgePlugin
 api-version: '1.20'
-description: Menus Minecraft custom dessinés avec le studio menu-forge.
+description: Menus Minecraft custom dessinés avec le studio Menu Forge.
 website: https://pedrokarim.github.io/menu-forge/
 commands:
   menuforge:
-    description: Outils de menu-forge (ouverture, rechargement, calibration).
+    description: Outils de Menu Forge (ouverture, rechargement, calibration).
     usage: /menuforge <open|reload|calibrate>
     permission: menuforge.admin
     aliases: [mf]
 permissions:
   menuforge.admin:
-    description: Accès aux commandes de menu-forge.
+    description: Accès aux commandes de Menu Forge.
     default: op
