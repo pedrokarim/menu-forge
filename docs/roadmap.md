@@ -110,6 +110,31 @@ Détails et commandes : [`../studio/README.md`](../studio/README.md).
 Reste à faire : brancher les écrans (choix d’espace, sélecteur de dossier,
 réglages, récents) sur ces routes.
 
+## Éditeur de pixels (2026-09-11)
+
+Troisième mode de l’éditeur, « Pixels » (`#/editeur/pixels/<id>`), pour
+dessiner les textures au lieu de seulement les assembler. Format et outils :
+[`pixels.md`](pixels.md).
+
+- **Fait** : crayon (1 à 4 px, pixel parfait), gomme, pot de peinture (contigu
+  ou global, tolérance), pipette, ligne, rectangle et ellipse (contour ou
+  plein), sélection rectangulaire, lasso, baguette magique, déplacement ;
+  symétrie, grille, zoom de ×1 à ×64 ; calques (visibilité, opacité, ordre,
+  fusion) ; copier, couper, coller (image du système comprise), retourner,
+  pivoter ; taille de la toile, recadrage, rognage ; annuler, rétablir.
+- **Enregistrement** : `pixels/<id>.pixel.json` (calques en PNG base64, validés
+  par le backend) et PNG aplati dans `textures/`. PNG lus et écrits sans canvas :
+  les pixels translucides restent exacts.
+- **Intégration** : « Nouvelle image » sur l’accueil, documents récents avec
+  vignette, « Ouvrir dans l’éditeur de pixels » sur les vignettes de
+  bibliothèque (copie, le pack n’est jamais modifié) et sur les couches.
+- **Vérifié** : tests Rust du format et des routes (chemins refusés compris),
+  deux scénarios de bout en bout (outils, calques, export relu octet pour octet,
+  AZERTY, 1180 × 700 sans débordement), suites existantes sans régression.
+- **Reste** : plusieurs images (animations, planches de sprites), palettes
+  enregistrées dans le document, dégradés et motifs de trame, sélection
+  elliptique, rotation libre, « Utiliser dans le menu » depuis l’éditeur.
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et
