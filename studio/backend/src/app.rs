@@ -5,7 +5,7 @@
 //! |---|---|
 //! | `GET /app` | `{ name, version, mode, settingsPath, platform, overrides, firstLaunch }` ; `firstLaunch` vaut `true` si le fichier de réglages n’existait pas au démarrage du backend |
 //! | `GET /settings`, `PUT /settings` | réglages (document partiel accepté, validé, appliqué aussitôt, présence Discord comprise) |
-//! | `PUT /presence` | `{ details, state?, genericDetails? }` : activité Discord (textes ajustés à 2–128 caractères) → 204, retenue même hors connexion |
+//! | `PUT /presence` | `{ details, state?, genericDetails?, smallImage?, smallText? }` : activité Discord (textes ajustés à 2–128 caractères ; `smallImage` parmi `menu`, `asset`, `home`, `library`, `settings`, `workspace`, `about`) → 204, retenue même hors connexion |
 //! | `GET /presence` | `{ enabled, configured, connected, error }` : état de la Rich Presence Discord |
 //! | `GET /workspaces` | espaces connus, avec résumé (menus, assets, textures, existence) |
 //! | `POST /workspaces/open` | `{ path, name? }` : ouvre (et ajoute) un espace, qui devient actif |

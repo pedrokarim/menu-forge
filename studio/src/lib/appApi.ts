@@ -74,12 +74,19 @@ export interface SettingsPatch {
   discord?: Partial<DiscordSettings>;
 }
 
+/** Clés des petites images téléversées dans le portail Discord (voir docs/discord.md). */
+export type PresenceImage = 'menu' | 'asset' | 'home' | 'library' | 'settings' | 'workspace' | 'about';
+
 /** Activité envoyée à Discord. */
 export interface PresenceActivity {
   details: string;
   state?: string;
   /** Remplace `details` si le nom du document ne doit pas être montré. */
   genericDetails?: string;
+  /** Petite image en médaillon sur la grande. */
+  smallImage?: PresenceImage;
+  /** Texte au survol de la petite image (toujours générique). */
+  smallText?: string;
 }
 
 export interface PresenceStatus {

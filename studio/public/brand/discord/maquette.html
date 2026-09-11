@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette Rich Presence</title>
+<style>
+  /* Maquette autonome : polices système, images locales du même dossier, aucune ressource réseau. */
+  :root {
+    color-scheme: dark;
+    --page: #1e1f22;
+    --popout: #232428;
+    --panel: #111214;
+    --line: #2e2f34;
+    --title: #f2f3f5;
+    --text: #dbdee1;
+    --muted: #b5bac1;
+    --faint: #949ba4;
+    --online: #23a55a;
+    --gold: #f2c94c;
+    --gold-ink: #2a1f00;
+    --slate: #26272e;
+    --slate-hi: #44454f;
+    --slate-lo: #1b1c21;
+    --edge: #0b0b0e;
+    --info: #8fc7ff;
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--text);
+    font: 15px/1.5 var(--sans);
+    padding: 32px 16px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1, h2, h3 { color: var(--title); margin: 0; }
+  h1 { font-size: 26px; letter-spacing: -0.01em; }
+  h2 { font-size: 19px; margin-bottom: 14px; }
+  p { margin: 0 0 10px; }
+  code, pre { font-family: var(--mono); }
+  a { color: var(--info); }
+  .lead { color: var(--muted); max-width: 70ch; margin-top: 6px; }
+  section { margin-top: 44px; }
+
+  /* En-tête : pastille pixel dans l’esprit Deepslate du studio. */
+  .masthead { display: flex; align-items: center; gap: 16px; }
+  .masthead img { width: 64px; height: 64px; image-rendering: pixelated; border-radius: 6px; flex: none; }
+  .masthead > div { min-width: 0; }
+  h1 { overflow-wrap: anywhere; }
+  .asset-views figcaption { white-space: nowrap; }
+
+  /* ------------------------------------------------ carte de profil Discord */
+  .preview { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .popout {
+    width: 100%;
+    max-width: 340px;
+    background: var(--popout);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  }
+  .banner { height: 104px; background: linear-gradient(135deg, #3a3223, #8f6c14 55%, #f2c94c); }
+  .avatar-row { position: relative; height: 44px; }
+  .avatar {
+    position: absolute;
+    left: 16px;
+    top: -44px;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    border: 6px solid var(--popout);
+    background: var(--slate);
+    display: grid;
+    place-items: center;
+    color: var(--gold);
+    font: 700 32px/1 var(--sans);
+  }
+  .avatar::after {
+    content: "";
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--online);
+    border: 5px solid var(--popout);
+  }
+  .popout-body { margin: 0 12px 12px; padding: 12px; background: var(--panel); border-radius: 8px; }
+  .display-name { font-size: 20px; font-weight: 700; color: var(--title); line-height: 1.2; }
+  .user-name { color: var(--muted); font-size: 14px; }
+  .divider { height: 1px; background: var(--line); margin: 12px 0; }
+  .section-head { font-size: 12px; font-weight: 700; color: var(--title); margin-bottom: 8px; }
+
+  /* Activité : grande image, médaillon, textes. Même rendu dans la carte et dans la grille. */
+  .activity { display: flex; gap: 12px; align-items: center; }
+  .art { position: relative; width: 80px; height: 80px; flex: none; }
+  .art .large { width: 80px; height: 80px; border-radius: 8px; display: block; }
+  .art .small {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid var(--panel);
+    background: var(--panel);
+  }
+  .art img { user-select: none; }
+  .activity-text { min-width: 0; font-size: 14px; line-height: 1.35; }
+  .activity-text > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-name { color: var(--title); font-weight: 600; }
+  .elapsed { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .elapsed::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--online); margin-right: 6px; vertical-align: 1px; }
+
+  /* Choix de l’exemple affiché dans la carte. */
+  .picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .picker button {
+    font: 600 13px/1 var(--sans);
+    color: var(--text);
+    background: var(--slate);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 var(--slate-hi), inset -2px -2px 0 var(--slate-lo);
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+  .picker button[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); box-shadow: inset 2px 2px 0 #ffe691, inset -2px -2px 0 #8f6c14; }
+  .picker button:focus-visible, .copy:focus-visible { outline: 2px solid var(--title); outline-offset: 2px; }
+  .sent { background: var(--panel); border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
+  .sent pre { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text); }
+  .note { color: var(--faint); font-size: 13px; margin-top: 10px; }
+
+  /* Tous les exemples. */
+  .examples { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+  .example { background: var(--panel); border-radius: 8px; padding: 14px 16px 16px; }
+  .example .tag { font-size: 12px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+
+  /* ------------------------------------------------ images à téléverser */
+  .assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .asset {
+    background: var(--slate);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 var(--slate-hi), inset -2px -2px 0 var(--slate-lo);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .asset.large-asset { grid-column: span 2; }
+  .asset-views { display: flex; align-items: flex-end; gap: 16px; }
+  .asset-views .big { width: 128px; height: 128px; image-rendering: pixelated; display: block; }
+  .asset-views figure { margin: 0; text-align: center; }
+  .asset-views figcaption { font-size: 11px; color: var(--faint); margin-top: 4px; }
+  .real-large { width: 80px; height: 80px; border-radius: 8px; display: block; }
+  .real-small { width: 30px; height: 30px; border-radius: 50%; display: block; margin: 0 auto; }
+  .key-row { display: flex; align-items: center; gap: 8px; }
+  .key {
+    font: 600 15px/1 var(--mono);
+    color: var(--gold);
+    background: var(--edge);
+    padding: 8px 10px;
+    flex: 1;
+    min-width: 0;
+    user-select: all;
+  }
+  .copy {
+    font: 600 12px/1 var(--sans);
+    color: var(--text);
+    background: #3c3d46;
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 #5c5d68, inset -2px -2px 0 #22232a;
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+  .copy.done { background: var(--online); color: #fff; }
+  .asset-meta { font-size: 13px; color: var(--muted); }
+  .asset-meta strong { color: var(--text); font-weight: 600; }
+
+  /* ------------------------------------------------ comment faire */
+  .howto {
+    background: #1b1c21;
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 var(--slate-hi), inset -2px -2px 0 var(--edge);
+    border-left: 6px solid var(--gold);
+    padding: 20px 22px 12px;
+  }
+  .howto ol { margin: 0; padding-left: 22px; }
+  .howto li { margin-bottom: 12px; }
+  .howto li::marker { color: var(--gold); font-weight: 700; }
+  .howto code, .inline { background: var(--edge); color: var(--title); padding: 1px 6px; font-size: 13px; }
+  .ui-label { color: var(--title); font-weight: 600; }
+
+  @media (max-width: 760px) {
+    .preview { grid-template-columns: minmax(0, 1fr); }
+    .asset.large-asset { grid-column: auto; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="masthead">
+    <img src="logo.png" alt="Logo de menu-forge" width="64" height="64">
+    <div>
+      <h1>Rich Presence Discord de menu-forge</h1>
+      <p class="lead">
+        Maquette de ce que Discord affiche quand le studio est ouvert, puis les huit images à
+        téléverser dans le portail développeur, chacune avec sa clé exacte.
+      </p>
+    </div>
+  </header>
+
+  <!-- ------------------------------------------------------------ aperçu -->
+  <section aria-labelledby="preview-title">
+    <h2 id="preview-title">Aperçu sur le profil</h2>
+    <div class="picker" role="group" aria-label="Exemple d’activité" id="picker"></div>
+    <div class="preview">
+      <article class="popout" aria-label="Carte de profil Discord (maquette)">
+        <div class="banner"></div>
+        <div class="avatar-row"><div class="avatar" aria-hidden="true">T</div></div>
+        <div class="popout-body">
+          <div class="display-name">Ton pseudo</div>
+          <div class="user-name">ton.pseudo</div>
+          <div class="divider"></div>
+          <div class="section-head">Joue à</div>
+          <div id="profile-activity"></div>
+        </div>
+      </article>
+      <div>
+        <div class="section-head">Corps de <code class="inline">PUT /presence</code> envoyé par le studio</div>
+        <div class="sent"><pre id="sent-body"></pre></div>
+        <div class="section-head" style="margin-top: 16px">Activité transmise à Discord par le backend</div>
+        <div class="sent"><pre id="sent-activity"></pre></div>
+        <p class="note">
+          La grande image est toujours <code class="inline">logo</code>. Survol de la grande
+          image&nbsp;: «&nbsp;menu-forge&nbsp;»&nbsp;; survol du médaillon&nbsp;: le texte
+          <code class="inline">smallText</code>. Le temps écoulé part du démarrage du studio.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="examples-title">
+    <h2 id="examples-title">Tous les exemples d’activité</h2>
+    <div class="examples" id="examples"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------ images -->
+  <section aria-labelledby="assets-title">
+    <h2 id="assets-title">Images à téléverser</h2>
+    <p class="lead" style="margin-bottom: 16px">
+      Dossier <code class="inline">studio/public/brand/discord/</code>. La clé est le nom du
+      fichier sans extension, en minuscules&nbsp;: à recopier telle quelle dans le portail.
+      Images générées par <code class="inline">python scripts/discord_assets.py</code>.
+    </p>
+    <div class="assets" id="assets"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------ comment faire -->
+  <section aria-labelledby="howto-title">
+    <h2 id="howto-title">Comment faire</h2>
+    <div class="howto">
+      <ol>
+        <li>
+          Ouvrir le portail développeur Discord,
+          <a href="https://discord.com/developers/applications">discord.com/developers/applications</a>,
+          puis <span class="ui-label">New Application</span>. La nommer exactement
+          <strong>menu-forge</strong>&nbsp;: c’est ce nom qui s’affiche après «&nbsp;Joue à&nbsp;».
+        </li>
+        <li>
+          Onglet <span class="ui-label">General Information</span>&nbsp;: copier
+          l’<span class="ui-label">Application ID</span> (une suite de 17 à 20 chiffres).
+        </li>
+        <li>
+          Dans le studio, <span class="ui-label">Paramètres → Discord</span>&nbsp;: coller cet
+          identifiant dans <span class="ui-label">Identifiant d’application</span> et cocher
+          <span class="ui-label">Afficher mon activité</span>.
+        </li>
+        <li>
+          Portail, <span class="ui-label">Rich Presence → Art Assets</span>, puis
+          <span class="ui-label">Add Image(s)</span>&nbsp;: téléverser les huit images de ce dossier.
+          Pour chacune, vérifier que la clé proposée est <strong>exactement</strong> celle de la
+          grille ci-dessus (<code>logo</code>, <code>menu</code>, <code>asset</code>,
+          <code>home</code>, <code>library</code>, <code>settings</code>,
+          <code>workspace</code>, <code>about</code>), puis
+          <span class="ui-label">Save Changes</span>.
+        </li>
+        <li>
+          Patienter quelques minutes&nbsp;: Discord met un peu de temps à diffuser les nouvelles
+          images. En attendant, la carte montre un emplacement vide à la place de l’image.
+        </li>
+        <li>
+          Côté client Discord, <span class="ui-label">Paramètres utilisateur → Confidentialité de
+          l’activité</span>&nbsp;: <span class="ui-label">Partager mon activité</span> doit être activé.
+        </li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Espace insécable (typographie française) et guillemets.
+  const NBSP = String.fromCharCode(160);
+  const quote = (text) => '«' + NBSP + text + NBSP + '»';
+  const WORKSPACE = 'Espace ' + quote('enderium');
+
+  /** Exemples d’activité : mêmes textes que `src/shell/activity.ts`. */
+  const EXAMPLES = [
+    { id: 'menu', label: 'Menu', details: 'Édite le menu ' + quote('Profil'), genericDetails: 'Édite un menu', smallImage: 'menu', smallText: 'Menu', minutes: 17 },
+    { id: 'asset', label: 'Asset', details: 'Compose l’asset ' + quote('Bouton retour'), genericDetails: 'Compose un asset', smallImage: 'asset', smallText: 'Asset', minutes: 42 },
+    { id: 'home', label: 'Accueil', details: 'Sur l’accueil', smallImage: 'home', smallText: 'Accueil', minutes: 2 },
+    { id: 'library', label: 'Bibliothèques', details: 'Parcourt les bibliothèques', smallImage: 'library', smallText: 'Bibliothèques', minutes: 8 },
+    { id: 'workspace', label: 'Espaces', details: 'Choisit un espace de travail', smallImage: 'workspace', smallText: 'Espaces de travail', minutes: 1 },
+    { id: 'settings', label: 'Paramètres', details: 'Règle le studio', smallImage: 'settings', smallText: 'Paramètres', minutes: 5 },
+    { id: 'about', label: 'À propos', details: 'Lit la page À propos', smallImage: 'about', smallText: 'À propos', minutes: 64 },
+    { id: 'hidden', label: 'Document masqué', details: 'Édite un menu', smallImage: 'menu', smallText: 'Menu', minutes: 23, hidden: true },
+  ];
+
+  /** Images du portail : clé, rôle, pictogramme. */
+  const ASSETS = [
+    { key: 'logo', size: '1024 × 1024', role: 'Grande image, toujours affichée', what: 'logo sur ardoise' },
+    { key: 'menu', size: '512 × 512', role: 'Médaillon : édition d’un menu', what: 'coffre, or' },
+    { key: 'asset', size: '512 × 512', role: 'Médaillon : composition d’un asset', what: 'tableau, bleu' },
+    { key: 'home', size: '512 × 512', role: 'Médaillon : accueil', what: 'maison, vert' },
+    { key: 'library', size: '512 × 512', role: 'Médaillon : bibliothèques', what: 'bibliothèque, violet' },
+    { key: 'settings', size: '512 × 512', role: 'Médaillon : paramètres', what: 'curseurs, argent' },
+    { key: 'workspace', size: '512 × 512', role: 'Médaillon : espaces de travail', what: 'dossier, orange' },
+    { key: 'about', size: '512 × 512', role: 'Médaillon : page À propos', what: 'information, turquoise' },
+  ];
+
+  // Typographie française dans les textes générés : insécable avant « : ».
+  const fr = (text) => text.replace(/ :/g, NBSP + ':');
+
+  const loadedAt = Date.now();
+  const startOf = (example) => loadedAt - (example.minutes * 60 + 13) * 1000;
+
+  function elapsed(start) {
+    const total = Math.max(0, Math.floor((Date.now() - start) / 1000));
+    const hours = Math.floor(total / 3600);
+    const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+    const seconds = String(total % 60).padStart(2, '0');
+    return (hours > 0 ? hours + ':' + minutes : minutes) + ':' + seconds + ' écoulées';
+  }
+
+  function element(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  /** Bloc d’activité tel que Discord le dessine. */
+  function activityBlock(example) {
+    const root = element('div', 'activity');
+    const art = element('div', 'art');
+    const large = element('img', 'large');
+    large.src = 'logo.png';
+    large.alt = 'menu-forge';
+    large.title = 'menu-forge';
+    const small = element('img', 'small');
+    small.src = example.smallImage + '.png';
+    small.alt = example.smallText;
+    small.title = example.smallText;
+    art.append(large, small);
+    const text = element('div', 'activity-text');
+    text.append(
+      element('div', 'app-name', 'menu-forge'),
+      element('div', '', example.details),
+      element('div', '', WORKSPACE),
+    );
+    const time = element('div', 'elapsed', elapsed(startOf(example)));
+    time.dataset.start = String(startOf(example));
+    text.append(time);
+    root.append(art, text);
+    return root;
+  }
+
+  /** Corps de `PUT /presence` puis activité envoyée à Discord, pour un exemple. */
+  function payloads(example) {
+    const body = {
+      details: example.hidden ? 'Édite le menu ' + quote('Profil') : example.details,
+      state: WORKSPACE,
+    };
+    if (example.genericDetails || example.hidden) body.genericDetails = example.genericDetails || 'Édite un menu';
+    body.smallImage = example.smallImage;
+    body.smallText = example.smallText;
+    const activity = {
+      details: example.details,
+      state: WORKSPACE,
+      timestamps: { start: Math.floor(startOf(example) / 1000) },
+      assets: { large_image: 'logo', large_text: 'menu-forge', small_image: example.smallImage, small_text: example.smallText },
+    };
+    return [body, activity];
+  }
+
+  function showProfile(id) {
+    const example = EXAMPLES.find((candidate) => candidate.id === id) || EXAMPLES[0];
+    const holder = document.getElementById('profile-activity');
+    holder.replaceChildren(activityBlock(example));
+    const [body, activity] = payloads(example);
+    document.getElementById('sent-body').textContent =
+      JSON.stringify(body, null, 2) + (example.hidden ? '\n// showDocument = false : Discord reçoit genericDetails' : '');
+    document.getElementById('sent-activity').textContent = JSON.stringify(activity, null, 2);
+    for (const button of document.querySelectorAll('#picker button')) {
+      button.setAttribute('aria-pressed', String(button.dataset.id === example.id));
+    }
+  }
+
+  const picker = document.getElementById('picker');
+  for (const example of EXAMPLES) {
+    const button = element('button', '', example.label);
+    button.type = 'button';
+    button.dataset.id = example.id;
+    button.addEventListener('click', () => showProfile(example.id));
+    picker.append(button);
+  }
+
+  const examples = document.getElementById('examples');
+  for (const example of EXAMPLES) {
+    const card = element('div', 'example');
+    const tag = example.hidden
+      ? 'Document masqué (' + 'réglage «' + NBSP + 'Nom du document' + NBSP + '» décoché)'
+      : example.label;
+    card.append(element('div', 'tag', tag), activityBlock(example));
+    examples.append(card);
+  }
+
+  async function copyKey(key, button) {
+    try {
+      await navigator.clipboard.writeText(key);
+    } catch {
+      // Page ouverte en file:// : le presse-papiers peut être refusé, on passe par une sélection.
+      const field = document.createElement('textarea');
+      field.value = key;
+      document.body.append(field);
+      field.select();
+      document.execCommand('copy');
+      field.remove();
+    }
+    button.textContent = 'Copié';
+    button.classList.add('done');
+    setTimeout(() => {
+      button.textContent = 'Copier';
+      button.classList.remove('done');
+    }, 1400);
+  }
+
+  const assets = document.getElementById('assets');
+  for (const asset of ASSETS) {
+    const isLarge = asset.key === 'logo';
+    const card = element('div', isLarge ? 'asset large-asset' : 'asset');
+    const views = element('div', 'asset-views');
+    const big = element('img', 'big');
+    big.src = asset.key + '.png';
+    big.alt = 'Image ' + asset.key;
+    const zoom = element('figure');
+    zoom.append(big, element('figcaption', '', 'agrandie'));
+    const real = element('figure');
+    const realImage = element('img', isLarge ? 'real-large' : 'real-small');
+    realImage.src = asset.key + '.png';
+    realImage.alt = '';
+    // Légende sur deux lignes voulues : « taille réelle » puis la taille affichée par Discord.
+    const realCaption = element('figcaption', '', 'taille réelle');
+    realCaption.append(document.createElement('br'), document.createTextNode(isLarge ? '80' + NBSP + 'px' : '30' + NBSP + 'px'));
+    real.append(realImage, realCaption);
+    views.append(zoom, real);
+    const keyRow = element('div', 'key-row');
+    const key = element('code', 'key', asset.key);
+    const copy = element('button', 'copy', 'Copier');
+    copy.type = 'button';
+    copy.setAttribute('aria-label', 'Copier la clé ' + asset.key);
+    copy.addEventListener('click', () => copyKey(asset.key, copy));
+    keyRow.append(key, copy);
+    const meta = element('div', 'asset-meta');
+    const role = element('strong', '', fr(asset.role));
+    meta.append(role, document.createElement('br'), document.createTextNode(asset.key + '.png' + NBSP + '·' + NBSP + asset.size.replace(/ /g, NBSP) + NBSP + 'px' + NBSP + '·' + NBSP + asset.what));
+    card.append(views, keyRow, meta);
+    assets.append(card);
+  }
+
+  showProfile('menu');
+  setInterval(() => {
+    for (const node of document.querySelectorAll('.elapsed[data-start]')) {
+      node.textContent = elapsed(Number(node.dataset.start));
+    }
+  }, 1000);
+</script>
+</body>
+</html>

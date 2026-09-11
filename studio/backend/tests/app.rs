@@ -246,6 +246,13 @@ fn presence_routes_and_discord_settings() {
     let (status, _, body) = call(&backend, "PUT", "/presence", activity);
     assert_eq!((status, body.as_str()), (204, ""));
     assert_eq!(call(&backend, "PUT", "/presence", json!({"details": "x".repeat(500)})).0, 204);
+    // Petite image (médaillon) : une clé connue et son texte de survol.
+    for key in ["menu", "asset", "home", "library", "settings", "workspace", "about"] {
+        let body = json!({"details": "Édite le menu « Profil »", "smallImage": key, "smallText": "x".repeat(300)});
+        assert_eq!(call(&backend, "PUT", "/presence", body).0, 204, "{key}");
+    }
+    let body = json!({"details": "Sur l’accueil", "smallImage": null, "smallText": null});
+    assert_eq!(call(&backend, "PUT", "/presence", body).0, 204);
     for (body, expected) in [
         (json!(["x"]), "Le corps de la requête doit être un objet JSON"),
         (json!({}), "« details » est obligatoire (texte non vide)"),
@@ -253,6 +260,13 @@ fn presence_routes_and_discord_settings() {
         (json!({"details": 3}), "« details » est obligatoire (texte non vide)"),
         (json!({"details": "ok", "state": 1}), "« state » doit être un texte"),
         (json!({"details": "ok", "extra": 1}), "Champ inconnu : « extra »"),
+        (
+            json!({"details": "ok", "smallImage": "logo"}),
+            "« smallImage » doit valoir null ou une clé parmi : menu, asset, home, library, settings, workspace, about",
+        ),
+        (json!({"details": "ok", "smallImage": ["menu"]}), "« smallImage » doit valoir null ou une clé parmi"),
+        (json!({"details": "ok", "smallText": 3}), "« smallText » doit être un texte"),
+        (json!({"details": "ok", "large_image": "x"}), "Champ inconnu : « large_image »"),
     ] {
         let (status, _, message) = call(&backend, "PUT", "/presence", body.clone());
         assert_eq!(status, 400, "{body}");

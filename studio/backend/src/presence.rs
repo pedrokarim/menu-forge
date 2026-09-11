@@ -17,6 +17,8 @@
 //! - applique la dernière activité reçue (`PUT /presence`), ou une activité
 //!   générique tant que l’interface n’en a envoyé aucune ; la renvoie toutes
 //!   les 15 s ([`REFRESH_INTERVAL`]) pour s’apercevoir que Discord a été fermé ;
+//!   la grande image est toujours [`LARGE_IMAGE`], la petite (médaillon) est
+//!   choisie par l’interface parmi [`SMALL_IMAGES`] ;
 //! - efface l’activité et se déconnecte quand la présence est désactivée,
 //!   quand l’identifiant d’application change (puis se reconnecte avec le
 //!   nouveau) et à l’arrêt du backend.
@@ -40,6 +42,10 @@ pub const GENERIC_DETAILS: &str = "Crée des menus";
 pub const LARGE_IMAGE: &str = "logo";
 /// Texte au survol de la grande image.
 pub const LARGE_TEXT: &str = "menu-forge";
+/// Clés admises pour la petite image (médaillon), à déclarer elles aussi dans
+/// le portail développeur. Images : `public/brand/discord/` (script
+/// `scripts/discord_assets.py`).
+pub const SMALL_IMAGES: [&str; 7] = ["menu", "asset", "home", "library", "settings", "workspace", "about"];
 /// Longueurs admises par Discord pour `details` et `state` (unités UTF-16).
 pub const MIN_TEXT: usize = 2;
 pub const MAX_TEXT: usize = 128;
@@ -50,7 +56,7 @@ const PAD: char = '⠀';
 const STOP_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Activité envoyée par l’interface (`PUT /presence`), textes déjà ajustés.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Activity {
     /// Première ligne : en général le document ouvert.
     pub details: String,
@@ -58,13 +64,21 @@ pub struct Activity {
     pub state: Option<String>,
     /// Remplace `details` quand `discord.showDocument` est faux.
     pub generic_details: Option<String>,
+    /// Clé de la petite image, l’une de [`SMALL_IMAGES`].
+    pub small_image: Option<&'static str>,
+    /// Texte au survol de la petite image (envoyé seulement avec elle).
+    pub small_text: Option<String>,
 }
+
+/// Champs admis dans le corps de `PUT /presence`.
+const ACTIVITY_FIELDS: [&str; 5] = ["details", "state", "genericDetails", "smallImage", "smallText"];
 
 impl Activity {
     /// Valide le corps de `PUT /presence` :
-    /// `{ "details": string, "state"?: string|null, "genericDetails"?: string|null }`.
+    /// `{ "details": string, "state"?: string|null, "genericDetails"?: string|null,
+    ///    "smallImage"?: clé|null, "smallText"?: string|null }`.
     pub fn from_map(map: &Map<String, Value>) -> Result<Self, String> {
-        if let Some(key) = map.keys().find(|key| !["details", "state", "genericDetails"].contains(&key.as_str())) {
+        if let Some(key) = map.keys().find(|key| !ACTIVITY_FIELDS.contains(&key.as_str())) {
             return Err(format!("Champ inconnu : « {key} »"));
         }
         let details = match map.get("details") {
@@ -77,7 +91,22 @@ impl Activity {
             Some(Value::String(text)) => Ok(fit_text(text)),
             Some(_) => Err(format!("« {key} » doit être un texte")),
         };
-        Ok(Self { details, state: optional("state")?, generic_details: optional("genericDetails")? })
+        let small_image = match map.get("smallImage") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(key)) if SMALL_IMAGES.contains(&key.as_str()) => {
+                SMALL_IMAGES.iter().copied().find(|known| known == key)
+            }
+            Some(_) => {
+                return Err(format!("« smallImage » doit valoir null ou une clé parmi : {}", SMALL_IMAGES.join(", ")))
+            }
+        };
+        Ok(Self {
+            details,
+            state: optional("state")?,
+            generic_details: optional("genericDetails")?,
+            small_image,
+            small_text: optional("smallText")?,
+        })
     }
 }
 
@@ -205,6 +234,36 @@ impl Connection for DiscordConnection {
     fn close(&mut self) {
         let _ = self.client.close();
     }
+}
+
+/// Activité Discord à envoyer (`started` : secondes Unix du démarrage).
+fn activity_payload(settings: &DiscordSettings, activity: Option<&Activity>, started: u64) -> Value {
+    let generic = || GENERIC_DETAILS.to_owned();
+    let details = match activity {
+        None => generic(),
+        Some(activity) if settings.show_document => activity.details.clone(),
+        Some(activity) => activity.generic_details.clone().unwrap_or_else(generic),
+    };
+    let mut map = Map::new();
+    map.insert("details".into(), Value::String(details));
+    if let Some(state) = activity.and_then(|activity| activity.state.clone()) {
+        map.insert("state".into(), Value::String(state));
+    }
+    map.insert("timestamps".into(), json!({ "start": started }));
+    let mut assets = Map::new();
+    assets.insert("large_image".into(), Value::from(LARGE_IMAGE));
+    assets.insert("large_text".into(), Value::from(LARGE_TEXT));
+    // Sans petite image, Discord n’affiche aucun texte de survol : inutile de l’envoyer.
+    if let Some(activity) = activity {
+        if let Some(small_image) = activity.small_image {
+            assets.insert("small_image".into(), Value::from(small_image));
+            if let Some(small_text) = &activity.small_text {
+                assets.insert("small_text".into(), Value::String(small_text.clone()));
+            }
+        }
+    }
+    map.insert("assets".into(), Value::Object(assets));
+    Value::Object(map)
 }
 
 // ------------------------------------------------------------------- fil
@@ -359,24 +418,6 @@ impl Worker {
         self.observe(false, Some(error));
     }
 
-    /// Activité Discord à envoyer.
-    fn payload(&self, settings: &DiscordSettings, activity: Option<&Activity>) -> Value {
-        let generic = || GENERIC_DETAILS.to_owned();
-        let details = match activity {
-            None => generic(),
-            Some(activity) if settings.show_document => activity.details.clone(),
-            Some(activity) => activity.generic_details.clone().unwrap_or_else(generic),
-        };
-        let mut map = Map::new();
-        map.insert("details".into(), Value::String(details));
-        if let Some(state) = activity.and_then(|activity| activity.state.clone()) {
-            map.insert("state".into(), Value::String(state));
-        }
-        map.insert("timestamps".into(), json!({ "start": self.started }));
-        map.insert("assets".into(), json!({ "large_image": LARGE_IMAGE, "large_text": LARGE_TEXT }));
-        Value::Object(map)
-    }
-
     fn disconnect(&self, mut link: Link) {
         if link.applied.is_some() {
             let _ = link.connection.set_activity(&Value::Null);
@@ -426,7 +467,7 @@ impl Worker {
             }
 
             if let Some(current) = link.as_mut() {
-                let payload = self.payload(&settings, activity.as_ref());
+                let payload = activity_payload(&settings, activity.as_ref(), self.started);
                 let due = current.applied.as_ref() != Some(&payload) || current.last_sent.elapsed() >= self.timing.refresh;
                 if due {
                     match current.connection.set_activity(&payload) {
@@ -504,7 +545,15 @@ mod tests {
     fn activity_body_is_validated() {
         let parse = |value: Value| Activity::from_map(value.as_object().unwrap());
         let activity = parse(json!({"details": "Menu : boutique", "state": "", "genericDetails": null})).unwrap();
-        assert_eq!(activity, Activity { details: "Menu : boutique".into(), state: None, generic_details: None });
+        assert_eq!(activity, Activity { details: "Menu : boutique".into(), ..Activity::default() });
+        let activity = parse(json!({"details": "Menu", "smallImage": "asset", "smallText": "  Compose un asset  "})).unwrap();
+        assert_eq!((activity.small_image, activity.small_text.as_deref()), (Some("asset"), Some("Compose un asset")));
+        for key in SMALL_IMAGES {
+            assert_eq!(parse(json!({"details": "ab", "smallImage": key})).unwrap().small_image, Some(key));
+        }
+        let activity = parse(json!({"details": "ab", "smallImage": null, "smallText": "x"})).unwrap();
+        assert_eq!(activity.small_image, None);
+        assert_eq!(activity.small_text.map(|text| text.encode_utf16().count()), Some(2));
         for (body, expected) in [
             (json!({}), "« details » est obligatoire"),
             (json!({"details": "  "}), "« details » est obligatoire"),
@@ -512,9 +561,57 @@ mod tests {
             (json!({"details": "a", "state": 1}), "« state » doit être un texte"),
             (json!({"details": "a", "genericDetails": []}), "« genericDetails » doit être un texte"),
             (json!({"details": "a", "large": "x"}), "Champ inconnu : « large »"),
+            (json!({"details": "a", "smallImage": "logo"}), "« smallImage » doit valoir null ou une clé parmi : menu, asset,"),
+            (json!({"details": "a", "smallImage": "Menu"}), "« smallImage » doit valoir null ou une clé parmi"),
+            (json!({"details": "a", "smallImage": ""}), "« smallImage » doit valoir null ou une clé parmi"),
+            (json!({"details": "a", "smallImage": 1}), "« smallImage » doit valoir null ou une clé parmi"),
+            (json!({"details": "a", "smallText": false}), "« smallText » doit être un texte"),
         ] {
             assert!(parse(body.clone()).unwrap_err().starts_with(expected), "{body}");
         }
+    }
+
+    #[test]
+    fn payload_carries_both_images() {
+        let settings = DiscordSettings { enabled: true, client_id: Some(ID.into()), show_document: true };
+        let activity = Activity {
+            details: "Édite le menu « Profil »".into(),
+            state: Some("Espace « enderium »".into()),
+            generic_details: Some("Édite un menu".into()),
+            small_image: Some("menu"),
+            small_text: Some("Menu".into()),
+        };
+        assert_eq!(
+            activity_payload(&settings, Some(&activity), 42),
+            json!({
+                "details": "Édite le menu « Profil »",
+                "state": "Espace « enderium »",
+                "timestamps": { "start": 42 },
+                "assets": { "large_image": "logo", "large_text": "menu-forge", "small_image": "menu", "small_text": "Menu" },
+            })
+        );
+        // Document masqué : texte générique, petite image conservée.
+        let hidden = DiscordSettings { show_document: false, ..settings.clone() };
+        let payload = activity_payload(&hidden, Some(&activity), 42);
+        assert_eq!((payload["details"].as_str(), payload["assets"]["small_image"].as_str()), (Some("Édite un menu"), Some("menu")));
+        // Petite image seule : pas de texte de survol.
+        let bare = Activity { small_text: None, ..activity.clone() };
+        assert_eq!(activity_payload(&settings, Some(&bare), 42)["assets"].get("small_text"), None);
+        // Texte sans image : ignoré, la grande image reste.
+        let text_only = Activity { small_image: None, ..activity };
+        assert_eq!(
+            activity_payload(&settings, Some(&text_only), 42)["assets"],
+            json!({ "large_image": "logo", "large_text": "menu-forge" })
+        );
+        // Aucune activité reçue : texte générique, grande image seule.
+        assert_eq!(
+            activity_payload(&settings, None, 7),
+            json!({
+                "details": GENERIC_DETAILS,
+                "timestamps": { "start": 7 },
+                "assets": { "large_image": "logo", "large_text": "menu-forge" },
+            })
+        );
     }
 
     /// Journal des appels d’une connexion factice.
@@ -582,6 +679,7 @@ mod tests {
             details: "Menu : boutique".into(),
             state: Some("12 zones".into()),
             generic_details: Some("Édite un menu".into()),
+            ..Activity::default()
         };
         presence.set_activity(activity);
         eventually("document affiché", || has(&calls, &format!("{ID} set \"Menu : boutique\"")));
@@ -612,7 +710,7 @@ mod tests {
         let calls = Calls::default();
         let timing = Timing { retry: Duration::from_millis(10), refresh: Duration::from_millis(10) };
         let presence = Presence::spawn(DiscordSettings::default(), fake(&calls, 0), timing);
-        presence.set_activity(Activity { details: "ab".into(), state: None, generic_details: None });
+        presence.set_activity(Activity { details: "ab".into(), ..Activity::default() });
         thread::sleep(Duration::from_millis(50));
         assert!(lock(&calls).is_empty());
         assert_eq!(presence.status(), PresenceStatus { enabled: true, configured: false, connected: false, error: None });
