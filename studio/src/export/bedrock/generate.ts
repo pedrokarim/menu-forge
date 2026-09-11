@@ -470,10 +470,11 @@ function routerLayout(menus: readonly MenuDefinition[]): unknown {
       const visible = contains('#title_text', menuToken(menu.id));
       return {
         [`menu_${menu.id}@${menuNamespace(menu.id)}.main_panel`]: {
+          // Visibilité seulement : une liaison sur `#enabled` n'est pas pilotée par Bedrock, le menu
+          // resterait désactivé (affiché mais sans clic possible, constaté en jeu).
           visible: false,
-          enabled: false,
           layer: 1,
-          bindings: [titleBinding(), view(visible, '#visible'), view(visible, '#enabled')],
+          bindings: [titleBinding(), view(visible, '#visible')],
         },
       };
     }),
