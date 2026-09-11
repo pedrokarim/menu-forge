@@ -1,5 +1,19 @@
 import { NBSP } from '../../lib/format';
-import type { Action, Condition, ItemSpec, MenuDefinition, Slot, SlotArea, SlotKind, StateDefinition, TextAlign } from '../../model/menu';
+import { formButtonText, formLayout } from '../../model/bedrockForm';
+import type {
+  Action,
+  Condition,
+  FormButton,
+  FormIcon,
+  FormLayout,
+  ItemSpec,
+  MenuDefinition,
+  Slot,
+  SlotArea,
+  SlotKind,
+  StateDefinition,
+  TextAlign,
+} from '../../model/menu';
 import { cropAndPad, measureImage } from '../image';
 import type { RgbaImage } from '../image';
 import { prettyJson, utf8 } from '../json';
@@ -12,6 +26,7 @@ import {
   DEFAULT_TEXT_COLOR,
   GRID_X,
   GRID_Y,
+  ICON_ROOT,
   INERT_MARKER,
   MAX_ROWS,
   MENU_FORGE_FLAG,
@@ -87,6 +102,35 @@ export interface RuntimeMenu {
   slots: RuntimeSlot[];
 }
 
+/** Image d’un bouton de formulaire, telle qu’envoyée au client (`image` d’un bouton de `ModalFormRequest`). */
+export interface RuntimeImage {
+  type: 'path' | 'url';
+  data: string;
+}
+
+export interface RuntimeFormButton {
+  id: string;
+  /** Texte envoyé : préfixe du rôle, texte, tabulation et sous-titre (variables interpolées par le serveur). */
+  text: string;
+  image?: RuntimeImage;
+  onClick?: Action[];
+  visibleWhen?: Condition;
+}
+
+/** Formulaire Bedrock : pas de disposition générée, celle de `layout` (pack `mcrs_ui`) est choisie par `flag`. */
+export interface RuntimeForm {
+  id: string;
+  name: string;
+  layout: FormLayout;
+  /** Drapeau de la disposition : titre envoyé = `flag` + espace + titre. */
+  flag: string;
+  title: string;
+  content: string;
+  state: Record<string, StateDefinition>;
+  /** Tous les boutons, dans l’ordre ; seuls ceux dont `visibleWhen` est vraie sont envoyés. */
+  buttons: RuntimeFormButton[];
+}
+
 export interface RuntimeDescriptor {
   format: typeof RUNTIME_FORMAT;
   formatVersion: typeof RUNTIME_FORMAT_VERSION;
@@ -94,6 +138,7 @@ export interface RuntimeDescriptor {
   pack: { name: string; uuid: string; version: PackVersion };
   warnings: string[];
   menus: RuntimeMenu[];
+  forms: RuntimeForm[];
 }
 
 export interface BedrockOptions {
@@ -453,6 +498,66 @@ async function buildMenu(menu: MenuDefinition, images: ReadonlyMap<string, RgbaI
   return { layout, textures, runtime };
 }
 
+/** Chemin, dans le pack, de l’icône copiée depuis la texture `texture` de l’espace (sans extension). */
+export function iconTexturePath(texture: string): string {
+  const segments = texture
+    .replace(/\.png$/iu, '')
+    .split('/')
+    .filter((segment) => segment !== '' && segment !== '.' && segment !== '..')
+    .map((segment) => segment.toLowerCase().replace(/[^a-z0-9_.-]/gu, '_'));
+  return `${ICON_ROOT}/${segments.join('/')}`;
+}
+
+/** Image envoyée pour une icône ; une texture de l’espace est copiée dans le pack (`icons`). */
+function runtimeImage(icon: FormIcon, icons: Map<string, string>): RuntimeImage {
+  if ('path' in icon) return { type: 'path', data: icon.path };
+  if ('url' in icon) return { type: 'url', data: icon.url };
+  let path = icons.get(icon.texture);
+  if (path === undefined) {
+    const base = iconTexturePath(icon.texture);
+    const taken = new Set(icons.values());
+    path = base;
+    for (let index = 2; taken.has(path); index++) path = `${base}_${index}`;
+    icons.set(icon.texture, path);
+  }
+  return { type: 'path', data: path };
+}
+
+function runtimeFormButton(button: FormButton, layout: FormLayout, icons: Map<string, string>, warn: (message: string) => void): RuntimeFormButton {
+  const info = formLayout(layout);
+  const buttonWarn = (message: string) => warn(`bouton « ${button.id} », ${message}`);
+  if (button.role === 'banner' && info.banner === null) buttonWarn(`rôle « bannière » sans effet dans la disposition ${info.label}`);
+  if (button.role === 'special' && !info.special) buttonWarn(`bouton spécial sans effet dans la disposition ${info.label}`);
+  const runtime: RuntimeFormButton = { id: button.id, text: formButtonText(button) };
+  if (button.icon) runtime.image = runtimeImage(button.icon, icons);
+  if (button.onClick && button.onClick.length > 0) runtime.onClick = button.onClick.map((action) => bedrockAction(action, buttonWarn));
+  if (button.visibleWhen) runtime.visibleWhen = structuredClone(button.visibleWhen);
+  return runtime;
+}
+
+/** Entrée d’un formulaire Bedrock dans le descripteur (aucun fichier JSON UI : la disposition vient de `mcrs_ui`). */
+function buildForm(menu: MenuDefinition, icons: Map<string, string>, warnings: string[]): RuntimeForm {
+  const form = menu.form;
+  if (!form) throw new Error(`« ${menu.id} » n’est pas un formulaire Bedrock`);
+  const warn = (message: string) => warnings.push(`${menu.id}${NBSP}: ${message}`);
+  const info = formLayout(form.layout);
+  const ids = new Set<string>();
+  for (const button of form.buttons) {
+    if (ids.has(button.id)) warn(`deux boutons portent l’identifiant « ${button.id} »`);
+    ids.add(button.id);
+  }
+  return {
+    id: menu.id,
+    name: menu.name,
+    layout: form.layout,
+    flag: info.flag,
+    title: form.title,
+    content: form.content ?? '',
+    state: structuredClone(menu.state ?? {}),
+    buttons: form.buttons.map((button) => runtimeFormButton(button, form.layout, icons, warn)),
+  };
+}
+
 /** Routeur : voile, une disposition par menu (visible si le titre contient son jeton), bouton de fermeture. */
 function routerLayout(menus: readonly MenuDefinition[]): unknown {
   const controls: unknown[] = [
@@ -508,29 +613,37 @@ export async function generateBedrockExport(
   }
 
   const exported = menus.filter((menu) => !menu.template && !menu.component);
+  // Menus coffre (disposition générée) et formulaires Bedrock (disposition du pack mcrs_ui).
+  const exportedMenus = exported.filter((menu) => !menu.form);
+  const forms = exported.filter((menu) => menu.form);
   const images = new Map<string, RgbaImage>();
-  for (const menu of exported) {
-    for (const layer of menu.layers) {
-      if (images.has(layer.texture)) continue;
-      const image = await load(layer.texture);
-      if (!image) throw new Error(`Texture introuvable${NBSP}: « ${layer.texture} »`);
-      images.set(layer.texture, image);
-    }
+  const textures = [
+    ...exportedMenus.flatMap((menu) => menu.layers.map((layer) => layer.texture)),
+    ...forms.flatMap((menu) => (menu.form?.buttons ?? []).flatMap((button) => (button.icon && 'texture' in button.icon ? [button.icon.texture] : []))),
+  ];
+  for (const texture of textures) {
+    if (images.has(texture)) continue;
+    const image = await load(texture);
+    if (!image) throw new Error(`Texture introuvable${NBSP}: «${NBSP}${texture}${NBSP}»`);
+    images.set(texture, image);
   }
 
   const warnings: string[] = [];
   const files = new Map<string, Uint8Array>();
   const runtimeMenus: RuntimeMenu[] = [];
-  for (const menu of exported) {
+  for (const menu of exportedMenus) {
     const built = await buildMenu(menu, images, warnings);
     files.set(`${PACK_DIR}/${UI_DIR}/${menu.id}.json`, jsonFile(built.layout));
     for (const [path, data] of built.textures) files.set(`${PACK_DIR}/${path}`, data);
     runtimeMenus.push(built.runtime);
   }
-  files.set(`${PACK_DIR}/${UI_DIR}/router.json`, jsonFile(routerLayout(exported)));
+  const icons = new Map<string, string>();
+  const runtimeForms = forms.map((menu) => buildForm(menu, icons, warnings));
+  for (const [texture, path] of icons) files.set(`${PACK_DIR}/${path}.png`, await encodePng(images.get(texture) as RgbaImage));
+  files.set(`${PACK_DIR}/${UI_DIR}/router.json`, jsonFile(routerLayout(exportedMenus)));
   files.set(
     `${PACK_DIR}/ui/_ui_defs.json`,
-    jsonFile({ ui_defs: [`${UI_DIR}/router.json`, ...exported.map((menu) => `${UI_DIR}/${menu.id}.json`)] }),
+    jsonFile({ ui_defs: [`${UI_DIR}/router.json`, ...exportedMenus.map((menu) => `${UI_DIR}/${menu.id}.json`)] }),
   );
   files.set(`${PACK_DIR}/${WHITE_TEXTURE}.png`, await encodePng(whiteImage()));
 
@@ -558,6 +671,7 @@ export async function generateBedrockExport(
     pack: { name: PACK_NAME, uuid: headerUuid, version: [...version] as PackVersion },
     warnings: [...warnings],
     menus: runtimeMenus,
+    forms: runtimeForms,
   };
   files.set(RUNTIME_FILE, jsonFile(runtime));
 

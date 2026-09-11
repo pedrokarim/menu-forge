@@ -3,8 +3,10 @@
 Comment un menu dessiné dans le studio s’affiche sur un client **Bedrock**, et
 le **contrat** entre l’exporteur du studio (« Exporter pour Bedrock ») et un
 serveur Bedrock qui l’exécute (premier consommateur : le serveur Rust mc-rs).
-Le format `*.menu.json` ne change pas : l’export Bedrock lit les mêmes menus
-résolus que l’export Java.
+Deux sortes de menus : les **menus coffre** du format, rendus par une
+disposition générée (§ 1 à 8, mêmes menus résolus que l’export Java), et les
+**formulaires Bedrock** (clé `form`, § 9), affichés dans une disposition du
+pack `mcrs_ui` du serveur.
 
 Légende : **[vu en jeu]** = vérifié sur un vrai client (Bedrock 1.26.45,
 protocole 2169, essai E0) ; **[à vérifier en jeu]** = déduit, pas encore vu.
@@ -61,7 +63,8 @@ ne le sont pas.
 │   ├── ui/_ui_defs.json                   liste des fichiers ui/menu_forge/*.json
 │   ├── ui/menu_forge/router.json          namespace menu_forge_router : un enfant par menu
 │   ├── ui/menu_forge/<id>.json            namespace menu_forge_<id> : la disposition du menu
-│   └── textures/menu_forge/<id>/<couche>.png, textures/menu_forge/_white.png
+│   └── textures/menu_forge/<id>/<couche>.png, textures/menu_forge/_white.png,
+│       textures/menu_forge/icons/…        icônes des boutons de formulaire (§ 9.3)
 ├── runtime.json                           le descripteur d’exécution (§ 5)
 └── .menu-forge-bedrock-export.json        fichiers écrits par cet export
 ```
@@ -231,7 +234,8 @@ déborde de sa case n’est pas coupée].
         }
       ]
     }
-  ]
+  ],
+  "forms": []
 }
 ```
 
@@ -247,6 +251,7 @@ déborde de sa case n’est pas coupée].
 | `menus[].slots[].cells` | index des cases couvertes par la zone, en ordre de lecture |
 | `menus[].slots[].label` / `icon` | texte et image du bouton (`icon` : chemin de texture Bedrock ou `null`) |
 | `menus[].slots[]` (reste) | `kind`, `list`, `onClick`, `visibleWhen`, `enabledWhen` : tels que dans le format ; seul le nom des sons est déjà traduit pour Bedrock |
+| `forms` | formulaires Bedrock (§ 9.1) ; absente, aucun |
 
 ## 6. Exécution côté serveur
 
@@ -297,8 +302,9 @@ un nouveau visuel exige une reconnexion.
 ## 8. Premier consommateur : `/menu` de mc-rs
 
 Les écrans de `/menu` (hub et panneaux de démonstration du pack `mcrs_ui`)
-sont recréés comme menus Menu Forge dans l’espace de travail
-`menu_forge/workspace/` du dépôt mc-rs, exportés dans `menu_forge/export/`.
+sont portés tels quels comme **formulaires Bedrock** (§ 9) dans l’espace de
+travail `menu_forge/workspace/` du dépôt mc-rs, exportés dans
+`menu_forge/export/`.
 Inventaire de l’existant (formulaires écrits à la main dans
 `connection/forms.rs`) et de ce qui est repris :
 
@@ -316,23 +322,109 @@ Inventaire de l’existant (formulaires écrits à la main dans
 | `wrapped` | `wrapped` | trois images, Continuer, Fermer : tous → ouvre `showcase` |
 | Échap | tous | ferme, rien d’autre |
 
-Correspondance dans les menus Menu Forge :
+Correspondance dans l’espace de travail :
 
+- chaque écran est un formulaire Bedrock du même identifiant, dans la même
+  disposition, avec exactement le titre, le contenu, les textes, les images et
+  l’ordre des boutons de `forms.rs` (parité vérifiée par
+  `menu_forge::export_tests` sur l’export versionné) ; seule nouveauté, une
+  icône vanilla sur quatre boutons du hub (Téléporter au spawn, Mode Créatif,
+  Régler sur Jour, UI Showcase) ;
 - une commande qui fermait le formulaire devient `command` (en `player`) suivi
   de `close` ;
-- « ouvre X » devient `open` vers le menu X (le « Retour » actuel ouvre un écran
-  précis, il ne dépile pas : `open`, pas `back`) ;
-- « rien, formulaire fermé » devient `close` ;
-- les bannières non cliquables deviennent des couches sans slot ;
+- « ouvre X » devient `open` vers X (le « Retour » actuel ouvre un écran
+  précis, il ne dépile pas) ; « rien, formulaire fermé » (bannière et
+  « Rejoindre » du panneau `bottom_button`) devient `close` ;
 - la téléportation utilise la variable `{mcrs.spawn}`, calculée au clic comme
   aujourd’hui.
 
-Les libellés sont raccourcis pour tenir dans des boutons de 4 cases (72 px) ;
-le comportement de chaque bouton est inchangé. Le visuel suit l’esprit de
-`mcrs_ui` (bleu nuit, liserés et titres dorés), avec des textures générées par
-un script de l’espace de travail.
+Les versions dessinées en grille de coffre (étape E2) restent dans l’espace
+sous le préfixe `grid_` (`grid_hub`, `grid_showcase`, `grid_store`…) :
+exportées, ouvrables par `/mf open grid_hub`, elles s’ouvrent entre elles.
 
-## 9. Voir aussi
+## 9. Formulaires Bedrock
+
+Un menu du format peut être un **formulaire Bedrock** (clé `form`,
+[`format.md`](format.md) § Formulaire Bedrock) : le formulaire à boutons du
+client, affiché dans l’une des huit dispositions du pack `mcrs_ui` du serveur.
+Rien n’est généré pour lui dans le pack (ni `ui/menu_forge/<id>.json`, ni
+entrée du routeur) ; seules ses icônes tirées de l’espace de travail y sont
+copiées. Les deux packs sont donc nécessaires : Menu Forge pour les menus
+coffre et les icônes, `mcrs_ui` pour les dispositions des formulaires.
+
+### 9.1 Descripteur
+
+`runtime.json` porte les formulaires dans une liste à part, `forms` (absente :
+aucun formulaire ; un serveur qui ne la connaît pas l’ignore) :
+
+```json
+"forms": [
+  {
+    "id": "hub",
+    "name": "Hub mc-rs",
+    "layout": "grid",
+    "flag": "§m§a",
+    "title": "§l§6mc-rs§r §eHUB",
+    "content": "§7Choisis une action :",
+    "state": {},
+    "buttons": [
+      {
+        "id": "spawn",
+        "text": "§a▶ Téléporter au spawn",
+        "image": { "type": "path", "data": "textures/items/compass_item" },
+        "onClick": [{ "type": "command", "command": "tp {mcrs.spawn}", "as": "player" }, { "type": "close" }]
+      },
+      { "id": "banner", "text": "§m§a Mode Bedwars", "onClick": [{ "type": "close" }] },
+      { "id": "admin", "text": "Admin", "visibleWhen": { "flag": "viewer.op" }, "onClick": [{ "type": "open", "menu": "admin" }] }
+    ]
+  }
+]
+```
+
+| Clé | Rôle |
+|---|---|
+| `layout`, `flag` | disposition et son drapeau (tableau ci-dessous) ; le serveur refuse un couple qui ne correspond pas |
+| `title` | titre sans drapeau : titre envoyé = `flag` + une espace + titre interpolé |
+| `content` | texte de contenu, interpolé |
+| `state` | variables d’état, comme pour un menu coffre |
+| `buttons[].text` | texte **envoyé** : préfixe du rôle (`§m§a ` bannière, `§m§b ` bouton spécial), texte, puis tabulation et sous-titre ; variables interpolées par le serveur |
+| `buttons[].image` | image telle qu’envoyée au client : `{"type": "path", "data": …}` (texture vanilla, d’un pack du serveur, ou icône copiée dans `textures/menu_forge/icons/`) ou `{"type": "url", "data": …}` ; absente, aucune |
+| `buttons[].onClick`, `visibleWhen` | tels que dans le format (noms des sons traduits pour Bedrock) |
+
+Menus et formulaires partagent les mêmes identifiants : `open` vise l’un ou
+l’autre, et la pile `open` / `back` les mêle.
+
+Dispositions et drapeaux, constantes du contrat (`model/bedrockForm.ts` du
+studio, `menu_forge/catalog.rs` de mc-rs, `_global_variables.json` et
+`server_form.json` du pack `mcrs_ui`) :
+
+| `layout` | `grid` | `left_button` | `bottom_button` | `image_grid` | `square_image` | `motd` | `store` | `wrapped` |
+|---|---|---|---|---|---|---|---|---|
+| `flag` | `§m§a` | `§m§b` | `§m§c` | `§m§d` | `§m§e` | `§m§f` | `§m§0` | `§m§1` |
+
+### 9.2 Exécution côté serveur
+
+- **Composer** : titre, contenu, puis un bouton par entrée de `buttons` dont
+  `visibleWhen` est vraie, dans l’ordre (texte interpolé, image telle quelle) ;
+  le serveur retient quelle entrée chaque bouton envoyé représente.
+- **Clic** : l’index reçu est le **rang parmi les boutons envoyés** ; avec un
+  bouton masqué avant lui, la troisième entrée de `buttons` arrive avec
+  l’index 1. Les actions de l’entrée retenue s’exécutent comme pour un slot
+  (§ 6), puis le formulaire du haut de la pile est renvoyé, sauf fermeture.
+- **Échap** : la session est oubliée.
+
+### 9.3 Export
+
+- aucune disposition générée, pas d’entrée dans `router.json` ni dans
+  `_ui_defs.json` ;
+- une icône `{ "texture": "a/b.png" }` de l’espace est copiée telle quelle
+  (sans recadrage) en `pack/textures/menu_forge/icons/a/b.png` et citée comme
+  `textures/menu_forge/icons/a/b` ;
+- avertissements : rôle sans effet dans la disposition (bannière d’une grille,
+  bouton spécial hors `left_button` et `bottom_button`), identifiants de
+  boutons en double.
+
+## 10. Voir aussi
 
 - [`format.md`](format.md) : le format des menus (inchangé) ;
 - [`rendering.md`](rendering.md) : le repère de coordonnées, commun aux deux

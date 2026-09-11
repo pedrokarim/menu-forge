@@ -21,6 +21,8 @@ export const UI_DIR = 'ui/menu_forge';
 export const TEXTURE_ROOT = 'textures/menu_forge';
 /** Texture blanche (voile, surbrillance), teintée par `color` et `alpha`. */
 export const WHITE_TEXTURE = `${TEXTURE_ROOT}/_white`;
+/** Dossier des icônes de boutons de formulaire copiées depuis l’espace de travail. */
+export const ICON_ROOT = `${TEXTURE_ROOT}/icons`;
 
 /** Dossier du pack et fichier du descripteur, relatifs au dossier cible de l’export. */
 export const PACK_DIR = 'pack';

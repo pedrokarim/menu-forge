@@ -136,7 +136,7 @@ sont exportés, **gabarits appliqués** (les gabarits eux-mêmes ne le sont pas)
 |---|---|---|
 | Vers le plugin | Menus résolus (sans `extends`, `template` ni métadonnées `generator`) et PNG qu’ils utilisent | `<dossier des paramètres « Export vers le plugin »>/menuforge/` (`menus/`, `textures/`) et le manifeste `.menu-forge-export.json` |
 | Pack ZIP de test | Polices et textures générées (même algorithme que la lib), `pack.mcmeta` (`pack_format` des paramètres) | `<espace>/exports/<namespace>-pack.zip` |
-| Pour Bedrock (bouton **Bedrock**) | Pack de ressources Bedrock (dispositions JSON UI, textures recadrées, manifest dont la version s’incrémente seule) et descripteur d’exécution `runtime.json`, voir [`../docs/bedrock.md`](../docs/bedrock.md) | `<dossier des paramètres « Export pour Bedrock »>/` (`pack/`, `runtime.json`) et le manifeste `.menu-forge-bedrock-export.json` |
+| Pour Bedrock (bouton **Bedrock**) | Pack de ressources Bedrock (dispositions JSON UI, textures recadrées, manifest dont la version s’incrémente seule, icônes des formulaires Bedrock) et descripteur d’exécution `runtime.json` (menus coffre et formulaires Bedrock), voir [`../docs/bedrock.md`](../docs/bedrock.md) | `<dossier des paramètres « Export pour Bedrock »>/` (`pack/`, `runtime.json`) et le manifeste `.menu-forge-bedrock-export.json` |
 
 Un export vers le plugin ne supprime que les fichiers listés par le manifeste
 du précédent et absents du nouveau : un fichier déposé à la main n’est jamais

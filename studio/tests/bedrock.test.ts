@@ -24,6 +24,8 @@ const TEXTURES: Record<string, RgbaImage> = {
   // Pixels visibles en (4, 2)–(13, 9) : la couche est recadrée et décalée d’autant.
   'shop/tab_on.png': image(20, 12, 4, 2, 10, 8),
   'shop/empty.png': image(8, 8, 0, 0, 0, 0),
+  // Icône de bouton de formulaire : copiée telle quelle (sans recadrage) dans le pack.
+  'icons/Spawn Icon.png': image(16, 16, 2, 2, 12, 12),
 };
 
 async function load(path: string): Promise<RgbaImage | null> {
@@ -79,8 +81,46 @@ function other(): MenuDefinition {
 
 const TEMPLATE: MenuDefinition = { ...other(), id: 'frame', template: true };
 
+/** Formulaire Bedrock (forme en mémoire : coffre et couches neutres). */
+function hub(): MenuDefinition {
+  return {
+    formatVersion: 1,
+    id: 'hub',
+    name: 'Hub',
+    container: { type: 'chest', rows: 6 },
+    layers: [],
+    state: { vip: { type: 'bool', default: false } },
+    form: {
+      layout: 'grid',
+      title: '§l§6mc-rs§r §eHUB',
+      content: '§7Choisis une action :',
+      buttons: [
+        {
+          id: 'spawn',
+          text: '§a▶ Spawn',
+          icon: { texture: 'icons/Spawn Icon.png' },
+          onClick: [
+            { type: 'command', command: 'tp {mcrs.spawn}', as: 'player' },
+            { type: 'close' },
+          ],
+        },
+        { id: 'shop', text: 'Boutique', subtitle: '§e800', icon: { path: 'textures/items/diamond' }, onClick: [{ type: 'open', menu: 'shop' }] },
+        {
+          id: 'admin',
+          text: '§cAdmin',
+          role: 'special',
+          icon: { url: 'https://example.org/admin.png' },
+          visibleWhen: { flag: 'viewer.op' },
+          onClick: [{ type: 'sound', sound: 'minecraft:ui.button.click' }],
+        },
+        { id: 'banner', text: 'Bannière', role: 'banner' },
+      ],
+    },
+  };
+}
+
 async function generate(version: [number, number, number] = [1, 0, 3]): Promise<BedrockExport> {
-  return generateBedrockExport([other(), shop(), TEMPLATE], load, { version, namespace: 'menuforge' });
+  return generateBedrockExport([other(), shop(), hub(), TEMPLATE], load, { version, namespace: 'menuforge' });
 }
 
 function json(result: BedrockExport, path: string): Record<string, unknown> {
@@ -112,6 +152,7 @@ test('fichiers écrits : pack, dispositions, textures recadrées, descripteur',
   assert.deepEqual([...result.files.keys()], [
     'pack/manifest.json',
     'pack/textures/menu_forge/_white.png',
+    'pack/textures/menu_forge/icons/icons/spawn_icon.png',
     'pack/textures/menu_forge/other/background.png',
     'pack/textures/menu_forge/shop/background.png',
     'pack/textures/menu_forge/shop/tab_on.png',
@@ -165,7 +206,8 @@ test('descripteur : jetons, textes dynamiques, cases, libellés, actions', asyn
   assert.equal(runtime.formatVersion, 1);
   assert.equal(runtime.flag, MENU_FORGE_FLAG);
   assert.deepEqual(runtime.pack.version, [1, 0, 3]);
-  assert.deepEqual(runtime.menus.map((menu) => menu.id), ['other', 'shop'], 'gabarits exclus, ordre conservé');
+  assert.deepEqual(runtime.menus.map((menu) => menu.id), ['other', 'shop'], 'gabarits et formulaires exclus, ordre conservé');
+  assert.deepEqual(runtime.forms.map((form) => form.id), ['hub']);
   assert.deepEqual(json(result, 'runtime.json'), JSON.parse(JSON.stringify(runtime)));
 
   const menu = shopRuntime(result);
@@ -249,6 +291,56 @@ test('routeur : une disposition par menu, choisie par le jeton du titre', async
     assert.equal(child.visible, false);
   }
   assert.equal(findKey(router, 'menu_frame@menu_forge_frame.main_panel').length, 0);
+  assert.equal(findKey(router, 'menu_hub@menu_forge_hub.main_panel').length, 0, 'un formulaire n’a pas de disposition générée');
+});
+
+test('formulaire Bedrock : entrée du descripteur, icônes copiées, pas de JSON UI', async () => {
+  const result = await generate();
+  assert.equal(result.files.has('pack/ui/menu_forge/hub.json'), false);
+  assert.deepEqual(json(result, 'pack/ui/_ui_defs.json'), {
+    ui_defs: ['ui/menu_forge/router.json', 'ui/menu_forge/other.json', 'ui/menu_forge/shop.json'],
+  });
+  const icon = await decodePng(result.files.get('pack/textures/menu_forge/icons/icons/spawn_icon.png') as Uint8Array);
+  assert.deepEqual([icon.width, icon.height], [16, 16], 'copiée sans recadrage');
+
+  const [form] = result.runtime.forms;
+  assert.deepEqual(form, {
+    id: 'hub',
+    name: 'Hub',
+    layout: 'grid',
+    flag: '§m§a',
+    title: '§l§6mc-rs§r §eHUB',
+    content: '§7Choisis une action :',
+    state: { vip: { type: 'bool', default: false } },
+    buttons: [
+      {
+        id: 'spawn',
+        text: '§a▶ Spawn',
+        image: { type: 'path', data: 'textures/menu_forge/icons/icons/spawn_icon' },
+        onClick: [
+          { type: 'command', command: 'tp {mcrs.spawn}', as: 'player' },
+          { type: 'close' },
+        ],
+      },
+      {
+        id: 'shop',
+        text: 'Boutique\t§e800',
+        image: { type: 'path', data: 'textures/items/diamond' },
+        onClick: [{ type: 'open', menu: 'shop' }],
+      },
+      {
+        id: 'admin',
+        text: '§m§b §cAdmin',
+        image: { type: 'url', data: 'https://example.org/admin.png' },
+        onClick: [{ type: 'sound', sound: 'random.click' }],
+        visibleWhen: { flag: 'viewer.op' },
+      },
+      { id: 'banner', text: '§m§a Bannière' },
+    ],
+  });
+  const warnings = result.warnings.join('\n');
+  assert.match(warnings, /hub.*admin.*spécial sans effet/u, 'la grille ne dessine pas de bouton spécial');
+  assert.match(warnings, /hub.*banner.*bannière.*sans effet/u);
 });
 
 test('conversions : MiniMessage, couleurs, sons, icônes, textes figés', () => {
