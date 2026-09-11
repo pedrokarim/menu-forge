@@ -428,16 +428,22 @@ export function EditorScreen({
    * pack ZIP de test. Le menu ouvert est d’abord enregistré s’il a changé.
    */
   const runExport = useCallback(
-    async (target: 'plugin' | 'pack') => {
+    async (target: 'plugin' | 'pack' | 'bedrock') => {
       if (exportingRef.current) return;
       if (dirty && !(await save())) return;
       exportingRef.current = true;
       setExporting(true);
-      setStatus(target === 'plugin' ? 'Export vers le plugin…' : 'Génération du pack ZIP…');
+      setStatus({ plugin: 'Export vers le plugin…', pack: 'Génération du pack ZIP…', bedrock: 'Export pour Bedrock…' }[target]);
       try {
+        const snapshot = await fetchWorkspace();
+        if (target === 'bedrock') {
+          // Exporteur Bedrock chargé au premier export Bedrock, comme l’export Java.
+          const { exportForBedrock } = await import('../export/bedrock/exportBedrock');
+          setStatus((await exportForBedrock(snapshot)).summary);
+          return;
+        }
         // Code d’export chargé au premier export : il n’alourdit pas le démarrage du studio.
         const { exportPackZip, exportToPlugin } = await import('../export/exportWorkspace');
-        const snapshot = await fetchWorkspace();
         if (target === 'plugin') {
           const result = await exportToPlugin(snapshot);
           const removed =
@@ -1524,6 +1530,7 @@ export function EditorScreen({
       disabled: exporting,
       onSelect: () => void runExport('pack'),
     },
+    { label: 'Exporter pour Bedrock', icon: 'upload', disabled: exporting, onSelect: () => void runExport('bedrock') },
   ];
 
   const openElementMenu = (target: Selection, event: ReactMouseEvent) => openContextMenu(event, elementMenu(target));
@@ -1702,6 +1709,15 @@ export function EditorScreen({
                 >
                   <Icon name="download" />
                   Pack ZIP
+                </button>
+              </Tooltip>
+              <Tooltip
+                label="Exporter pour Bedrock"
+                hint="Pack de ressources (dispositions JSON UI, textures) et descripteur d’exécution, dans le dossier réglé dans les paramètres"
+              >
+                <button type="button" onClick={() => void runExport('bedrock')} disabled={exporting || knownMenus.length === 0}>
+                  <Icon name="upload" />
+                  Bedrock
                 </button>
               </Tooltip>
             </div>

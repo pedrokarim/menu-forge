@@ -33,15 +33,15 @@ import {
 import { bedrockIcon, bedrockSound, hexToUiColor, miniMessageToLegacy } from './convert';
 
 /**
- * Export Bedrock d’un ensemble de menus **résolus** (voir `docs/bedrock.md`) :
+ * Export Bedrock d’un ensemble de menus **résolus** (voir `docs/bedrock.md`) :
  * le pack de ressources (manifest, dispositions JSON UI, textures recadrées)
- * et le descripteur d’exécution lu par le serveur. Génération déterministe :
+ * et le descripteur d’exécution lu par le serveur. Génération déterministe :
  * mêmes menus, textures, espace de noms et version donnent les mêmes octets.
  */
 
 export type PackVersion = [number, number, number];
 
-/** Élément figé conditionnel : le serveur ajoute `token` au titre si `visibleWhen` est vraie. */
+/** Élément figé conditionnel : le serveur ajoute `token` au titre si `visibleWhen` est vraie. */
 export interface RuntimeToken {
   token: string;
   /** Identifiant de la couche (ou `text` pour un texte figé). */
@@ -50,7 +50,7 @@ export interface RuntimeToken {
   visibleWhen: Condition;
 }
 
-/** Texte dynamique : l’entrée `entry` vaut `prefix` + valeur interpolée. */
+/** Texte dynamique : l’entrée `entry` vaut `prefix` + valeur interpolée. */
 export interface RuntimeText {
   id: string;
   entry: number;
@@ -64,7 +64,7 @@ export interface RuntimeSlot {
   kind: SlotKind;
   /** Index des cases couvertes (`colonne + 9 × ligne`), en ordre de lecture. */
   cells: number[];
-  /** Texte du bouton (codes `§`) ; vide pour une liste ou un slot `input`. */
+  /** Texte du bouton (codes `§`) ; vide pour une liste ou un slot `input`. */
   label: string;
   /** Chemin de texture Bedrock de l’icône, ou `null`. */
   icon: string | null;
@@ -78,7 +78,7 @@ export interface RuntimeMenu {
   id: string;
   name: string;
   rows: number;
-  /** Nombre de boutons à envoyer : `9 × rows` cases puis les textes dynamiques. */
+  /** Nombre de boutons à envoyer : `9 × rows` cases puis les textes dynamiques. */
   entries: number;
   token: string;
   state: Record<string, StateDefinition>;
@@ -99,7 +99,7 @@ export interface RuntimeDescriptor {
 export interface BedrockOptions {
   /** Version du pack (voir `nextPackVersion`). */
   version: PackVersion;
-  /** Espace de noms d’export : sert à dériver les uuid du pack. */
+  /** Espace de noms d’export : sert à dériver les uuid du pack. */
   namespace?: string;
 }
 
@@ -113,10 +113,10 @@ export interface BedrockExport {
 export const PACK_NAME = 'Menu Forge';
 const PACK_DESCRIPTION = 'Menus Menu Forge pour Bedrock (générés par le studio)';
 const MIN_ENGINE_VERSION = [1, 21, 0];
-/** Variables `{nom}` : mêmes noms que `interpolate` (model/preview). */
+/** Variables `{nom}` : mêmes noms que `interpolate` (model/preview). */
 const VARIABLE = /\{[A-Za-z0-9_.:-]+\}/;
 
-/** Version suivante du pack : `[1, 0, 0]` au premier export, sinon le dernier chiffre + 1. */
+/** Version suivante du pack : `[1, 0, 0]` au premier export, sinon le dernier chiffre + 1. */
 export function nextPackVersion(previous: readonly unknown[] | null | undefined): PackVersion {
   const valid =
     Array.isArray(previous) &&
@@ -127,7 +127,7 @@ export function nextPackVersion(previous: readonly unknown[] | null | undefined)
   return [major, minor, patch + 1];
 }
 
-/** uuid stable dérivé d’un texte (SHA-256, version 8 « personnalisée » de la RFC 9562). */
+/** uuid stable dérivé d’un texte (SHA-256, version 8 « personnalisée » de la RFC 9562). */
 export async function derivedUuid(seed: string): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed)));
   const bytes = digest.slice(0, 16);
@@ -153,7 +153,7 @@ const titleBinding = () => ({
   binding_name_override: '#title_text',
 });
 
-/** Expression JSON UI : vrai si `text` contient `token` (la soustraction retire la sous-chaîne). */
+/** Expression JSON UI : vrai si `text` contient `token` (la soustraction retire la sous-chaîne). */
 const contains = (text: string, token: string) => `(not ((${text} - '${token}') = ${text}))`;
 
 const view = (source: string, target: string) => ({
@@ -172,7 +172,7 @@ const collectionBinding = (name: string, override?: string) =>
 
 const ANCHORS: Record<TextAlign, string> = { left: 'top_left', center: 'top_middle', right: 'top_right' };
 
-/** Bouton actif : texte non vide, ni inerte, ni texte dynamique. */
+/** Bouton actif : texte non vide, ni inerte, ni texte dynamique. */
 const ACTIVE_BUTTON = `(not ((#form_button_text = '') or ${contains('#form_button_text', INERT_MARKER)} or ${contains('#form_button_text', TEXT_MARKER)}))`;
 
 function textureFileName(id: string): string {
@@ -200,11 +200,11 @@ function slotCells(area: SlotArea, rows: number): { cells: number[]; clipped: bo
 function itemIcon(item: ItemSpec, warn: (message: string) => void): string | null {
   if (item.invisible) return null;
   if (item.head !== undefined) {
-    warn('tête de joueur sans rendu dans un formulaire Bedrock : pas d’icône');
+    warn('tête de joueur sans rendu dans un formulaire Bedrock : pas d’icône');
     return null;
   }
   if (item.ref !== undefined) {
-    warn(`item « ${item.ref} » fourni par l’adaptateur du serveur : pas d’icône à l’export`);
+    warn(`item « ${item.ref} » fourni par l’adaptateur du serveur : pas d’icône à l’export`);
     return null;
   }
   if (!item.material) return null;
@@ -216,12 +216,12 @@ function itemIcon(item: ItemSpec, warn: (message: string) => void): string | nul
 function bedrockAction(action: Action, warn: (message: string) => void): Action {
   if (action.type !== 'sound') return structuredClone(action);
   const mapped = bedrockSound(action.sound);
-  if (!mapped.known) warn(`son « ${action.sound} » sans correspondance Bedrock connue, gardé tel quel`);
+  if (!mapped.known) warn(`son « ${action.sound} » sans correspondance Bedrock connue, gardé tel quel`);
   return { ...action, sound: mapped.sound };
 }
 
 function runtimeSlot(slot: Slot, rows: number, warn: (message: string) => void): RuntimeSlot {
-  const slotWarn = (message: string) => warn(`slot « ${slot.id} », ${message}`);
+  const slotWarn = (message: string) => warn(`slot « ${slot.id} », ${message}`);
   const { cells, clipped } = slotCells(slot.area, rows);
   if (clipped) slotWarn('zone hors de la grille, rognée');
   let label = '';
@@ -245,7 +245,7 @@ function runtimeSlot(slot: Slot, rows: number, warn: (message: string) => void):
 function textColor(color: string | undefined, warn: (message: string) => void, id: string): [number, number, number] {
   const parsed = hexToUiColor(color ?? DEFAULT_TEXT_COLOR);
   if (parsed) return parsed;
-  warn(`texte « ${id} », couleur « ${color} » invalide, remplacée par ${DEFAULT_TEXT_COLOR}`);
+  warn(`texte « ${id} », couleur « ${color} » invalide, remplacée par ${DEFAULT_TEXT_COLOR}`);
   return hexToUiColor(DEFAULT_TEXT_COLOR) as [number, number, number];
 }
 
@@ -268,7 +268,7 @@ async function buildMenu(menu: MenuDefinition, images: ReadonlyMap<string, RgbaI
   const tokens: RuntimeToken[] = [];
   const usedFileNames = new Set<string>();
 
-  // Couches : une image recadrée par couche non vide, empilées dans l’ordre du menu.
+  // Couches : une image recadrée par couche non vide, empilées dans l’ordre du menu.
   for (const [index, layer] of menu.layers.entries()) {
     const image = images.get(layer.texture);
     const bounds = image ? measureImage(image) : null;
@@ -295,7 +295,7 @@ async function buildMenu(menu: MenuDefinition, images: ReadonlyMap<string, RgbaI
     controls.push({ [`layer_${index}`]: control });
   }
 
-  // Textes : figés dans le pack, ou portés par une entrée de la grille s’ils ont des variables.
+  // Textes : figés dans le pack, ou portés par une entrée de la grille s’ils ont des variables.
   const dynamicTexts: RuntimeText[] = [];
   const cellLabels: unknown[] = [];
   for (const [index, text] of texts.entries()) {
@@ -453,7 +453,7 @@ async function buildMenu(menu: MenuDefinition, images: ReadonlyMap<string, RgbaI
   return { layout, textures, runtime };
 }
 
-/** Routeur : voile, une disposition par menu (visible si le titre contient son jeton), bouton de fermeture. */
+/** Routeur : voile, une disposition par menu (visible si le titre contient son jeton), bouton de fermeture. */
 function routerLayout(menus: readonly MenuDefinition[]): unknown {
   const controls: unknown[] = [
     {
@@ -499,7 +499,7 @@ export async function generateBedrockExport(
 ): Promise<BedrockExport> {
   const namespace = options.namespace ?? DEFAULT_NAMESPACE;
   if (!isValidNamespace(namespace)) {
-    throw new Error(`Espace de noms invalide « ${namespace} » (attendu${NBSP}: [a-z0-9_.-]+)`);
+    throw new Error(`Espace de noms invalide « ${namespace} » (attendu${NBSP}: [a-z0-9_.-]+)`);
   }
   const version = options.version;
   if (version.length !== 3 || !version.every((part) => Number.isInteger(part) && part >= 0)) {
@@ -512,7 +512,7 @@ export async function generateBedrockExport(
     for (const layer of menu.layers) {
       if (images.has(layer.texture)) continue;
       const image = await load(layer.texture);
-      if (!image) throw new Error(`Texture introuvable${NBSP}: « ${layer.texture} »`);
+      if (!image) throw new Error(`Texture introuvable${NBSP}: « ${layer.texture} »`);
       images.set(layer.texture, image);
     }
   }

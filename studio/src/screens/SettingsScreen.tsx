@@ -158,6 +158,11 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
     if (chosen) await save({ export: { enderiumResources: chosen } }, 'Dossier des ressources');
   };
 
+  const browseBedrock = async () => {
+    const chosen = await pickFolder('Dossier d’export Bedrock', settings?.export.bedrockDirectory ?? undefined);
+    if (chosen) await save({ export: { bedrockDirectory: chosen } }, 'Dossier d’export Bedrock');
+  };
+
   if (!settings) {
     return (
       <ScreenFrame title="Paramètres" icon="sliders" pill={pill}>
@@ -289,6 +294,39 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
                 </option>
               ))}
             </select>
+          </SettingRow>
+        </div>
+      </section>
+
+      <section className="screen-section" aria-labelledby="settings-bedrock">
+        <h2 id="settings-bedrock" className="screen-section-title">
+          Export pour Bedrock
+        </h2>
+        <div className="card setting-list">
+          <SettingRow
+            title="Dossier du serveur Bedrock"
+            text={
+              <>
+                Reçoit le pack (<code>pack/</code>) et le descripteur d’exécution (<code>runtime.json</code>)&nbsp;; pour
+                mc-rs, le dossier <code>menu_forge/export</code>.
+              </>
+            }
+          >
+            <CommitInput
+              mono
+              label="Dossier d’export Bedrock"
+              value={exportSettings.bedrockDirectory ?? ''}
+              placeholder="Non défini"
+              onCommit={(value) =>
+                void save({ export: { bedrockDirectory: value.trim() === '' ? null : value.trim() } }, 'Dossier d’export Bedrock')
+              }
+            />
+            {isTauri && (
+              <button type="button" onClick={() => void browseBedrock()}>
+                <Icon name="folder" />
+                Parcourir…
+              </button>
+            )}
           </SettingRow>
         </div>
       </section>

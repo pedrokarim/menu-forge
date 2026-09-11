@@ -1,7 +1,7 @@
 /**
  * Constantes du contrat entre l’exporteur Bedrock et le serveur qui exécute
  * les menus (voir `docs/bedrock.md`). Toute modification ici doit être
- * reportée côté serveur (mc-rs : `crates/mc-rs-server/src/menu_forge/`) et
+ * reportée côté serveur (mc-rs : `crates/mc-rs-server/src/menu_forge/`) et
  * dans l’accroche de `server_form.json`.
  */
 
@@ -10,7 +10,7 @@ export const RUNTIME_FORMAT = 'menu-forge-bedrock';
 /** Version du contrat. */
 export const RUNTIME_FORMAT_VERSION = 1;
 
-/** Drapeau de titre : aiguille `server_form` vers `menu_forge_router.main_panel`. */
+/** Drapeau de titre : aiguille `server_form` vers `menu_forge_router.main_panel`. */
 export const MENU_FORGE_FLAG = '§m§v';
 
 /** Namespace JSON UI du routeur (cité par l’accroche de `server_form.json`). */
@@ -26,14 +26,14 @@ export const WHITE_TEXTURE = `${TEXTURE_ROOT}/_white`;
 export const PACK_DIR = 'pack';
 export const RUNTIME_FILE = 'runtime.json';
 
-/** Grille du coffre (cf. `model/geometry`) : 9 colonnes, cases de 18 px, première en (7, 17). */
+/** Grille du coffre (cf. `model/geometry`) : 9 colonnes, cases de 18 px, première en (7, 17). */
 export const COLUMNS = 9;
 export const CELL = 18;
 export const GRID_X = 7;
 export const GRID_Y = 17;
 export const MAX_ROWS = 6;
 
-/** Marqueur d’une entrée inerte : icône affichée, pas de bouton. */
+/** Marqueur d’une entrée inerte : icône affichée, pas de bouton. */
 export const INERT_MARKER = '{x}';
 /** Début du marqueur d’une entrée de texte dynamique (`{t<k>}`). */
 export const TEXT_MARKER = '{t';

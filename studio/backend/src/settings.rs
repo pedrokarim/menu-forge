@@ -15,7 +15,7 @@
 //!   "workspaces": [{ "path": "C:\\…\\menu-forge", "name": "menu-forge", "lastOpened": "2026-09-10T08:00:00.000Z" }],
 //!   "libraries": [{ "id": "vanilla", "name": "…", "root": "C:\\…", "ownership": "third-party" }],
 //!   "ui": { "defaultZoom": 0, "showGrid": true, "confirmations": { "delete": true, "discardChanges": true } },
-//!   "export": { "enderiumResources": null, "namespace": "menuforge", "packFormat": 46 },
+//!   "export": { "enderiumResources": null, "namespace": "menuforge", "packFormat": 46, "bedrockDirectory": null },
 //!   "discord": { "enabled": true, "clientId": null, "showDocument": true }
 //! }
 //! ```
@@ -89,6 +89,8 @@ pub struct ExportSettings {
     pub enderium_resources: Option<String>,
     pub namespace: String,
     pub pack_format: u64,
+    /// Dossier cible de l’export pour Bedrock (pack et descripteur d’exécution), s’il est connu.
+    pub bedrock_directory: Option<String>,
 }
 
 /// Rich Presence Discord.
@@ -140,6 +142,7 @@ impl Settings {
                 enderium_resources: None,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 pack_format: DEFAULT_PACK_FORMAT,
+                bedrock_directory: None,
             },
             discord: DiscordSettings::default(),
         }
@@ -189,6 +192,10 @@ impl Settings {
         );
         export.insert("namespace".into(), Value::String(self.export.namespace.clone()));
         export.insert("packFormat".into(), Value::from(self.export.pack_format));
+        export.insert(
+            "bedrockDirectory".into(),
+            self.export.bedrock_directory.clone().map(Value::String).unwrap_or(Value::Null),
+        );
         root.insert("export".into(), Value::Object(export));
 
         let mut discord = Map::new();
@@ -478,7 +485,20 @@ pub fn apply_patch(base: &Settings, patch: &Value, check_paths: bool) -> Result<
 
     if let Some(value) = patch.get("export") {
         let export = object(value, "export")?;
-        unknown_keys(export, &["enderiumResources", "namespace", "packFormat"], "export.")?;
+        unknown_keys(export, &["enderiumResources", "namespace", "packFormat", "bedrockDirectory"], "export.")?;
+        if let Some(value) = export.get("bedrockDirectory") {
+            next.export.bedrock_directory = match value {
+                Value::Null => None,
+                value => {
+                    let path = absolute_path(value, "export.bedrockDirectory")?;
+                    let unchanged = base.export.bedrock_directory.as_deref().is_some_and(|old| same_path(old, &path));
+                    if check_paths && !unchanged {
+                        existing_dir(&path, "export.bedrockDirectory")?;
+                    }
+                    Some(path)
+                }
+            };
+        }
         if let Some(value) = export.get("enderiumResources") {
             next.export.enderium_resources = match value {
                 Value::Null => None,

@@ -1,4 +1,4 @@
-// Export Bedrock (docs/bedrock.md) : pack JSON UI, textures recadrées, manifest
+// Export Bedrock (docs/bedrock.md) : pack JSON UI, textures recadrées, manifest
 // versionné et descripteur d’exécution, générés de façon déterministe.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -21,7 +21,7 @@ function image(width: number, height: number, x = 0, y = 0, w = width, h = heigh
 
 const TEXTURES: Record<string, RgbaImage> = {
   'shop/bg.png': image(176, 90),
-  // Pixels visibles en (4, 2)–(13, 9) : la couche est recadrée et décalée d’autant.
+  // Pixels visibles en (4, 2)–(13, 9) : la couche est recadrée et décalée d’autant.
   'shop/tab_on.png': image(20, 12, 4, 2, 10, 8),
   'shop/empty.png': image(8, 8, 0, 0, 0, 0),
 };
@@ -107,7 +107,7 @@ function shopRuntime(result: BedrockExport): RuntimeMenu {
   return menu;
 }
 
-test('fichiers écrits : pack, dispositions, textures recadrées, descripteur', async () => {
+test('fichiers écrits : pack, dispositions, textures recadrées, descripteur', async () => {
   const result = await generate();
   assert.deepEqual([...result.files.keys()], [
     'pack/manifest.json',
@@ -128,13 +128,13 @@ test('fichiers écrits : pack, dispositions, textures recadrées, descripteur', 
   assert.deepEqual([tab.width, tab.height], [10, 8]);
 });
 
-test('génération déterministe : mêmes entrées, mêmes octets', async () => {
+test('génération déterministe : mêmes entrées, mêmes octets', async () => {
   const [first, second] = [await generate(), await generate()];
   assert.deepEqual([...first.files.keys()], [...second.files.keys()]);
   for (const [path, bytes] of first.files) assert.ok(Buffer.from(bytes).equals(Buffer.from(second.files.get(path) as Uint8Array)), path);
 });
 
-test('manifest : uuid dérivés et stables, version fournie', async () => {
+test('manifest : uuid dérivés et stables, version fournie', async () => {
   const manifest = json(await generate([1, 0, 7]), 'pack/manifest.json') as {
     header: { uuid: string; version: number[]; name: string };
     modules: { uuid: string; version: number[]; type: string }[];
@@ -158,7 +158,7 @@ test('manifest : uuid dérivés et stables, version fournie', async () => {
   );
 });
 
-test('descripteur : jetons, textes dynamiques, cases, libellés, actions', async () => {
+test('descripteur : jetons, textes dynamiques, cases, libellés, actions', async () => {
   const result = await generate();
   const runtime = result.runtime;
   assert.equal(runtime.format, 'menu-forge-bedrock');
@@ -199,7 +199,7 @@ test('descripteur : jetons, textes dynamiques, cases, libellés, actions', async
   assert.deepEqual(runtime.warnings, result.warnings);
 });
 
-test('disposition : couches au pixel, jetons, textes, grille des slots', async () => {
+test('disposition : couches au pixel, jetons, textes, grille des slots', async () => {
   const result = await generate();
   const layout = json(result, 'pack/ui/menu_forge/shop.json') as { namespace: string; main_panel: { size: number[]; controls: unknown[] } };
   assert.equal(layout.namespace, 'menu_forge_shop');
@@ -228,7 +228,7 @@ test('disposition : couches au pixel, jetons, textes, grille des slots', async (
   ]);
   assert.deepEqual(grid.bindings, [{ binding_name: '#form_button_length', binding_name_override: '#maximum_grid_items' }]);
 
-  // Texte dynamique : étiquette de la case qui porte l’entrée 27 (colonne 0, ligne 3 → (7, 71)).
+  // Texte dynamique : étiquette de la case qui porte l’entrée 27 (colonne 0, ligne 3 → (7, 71)).
   const [greeting] = findKey(layout, 'text_2');
   assert.deepEqual([greeting.offset, greeting.anchor_to], [[168 - 7, 70 - 71], 'top_right']);
   assert.match(JSON.stringify(greeting.bindings), /#form_button_text - '\{t0\}'/);
@@ -239,7 +239,7 @@ test('disposition : couches au pixel, jetons, textes, grille des slots', async (
   assert.equal(button.$pressed_button_name, 'button.form_button_click');
 });
 
-test('routeur : une disposition par menu, choisie par le jeton du titre', async () => {
+test('routeur : une disposition par menu, choisie par le jeton du titre', async () => {
   const router = json(await generate(), 'pack/ui/menu_forge/router.json') as { namespace: string };
   assert.equal(router.namespace, 'menu_forge_router');
   for (const id of ['other', 'shop']) {
@@ -251,7 +251,7 @@ test('routeur : une disposition par menu, choisie par le jeton du titre', async 
   assert.equal(findKey(router, 'menu_frame@menu_forge_frame.main_panel').length, 0);
 });
 
-test('conversions : MiniMessage, couleurs, sons, icônes, textes figés', () => {
+test('conversions : MiniMessage, couleurs, sons, icônes, textes figés', () => {
   const warnings: string[] = [];
   assert.equal(miniMessageToLegacy('<gold>Or</gold> <italic>i <u>s', (message) => warnings.push(message)), '§6Or§r §oi s');
   assert.equal(miniMessageToLegacy('<color:#ff5555>x<rainbow>', (message) => warnings.push(message)), '§cx');

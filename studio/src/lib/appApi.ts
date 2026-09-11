@@ -34,6 +34,8 @@ export interface ExportSettings {
   enderiumResources: string | null;
   namespace: string;
   packFormat: number;
+  /** Dossier cible de l’export pour Bedrock (pack et `runtime.json`), ou `null`. */
+  bedrockDirectory: string | null;
 }
 
 export interface LibrarySetting {

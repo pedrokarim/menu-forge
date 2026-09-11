@@ -1,12 +1,13 @@
 import type { WorkspaceSnapshot } from '../../lib/api';
 import { fetchSettings } from '../../lib/appApi';
+import { NBSP, plural } from '../../lib/format';
 import { withWriteHeader } from '../../lib/http';
 import { loadWorkspaceTexture, menusForExport } from '../exportWorkspace';
 import { generateBedrockExport, nextPackVersion } from './generate';
 import type { PackVersion } from './generate';
 
 /**
- * Export pour Bedrock (voir `docs/bedrock.md`) : le studio lit la version du
+ * Export pour Bedrock (voir `docs/bedrock.md`) : le studio lit la version du
  * pack déjà présent dans le dossier cible, génère le pack suivant et le
  * descripteur d’exécution, puis le backend les écrit (`POST /api/export/bedrock`).
  * Chargé à la demande, comme l’export Java.
@@ -27,6 +28,8 @@ export interface BedrockExportResult {
   removed: string[];
   version: PackVersion;
   warnings: string[];
+  /** Message d’état à afficher. */
+  summary: string;
 }
 
 async function failure(response: Response): Promise<Error> {
@@ -65,5 +68,17 @@ export async function exportForBedrock(snapshot: WorkspaceSnapshot): Promise<Bed
   );
   if (!response.ok) throw await failure(response);
   const written = (await response.json()) as { directory: string; files: number; removed: string[]; version: PackVersion };
-  return { ...written, menus: generated.runtime.menus.length, warnings: generated.warnings };
+  const result = { ...written, menus: generated.runtime.menus.length, warnings: generated.warnings };
+  return { ...result, summary: exportSummary(result) };
+}
+
+/** Message d’état affiché après l’export (construit ici pour ne pas alourdir le paquet principal). */
+export function exportSummary(result: Omit<BedrockExportResult, 'summary'>): string {
+  const removed =
+    result.removed.length > 0 ? `, ${plural(result.removed.length, 'ancien fichier retiré', 'anciens fichiers retirés')}` : '';
+  const warnings =
+    result.warnings.length > 0
+      ? `${NBSP}; ${plural(result.warnings.length, 'avertissement')} (${result.warnings[0]}${result.warnings.length > 1 ? '…' : ''})`
+      : '';
+  return `Exporté pour Bedrock${NBSP}: ${plural(result.menus, 'menu')}, pack ${result.version.join('.')}${removed}, dans ${result.directory}${warnings}`;
 }

@@ -19,6 +19,8 @@
 //! | `DELETE /libraries/:id` | débranche un pack (rien n’est supprimé sur le disque) |
 //! | `POST /libraries/:id/reindex` | reconstruit l’index en ignorant les caches |
 //! | `POST /export/plugin` | `{ menus, textures }` : menus **résolus** (documents du format, gabarits appliqués) et PNG qu’ils utilisent (chemins relatifs à `textures/`), écrits dans `<export.enderiumResources>/menuforge/` (`menus/<id>.menu.json`, `textures/…`) et **jamais ailleurs** ; tout est vérifié avant la première écriture ; les fichiers du précédent export (manifeste `menuforge/.menu-forge-export.json`) absents de celui-ci sont supprimés, eux seuls → `{ directory, menus, textures, removed }` ; 409 si le dossier d’export n’est pas réglé ou n’existe plus |
+//! | `GET /export/bedrock` | `{ directory, version }` : dossier d’export Bedrock (`export.bedrockDirectory`) et version (`[a, b, c]`) du pack déjà exporté, `null` s’il n’y en a pas ; 409 si le dossier n’est pas réglé ou n’existe plus |
+//! | `POST /export/bedrock` | `{ files: [{ path, data }] }` : fichiers générés par l’interface (`data` en base64), `runtime.json` et `pack/…` (`.json` ou `.png`, segments `[A-Za-z0-9_.-]+`), écrits dans le dossier d’export Bedrock et **jamais ailleurs** ; `pack/manifest.json` et `runtime.json` obligatoires ; tout est vérifié avant la première écriture (PNG, JSON) ; 409 si la version du pack n’est pas supérieure à celle du pack déjà exporté (même uuid) ; les fichiers du précédent export (manifeste `.menu-forge-bedrock-export.json`) absents de celui-ci sont supprimés, eux seuls → `{ directory, files, removed, version }` |
 //! | `PUT /exports/<nom>.zip` | corps : archive zip (pack de test autonome généré par l’interface), écrite dans `<espace actif>/exports/<nom>.zip` → `{ path, size }` ; nom `[a-z0-9_.-]+.zip`, corps commençant par une signature zip |
 //!
 //! La génération du pack (polices, textures recadrées) est faite par
@@ -111,6 +113,8 @@ impl Backend {
             ("/documents/trash", "POST") => json(&self.current_workspace().trash_document(&body_object(&request.body)?)?),
             ("/libraries", "POST") => self.add_library(&request.body)?,
             ("/export/plugin", "POST") => self.export_plugin(&request.body)?,
+            ("/export/bedrock", "GET") => self.bedrock_export_info()?,
+            ("/export/bedrock", "POST") => self.export_bedrock(&request.body)?,
             _ if method == "PUT" && crate::export::pack_route(pathname).is_some() => {
                 let name = crate::export::pack_route(pathname).unwrap_or_default();
                 self.export_pack(name, &request.body)?

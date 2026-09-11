@@ -1,7 +1,7 @@
 /**
- * Conversions Java → Bedrock de l’export Bedrock : couleurs, noms d’items
+ * Conversions Java → Bedrock de l’export Bedrock : couleurs, noms d’items
  * (MiniMessage → codes `§`), sons et icônes d’items. Les tables sont
- * volontairement courtes : ce qu’elles ne connaissent pas est signalé par un
+ * volontairement courtes : ce qu’elles ne connaissent pas est signalé par un
  * avertissement (voir `docs/bedrock.md` § 7).
  */
 
@@ -59,7 +59,7 @@ const DECORATIONS: Record<string, string> = {
   reset: 'r',
 };
 
-/** Décorations sans équivalent Bedrock (§n et §m y sont des couleurs) : retirées sans bruit. */
+/** Décorations sans équivalent Bedrock (§n et §m y sont des couleurs) : retirées sans bruit. */
 const DROPPED_DECORATIONS = new Set(['underlined', 'u', 'strikethrough', 'st']);
 
 /** `#rgb` ou `#rrggbb` → composantes 0–255, ou `null` si invalide. */
@@ -92,8 +92,8 @@ export function nearestLegacyCode(red: number, green: number, blue: number): str
 
 /**
  * Texte MiniMessage → texte à codes `§` (nom d’un item, libellé de bouton).
- * Balise fermante : `§r` (approximation : le style englobant n’est pas
- * restauré). Couleur hexadécimale : code le plus proche, signalé.
+ * Balise fermante : `§r` (approximation : le style englobant n’est pas
+ * restauré). Couleur hexadécimale : code le plus proche, signalé.
  */
 export function miniMessageToLegacy(text: string, warn: (message: string) => void = () => {}): string {
   return text.replace(/<(\/?)([^<>]*)>/g, (_match, closing: string, body: string) => {
@@ -136,7 +136,7 @@ const SOUNDS: Record<string, string> = {
 };
 const BEDROCK_SOUNDS = new Set(Object.values(SOUNDS));
 
-/** Nom Bedrock d’un son ; `known` est faux s’il n’est ni dans la table ni déjà un nom Bedrock connu. */
+/** Nom Bedrock d’un son ; `known` est faux s’il n’est ni dans la table ni déjà un nom Bedrock connu. */
 export function bedrockSound(sound: string): { sound: string; known: boolean } {
   const name = sound.trim().replace(/^minecraft:/, '');
   if (name in SOUNDS) return { sound: SOUNDS[name], known: true };
@@ -206,7 +206,7 @@ const SAME_NAME_ITEMS = new Set([
 ]);
 
 /**
- * Icône Bedrock d’un matériau (`DIAMOND`, `minecraft:stone`…) ; `approximate`
+ * Icône Bedrock d’un matériau (`DIAMOND`, `minecraft:stone`…) ; `approximate`
  * est vrai quand le chemin est deviné (`textures/items/<nom>`).
  */
 export function bedrockIcon(material: string): { path: string; approximate: boolean } {

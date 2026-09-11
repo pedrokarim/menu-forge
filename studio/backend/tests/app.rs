@@ -117,7 +117,10 @@ fn first_launch_imports_libraries_and_persists_atomically() {
     assert_eq!(settings["libraries"].as_array().unwrap().len(), 1);
     assert!(same(settings["libraries"][0]["root"].as_str().unwrap(), &dir.path("packs").join("vanilla")));
     assert_eq!(settings["ui"], json!({"defaultZoom": 0, "showGrid": true, "confirmations": {"delete": true, "discardChanges": true}}));
-    assert_eq!(settings["export"], json!({"enderiumResources": null, "namespace": "menuforge", "packFormat": 46}));
+    assert_eq!(
+        settings["export"],
+        json!({"enderiumResources": null, "namespace": "menuforge", "packFormat": 46, "bedrockDirectory": null})
+    );
     assert_eq!(settings["discord"], json!({"enabled": true, "clientId": null, "showDocument": true}));
     assert_eq!(saved_settings(&dir), settings);
     // Écriture atomique : aucun fichier temporaire ne reste.
@@ -238,6 +241,8 @@ fn put_settings_validates_and_applies() {
         (json!(["x"]), "Le corps de la requête doit être un objet JSON"),
         (json!({"export": {"enderiumResources": dir.text("absent")}}), "« export.enderiumResources » : dossier introuvable"),
         (json!({"export": {"enderiumResources": "relatif"}}), "« export.enderiumResources » doit être un chemin absolu"),
+        (json!({"export": {"bedrockDirectory": dir.text("absent")}}), "« export.bedrockDirectory » : dossier introuvable"),
+        (json!({"export": {"bedrockDirectory": "relatif"}}), "« export.bedrockDirectory » doit être un chemin absolu"),
         (json!({"activeWorkspace": dir.text("absent")}), "« activeWorkspace » : dossier introuvable"),
         (json!({"libraries": [{"id": "x", "root": dir.text("default")}]}), "« libraries[0].root » : ce dossier ne contient pas de dossier assets/"),
     ];
@@ -266,6 +271,12 @@ fn put_settings_validates_and_applies() {
     assert_eq!(next["export"]["namespace"], "enderium");
     let (_, next, _) = call(&backend, "PUT", "/settings", json!({"export": {"enderiumResources": null}}));
     assert_eq!(next["export"]["enderiumResources"], Value::Null);
+    let (status, next, _) = call(&backend, "PUT", "/settings", json!({"export": {"bedrockDirectory": resources}}));
+    assert_eq!(status, 200);
+    assert!(same(next["export"]["bedrockDirectory"].as_str().unwrap(), &resources));
+    assert_eq!(next["export"]["packFormat"], 32, "les autres clés d’export sont gardées");
+    let (_, next, _) = call(&backend, "PUT", "/settings", json!({"export": {"bedrockDirectory": null}}));
+    assert_eq!(next["export"]["bedrockDirectory"], Value::Null);
 
     // Changer d’espace actif par les réglages équivaut à l’ouvrir.
     let other = dir.path("other");
