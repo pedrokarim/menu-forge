@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir -p _site
           cp site/index.html _site/
-          cp -r site/assets _site/
+          cp -r site/assets site/en _site/
 
       - name: Téléverser l’artefact
         uses: actions/upload-pages-artifact@v4

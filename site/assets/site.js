@@ -46,6 +46,14 @@
 
   /* ---------- Boutons « Copier » ---------- */
 
+  const english = document.documentElement.lang.startsWith('en');
+  const TEXT = english
+    ? { copied: 'Copied', done: 'Commands copied to the clipboard.', failed: 'Copy failed: select the text manually.' }
+    : {
+        copied: 'Copié',
+        done: 'Commandes copiées dans le presse-papiers.',
+        failed: 'Impossible de copier : sélectionnez le texte à la main.',
+      };
   const status = document.querySelector('#copy-status');
   for (const button of document.querySelectorAll('[data-copy]')) {
     button.hidden = !navigator.clipboard;
@@ -58,13 +66,13 @@
         await navigator.clipboard.writeText(text.trim());
         const label = button.querySelector('.label');
         const previous = label.textContent;
-        label.textContent = 'Copié';
-        if (status) status.textContent = 'Commandes copiées dans le presse-papiers.';
+        label.textContent = TEXT.copied;
+        if (status) status.textContent = TEXT.done;
         setTimeout(() => {
           label.textContent = previous;
         }, 1600);
       } catch {
-        if (status) status.textContent = 'Impossible de copier : sélectionnez le texte à la main.';
+        if (status) status.textContent = TEXT.failed;
       }
     });
   }

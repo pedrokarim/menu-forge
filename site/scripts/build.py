@@ -1,4 +1,6 @@
-"""Prépare index.html : sprite des icônes et dimensions des captures.
+"""Prépare les pages du site : sprite des icônes et dimensions des captures.
+
+Pages traitées : index.html (français) et en/index.html (anglais).
 
 - Le sprite SVG (entre <!-- ICONS --> et <!-- /ICONS -->) est régénéré à
   partir des icônes réellement utilisées (`#i-<nom>`) : pixelarticons (MIT,
@@ -15,10 +17,10 @@ import sys
 from pathlib import Path
 
 SITE_DIR = Path(__file__).resolve().parent.parent
-INDEX = SITE_DIR / "index.html"
+PAGES = [SITE_DIR / "index.html", SITE_DIR / "en" / "index.html"]
 PIXELARTICONS = SITE_DIR.parent / "studio" / "node_modules" / "pixelarticons" / "svg"
 
-# Nom utilisé dans la page → fichier pixelarticons.
+# Nom utilisé dans les pages → fichier pixelarticons.
 ICON_FILES = {
     "arrow-right": "arrow-right",
     "book": "book-open",
@@ -89,11 +91,11 @@ def png_size(path: Path) -> tuple[int, int]:
     return struct.unpack(">II", header[16:24])
 
 
-def fix_dimensions(html: str) -> str:
+def fix_dimensions(html: str, page_dir: Path) -> str:
     def replace(match: re.Match) -> str:
         tag = match.group(0)
-        source = re.search(r'src="(assets/screens/[^"]+\.png)"', tag).group(1)
-        path = SITE_DIR / source
+        source = re.search(r'src="((?:\.\./)?assets/screens/[^"]+\.png)"', tag).group(1)
+        path = (page_dir / source).resolve()
         if not path.exists():
             print(f"absente : {source}")
             return tag
@@ -101,11 +103,11 @@ def fix_dimensions(html: str) -> str:
         tag = re.sub(r'width="\d+"', f'width="{width}"', tag)
         return re.sub(r'height="\d+"', f'height="{height}"', tag)
 
-    return re.sub(r'<img\b[^>]*src="assets/screens/[^"]+"[^>]*>', replace, html, flags=re.S)
+    return re.sub(r'<img\b[^>]*src="(?:\.\./)?assets/screens/[^"]+"[^>]*>', replace, html, flags=re.S)
 
 
-def main() -> None:
-    html = INDEX.read_text(encoding="utf-8")
+def build(page: Path) -> None:
+    html = page.read_text(encoding="utf-8")
     names = sorted(set(re.findall(r'href="#i-([a-z0-9-]+)"', html)))
     html = re.sub(
         r"<!-- ICONS -->.*?<!-- /ICONS -->",
@@ -113,10 +115,11 @@ def main() -> None:
         html,
         flags=re.S,
     )
-    html = fix_dimensions(html)
-    INDEX.write_text(html, encoding="utf-8", newline="\n")
-    print(f"index.html : {len(names)} icônes, dimensions des captures à jour")
+    html = fix_dimensions(html, page.parent)
+    page.write_text(html, encoding="utf-8", newline="\n")
+    print(f"{page.relative_to(SITE_DIR)} : {len(names)} icônes, dimensions des captures à jour")
 
 
 if __name__ == "__main__":
-    main()
+    for page in PAGES:
+        build(page)

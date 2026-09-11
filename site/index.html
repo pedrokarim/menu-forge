@@ -14,6 +14,10 @@
   <meta property="og:url" content="https://pedrokarim.github.io/menu-forge/">
   <meta property="og:image" content="https://pedrokarim.github.io/menu-forge/assets/screens/menu-editor.png">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://pedrokarim.github.io/menu-forge/">
+  <link rel="alternate" hreflang="fr" href="https://pedrokarim.github.io/menu-forge/">
+  <link rel="alternate" hreflang="en" href="https://pedrokarim.github.io/menu-forge/en/">
+  <link rel="alternate" hreflang="x-default" href="https://pedrokarim.github.io/menu-forge/">
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/pixelify-sans-600.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/atkinson-hyperlegible-400.woff2" as="font" type="font/woff2" crossorigin>
@@ -42,6 +46,10 @@
       </ul>
     </nav>
     <div class="topbar-end">
+      <nav class="lang-switch" aria-label="Langue">
+        <a href="./" hreflang="fr" lang="fr" aria-current="page" aria-label="Français">FR</a>
+        <a href="en/" hreflang="en" lang="en" aria-label="English" data-tip="English version">EN</a>
+      </nav>
       <a class="button icon-only" href="https://github.com/pedrokarim/menu-forge" aria-label="Code source sur GitHub" data-tip="Code source sur GitHub">
         <svg class="icon" aria-hidden="true"><use href="#i-github"></use></svg>
       </a>
@@ -83,7 +91,7 @@
       <figure class="hero-visual">
         <div class="frame">
           <img src="assets/screens/menu-editor.png" width="1440" height="900"
-               alt="L’éditeur de menus&nbsp;: au centre, une boutique à onglets dessinée sur la grille du coffre&nbsp;; à gauche, la liste des couches, des textes et des slots&nbsp;; à droite, l’inspecteur du bouton « Acheter » sélectionné.">
+               alt="L’éditeur de menus&nbsp;: au centre, une boutique à onglets dessinée sur la grille du coffre&nbsp;; à gauche, la liste des couches, des textes et des slots&nbsp;; à droite, l’inspecteur du bouton «&nbsp;Acheter&nbsp;» sélectionné.">
         </div>
         <div class="tip hero-tip" aria-hidden="true">
           <p class="tip-title">Boutique</p>
@@ -108,7 +116,7 @@
         <article class="card feature">
           <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-grid"></use></svg></span>
           <h3>Toile au pixel près</h3>
-          <p>Calée sur la grille des slots, en fond « cases seules » ou coffre vanilla, avec zoom et aimantation.</p>
+          <p>Calée sur la grille des slots, en fond «&nbsp;cases seules&nbsp;» ou coffre vanilla, avec zoom et aimantation.</p>
         </article>
         <article class="card feature">
           <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-sparkles"></use></svg></span>
@@ -148,7 +156,7 @@
         <article class="card feature">
           <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-server"></use></svg></span>
           <h3>Lib Paper</h3>
-          <p>Le plugin MenuForge gère sessions, pagination et actions, génère les polices du pack et s’ouvre à votre serveur par une API.</p>
+          <p>Le plugin MenuForge gère sessions, pagination et actions, génère les polices du pack et s’ouvre à votre serveur par une API. Né pour Enderium, il sert tout serveur Paper.</p>
         </article>
       </div>
     </div>
@@ -175,7 +183,7 @@
         <li>
           <a class="shot" href="assets/screens/menu-editor.png">
             <span class="shot-media"><img src="assets/screens/menu-editor.png" width="1440" height="900" loading="lazy"
-              alt="L’éditeur de menus&nbsp;: une boutique à onglets, le bouton « Acheter » sélectionné et son inspecteur."></span>
+              alt="L’éditeur de menus&nbsp;: une boutique à onglets, le bouton «&nbsp;Acheter&nbsp;» sélectionné et son inspecteur."></span>
             <span class="shot-caption"><strong>Éditeur de menus</strong> Couches, textes, zones de slots et inspecteur.</span>
           </a>
         </li>
@@ -238,7 +246,7 @@
       <div class="section-head">
         <h2 id="how-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-info"></use></svg> Comment ça marche</h2>
         <p class="section-lead">
-          Les menus « modernes » des serveurs ne sont pas des mods&nbsp;: ce sont des coffres vanilla dont le
+          Les menus «&nbsp;modernes&nbsp;» des serveurs ne sont pas des mods&nbsp;: ce sont des coffres vanilla dont le
           titre contient des images. menu-forge s’occupe de toute la chaîne.
         </p>
       </div>
@@ -367,7 +375,7 @@
             <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-server"></use></svg></span>
             <h3>Plugin Paper</h3>
           </div>
-          <p>MenuForge lit les menus exportés, génère les polices du pack et ouvre les menus en jeu.</p>
+          <p>MenuForge lit les menus exportés, génère les polices du pack et ouvre les menus en jeu. Paper&nbsp;1.20.6 et plus, Java&nbsp;21.</p>
           <div class="code">
             <pre id="cmd-plugin"><code><span class="line">cd menu-forge/lib</span>
 <span class="line">./gradlew build</span></code></pre>
@@ -482,8 +490,9 @@
 
       <div class="legal">
         <p>
-          <strong>Licence du projet</strong>&nbsp;: <!-- LICENCE À CHOISIR --> en cours de choix. En attendant,
-          aucune licence n’est accordée sur le code du dépôt.
+          <strong>Licence du projet</strong>&nbsp;: menu-forge est distribué sous licence
+          <a href="https://github.com/pedrokarim/menu-forge/blob/main/LICENSE">MIT</a>, © 2026 Karim (pedrokarim). Les composants tiers
+          ci-dessus gardent leur propre licence.
         </p>
         <p>
           menu-forge n’est ni affilié à Mojang ni approuvé par Mojang&nbsp;; Minecraft est une marque de Mojang AB.
@@ -507,7 +516,7 @@
       <img src="assets/logo.svg" alt="" width="24" height="24">
       <span>menu-forge</span>
     </a>
-    <p>Studio d’inventaires Minecraft à base de glyphes de police.</p>
+    <p>Studio d’inventaires Minecraft à base de glyphes de police, conçu pour Enderium. Licence MIT.</p>
     <a href="https://github.com/pedrokarim/menu-forge">github.com/pedrokarim/menu-forge</a>
   </div>
 </footer>

@@ -7,7 +7,8 @@ studio.
 
 | Chemin | Rôle |
 |---|---|
-| `index.html` | La page (accueil, fonctionnalités, galerie, fonctionnement, démarrage, documentation, mentions) |
+| `index.html` | La page en français (accueil, fonctionnalités, galerie, fonctionnement, démarrage, documentation, mentions) |
+| `en/index.html` | La même page en anglais, liée à la version française (sélecteur de langue, `hreflang`) |
 | `assets/site.css` | Styles : mêmes jetons que `studio/src/index.css` |
 | `assets/site.js` | Visionneuse des captures, boutons « Copier », section courante |
 | `assets/fonts/` | Polices auto-hébergées (Pixelify Sans, Atkinson Hyperlegible, JetBrains Mono) et leurs licences SIL OFL 1.1 |

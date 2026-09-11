@@ -415,6 +415,44 @@ kbd {
   margin-left: auto;
 }
 
+.topbar-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Sélecteur de langue : deux cases, la langue affichée en or. */
+.lang-switch {
+  display: flex;
+  background: var(--ds-field);
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-sunken);
+}
+
+.lang-switch a {
+  display: inline-grid;
+  place-items: center;
+  min-width: 42px;
+  min-height: 40px;
+  padding: 0 8px;
+  font: 600 15px/1 var(--font-display);
+  letter-spacing: 0.04em;
+  color: var(--ds-muted);
+  text-decoration: none;
+}
+
+.lang-switch a:hover {
+  color: var(--ds-ink-strong);
+  background: var(--ds-hover);
+}
+
+.lang-switch a[aria-current='page'] {
+  color: var(--ds-gold-ink);
+  background: var(--ds-gold-btn);
+  box-shadow: var(--bevel-gold);
+}
+
 .nav ul {
   display: flex;
   gap: 2px;
