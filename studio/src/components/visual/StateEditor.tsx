@@ -245,7 +245,7 @@ function StateCard({
               key={key}
               label={key === 'default' ? 'Défaut' : key === 'min' ? 'Min' : 'Max'}
               value={definition[key]}
-              placeholder={key === 'default' ? '0' : '—'}
+              placeholder={key === 'default' ? '0' : 'aucun'}
               onChange={(value) => {
                 const next = { ...definition };
                 if (value === undefined) delete next[key];
