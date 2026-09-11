@@ -4,7 +4,7 @@
 
 ## Fait (2026-09-10)
 
-- **Modèle de rendu** mesuré sur un pack de référence :
+- **Modèle de rendu** mesuré sur un pack de référence étudié en local :
   [`rendering.md`](rendering.md) (coordonnées, formule de l’`ascent`, règle
   d’avance, pixel témoin).
 - **Format v1** : [`format.md`](format.md) (couches, textes, slots, état,
@@ -26,7 +26,7 @@
   - `menu-forge-core` (Java 17, Gson seulement) : parseur avec chemin de la
     clé fautive, gabarits, conditions, mesure des PNG, composition du titre,
     génération du pack (une police par menu, polices de texte par `ascent`) ;
-  - `menu-forge-paper` : plugin Paper autonome `MenuForge` (1.21.4 minimum),
+  - `menu-forge-paper` : plugin Paper autonome `MenuForge` (Paper 1.20.6 minimum),
     API + SPI (`ListProvider`, `FlagProvider`, `PlaceholderResolver`,
     `ItemFactory`, `CustomActionHandler`), sessions avec pile pour `back`,
     clics verrouillés sauf slots `input`, commandes `/menuforge open`,
@@ -117,7 +117,7 @@ réglages, récents) sur ces routes.
 2. **Adaptateur Enderium** (dans enderium-core) : ClickActions, requirements,
    placeholders, fusion des polices générées dans `ResourcePack`.
 3. **Premier vrai menu** : recréer `/profile` avec menu-forge, avec des
-   textures générées à la place des assets d’un pack de référence.
+   textures générées à la place des assets du pack de référence.
 4. **Studio** :
    - police pixel fidèle pour l’aperçu des textes ;
    - éditeur visuel des états et des actions (sans passer par le JSON) ;

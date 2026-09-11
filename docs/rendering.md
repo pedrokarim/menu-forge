@@ -1,7 +1,7 @@
 # Modèle de rendu
 
 Comment une image dessinée dans le studio finit à l’écran du joueur. Tout ce qui
-suit a été **mesuré** sur un pack de référence (voir « Sources ») ; les points
+suit a été **mesuré** sur un pack de référence étudié en local (voir « Sources ») ; les points
 encore à confirmer en jeu sont marqués **[à calibrer]**.
 
 ## 1. Le principe
@@ -161,7 +161,7 @@ courants (`é è à ç É`) avancent de 6, `€` de 7.
 
 ## Sources
 
-- Pack de référence étudié localement : (dossier local, hors du dépôt)
+- Pack de référence d’un serveur, étudié en local (hors dépôt)
   (polices `font/menus/**`, textures `textures/custom_ui/menus/**`).
 - Mesures des avances : dernière colonne opaque = 175 sur 14 couches examinées
   (navigation, pages, filtres, fonds, modale).

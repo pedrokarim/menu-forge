@@ -32,8 +32,8 @@ dépendre d’aucun type Enderium.
   « Generated with Claude Code », ni dans les commits ni dans les PR.
 - **Ne jamais exécuter `git config user.name` / `user.email`** : la config
   globale de la machine s’applique.
-- **Pas d’assets tiers dans le dépôt.** Les textures d’un pack de référence étudiées
-  dans `enderium-core/.lab/` servent de référence uniquement ; les gabarits
+- **Pas d’assets tiers dans le dépôt.** Les textures d’un pack de référence
+  étudié en local (hors dépôt) servent de référence uniquement ; les gabarits
   fournis ici sont générés ou dessinés par nous.
 - Typographie française dans la prose : tiret demi-cadratin (–) entouré
   d’espaces pour une incise, pas de tiret cadratin, guillemets « … ».
