@@ -31,7 +31,8 @@ travail de démonstration (`scripts/demo-workspace.mjs`) fait uniquement de
 textures générées ou dessinées par le code du studio (générateur, rendu des
 assets, encodeur de l’éditeur de pixels) et du logo du projet, avec des réglages sans
 aucune bibliothèque (`"libraries": []`). Aucun asset tiers ne peut donc
-apparaître à l’écran. Il lance le backend (`studio-api --no-discord`) et Vite
+apparaître à l’écran, et les textes du jeu sont dessinés avec la police pixel
+de Menu Forge (voir [`../docs/rendering.md`](../docs/rendering.md)). Il lance le backend (`studio-api --no-discord`) et Vite
 sur des ports dédiés (5221 et 5222), pilote l’interface avec Playwright, masque
 les chemins de la machine, puis écrit les PNG dans `assets/screens/`.
 
