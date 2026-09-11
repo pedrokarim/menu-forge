@@ -65,12 +65,19 @@ travail, affiché comme les ressources d’enderium-core : la capture `export` 
 | `ai-settings` | Paramètres, section IA : les onze fournisseurs, aucun activé, fiche OpenAI dépliée sans clé (fenêtre de 1180 px de haut) |
 | `ai-texture` | « Générer une texture » : sortie du faux Automatic1111 et texture ramenée sur 16 × 16 et la palette Menu Forge |
 | `ai-interface` | « Générer une interface » : réponse du faux Ollama refusée au premier essai, corrigée au second |
+| `bedrock-form` | Éditeur de formulaires Bedrock : le hub de démonstration (grille), bouton « Boutique » sélectionné, son icône et ses actions |
+| `bedrock-layouts` | « Nouveau menu » : les huit dispositions des formulaires Bedrock, la grille choisie |
 
 Les trois captures `ai-*` ne contactent **aucun** service : `capture.mjs` lance
 un faux Automatic1111 et un faux Ollama sur `127.0.0.1` (port libre), qui
 renvoient l’émeraude et le menu décrits dans `DEMO_AI` (`demo-workspace.mjs`).
 Le backend lit le vrai trousseau du système sans jamais y écrire, et la
 capture est refusée si une clé d’API y est déjà rangée.
+
+Le formulaire Bedrock de démonstration (`hub`, `DEMO_FORM` dans
+`capture.mjs`) est écrit par l’API au moment de sa capture : il n’entre pas
+dans `DEMO_MENUS`, dont dépendent les tests de bout en bout. Ses icônes sont
+des textures de l’espace, cuites par le studio.
 
 Prérequis : les dépendances du studio installées (`npm install` dans
 `studio/`), Rust (le backend est compilé s’il manque) et, pour réduire le poids

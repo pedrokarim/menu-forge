@@ -624,6 +624,82 @@ shot('settings', 'Paramètres', async (page) => {
   await open(page, '#/parametres');
 });
 
+/* ---------- Formulaires Bedrock ---------- */
+
+/**
+ * Formulaire Bedrock de la démonstration, écrit par l’API au moment de la
+ * capture (hors de `DEMO_MENUS` : les tests de bout en bout n’en dépendent
+ * pas). Ses icônes sont des textures de l’espace, cuites par le studio.
+ */
+const DEMO_FORM = {
+  formatVersion: 1,
+  id: 'hub',
+  name: 'Hub du serveur',
+  container: { type: 'chest', rows: 6 },
+  state: {},
+  layers: [],
+  form: {
+    layout: 'grid',
+    title: '§l§6Serveur démo',
+    content: '§7Bienvenue, {viewer.name}. Choisis une destination.',
+    buttons: [
+      { id: 'shop', text: 'Boutique', icon: { texture: 'generated/shop/buy.png' }, onClick: [{ type: 'open', menu: 'shop' }] },
+      { id: 'profile', text: 'Profil', icon: { texture: 'brand/logo.png' }, onClick: [{ type: 'open', menu: 'profile' }] },
+      {
+        id: 'vote',
+        text: 'Voter',
+        icon: { texture: 'generated/confirmation/yes.png' },
+        onClick: [{ type: 'command', command: 'vote', as: 'player' }, { type: 'close' }],
+      },
+      {
+        id: 'admin',
+        text: 'Administration',
+        icon: { texture: 'generated/shop/tab_blocks_active.png' },
+        visibleWhen: { flag: 'viewer.op' },
+        onClick: [{ type: 'open', menu: 'confirmation' }],
+      },
+      { id: 'close', text: 'Fermer', icon: { texture: 'generated/shop/close.png' }, onClick: [{ type: 'close' }] },
+    ],
+  },
+};
+
+/** Écrit le formulaire de démonstration par l’API (sans effet s’il existe déjà tel quel). */
+async function putDemoForm(page) {
+  await page.evaluate(async (form) => {
+    const response = await fetch(`/api/menus/${form.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Menu-Forge': '1' },
+      body: JSON.stringify(form, null, 2),
+    });
+    if (!response.ok) throw new Error(`${form.id} : ${response.status} ${await response.text()}`);
+  }, DEMO_FORM);
+}
+
+shot('bedrock-form', 'Éditeur de formulaires Bedrock, un bouton sélectionné', async (page) => {
+  await open(page, '#/accueil');
+  await putDemoForm(page);
+  await open(page, `#/editeur/menus/${DEMO_FORM.id}`);
+  await page.locator('.form-editor .bf-screen').first().waitFor({ timeout: 30000 });
+  await page.locator('.form-editor .form-button-row', { hasText: 'Boutique' }).first().click();
+  await page.locator('.form-editor .inspector .icon-current').waitFor();
+  await page.mouse.move(5, 600);
+  await wait(400);
+});
+
+shot('bedrock-layouts', 'Nouveau menu, les huit dispositions des formulaires Bedrock', async (page) => {
+  await open(page, '#/editeur/menus/shop');
+  await page.getByRole('button', { name: 'Nouveau', exact: true }).click();
+  const modal = page.locator('.modal').first();
+  await modal.waitFor();
+  const layouts = modal.getByRole('radiogroup', { name: 'Formulaire Bedrock' });
+  await layouts.getByRole('radio').first().click();
+  await field(modal, 'Nom').fill('Hub du serveur');
+  await layouts.evaluate((group) => group.scrollIntoView({ block: 'center' }));
+  await page.mouse.move(5, 5);
+  await wait(400);
+  return modal;
+});
+
 /* ---------- Générateur d’interfaces ---------- */
 
 /** Champ d’un dialogue par le texte exact de son libellé (`label.field`). */

@@ -40,6 +40,7 @@
         <li><a href="#features">Features</a></li>
         <li><a href="#gallery">Gallery</a></li>
         <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#bedrock">Bedrock</a></li>
         <li><a href="#get-started">Get started</a></li>
         <li><a href="#documentation">Documentation</a></li>
         <li><a href="#notices">Notices</a></li>
@@ -69,6 +70,7 @@
           Menu Forge is a local studio for drawing custom Minecraft inventories—tabs, modals, colored buttons,
           paginated lists—and a Paper library that opens them in game. You draw; the studio composes the chest
           title, glyph by glyph, without a single offset computed by hand.
+          On Bedrock, the same menus and dedicated forms go out as JSON UI to the native mc-rs server.
         </p>
         <div class="actions">
           <a class="button primary" href="#get-started">
@@ -82,6 +84,7 @@
           <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Desktop app or browser</li>
           <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Open JSON format</li>
           <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Paper plugin with an API</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Java and Bedrock</li>
         </ul>
         <p class="status">
           <svg class="icon" aria-hidden="true"><use href="#i-warning"></use></svg>
@@ -231,6 +234,13 @@
             <span class="shot-media"><img src="../assets/screens/menu-editor.png" width="1440" height="900" loading="lazy"
               alt="The menu editor: a tabbed shop, the Buy button selected with its inspector."></span>
             <span class="shot-caption"><strong>Menu editor</strong> Layers, texts, slot areas and inspector.</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/bedrock-form.png">
+            <span class="shot-media"><img src="../assets/screens/bedrock-form.png" width="1440" height="900" loading="lazy"
+              alt="The Bedrock form editor: the layout and the button list on the left, the grid preview in the middle, the selected button's inspector and its icon on the right."></span>
+            <span class="shot-caption"><strong>Bedrock form</strong> Layout, buttons, icons and a preview true to the pack.</span>
           </a>
         </li>
         <li>
@@ -451,8 +461,87 @@
     </div>
   </section>
 
+  <!-- ---------- Java et Bedrock ---------- -->
+  <section id="bedrock" class="section alt" aria-labelledby="bedrock-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="bedrock-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-layout"></use></svg> Java and Bedrock</h2>
+        <p class="section-lead">
+          One studio, both editions of the game. On Java, the visuals ride in the chest's title; on Bedrock, in a
+          server form drawn with JSON UI.
+        </p>
+      </div>
+
+      <div class="grid cols-2">
+        <article class="card feature">
+          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-chest"></use></svg></span>
+          <h3>Java: the Paper plugin</h3>
+          <p>The MenuForge plugin opens a vanilla chest whose title carries the visuals as font glyphs; it generates the pack fonts and handles sessions, pages and actions.</p>
+        </article>
+        <article class="card feature">
+          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-layout"></use></svg></span>
+          <h3>Bedrock: the <span class="nowrap">mc-rs</span> server</h3>
+          <p>"Export for Bedrock" writes a resource pack (JSON UI layouts, textures) and a runtime descriptor, <code>runtime.json</code>; the native mc-rs server sends the forms and runs the clicks.</p>
+        </article>
+      </div>
+
+      <div class="split">
+        <div class="prose">
+          <h3>Bedrock forms</h3>
+          <p>
+            A menu type of its own, made for the Bedrock client: a title, a text and buttons, shown in one of the
+            eight layouts of the server's <code>mcrs_ui</code> pack. Each button has its text, a subtitle, a role
+            (banner, special button), an icon and its click actions; a "Sent if" condition hides it depending on
+            the state or the player's flags.
+          </p>
+          <p>
+            The icon comes from the workspace (imported, drawn in the pixel editor, picked from a library), from a
+            game texture referenced by its path (<code>textures/items/diamond</code>)—never copied—or from a web
+            address. The preview follows the geometry of the pack's layouts, and "Try" mode runs the actions the
+            way the server does.
+          </p>
+          <p>
+            Chest menus go to Bedrock too: the exporter generates a JSON UI layout for each of them, with a button
+            grid aligned on the chest's slots.
+          </p>
+          <p>
+            On mc-rs, <code>/mf list</code> lists the menus, <code>/mf open &lt;id&gt;</code> opens one and
+            <code>/mf reload</code> reloads the export without restarting the server.
+          </p>
+          <p>
+            <a href="https://github.com/pedrokarim/menu-forge/blob/main/docs/bedrock.md">Read the contract between the exporter and the server</a>
+            or <a href="https://github.com/pedrokarim/menu-forge/blob/main/docs/guide.md">follow the getting-started guide</a> (in French)
+          </p>
+        </div>
+
+        <div class="tip token-panel">
+          <p class="tip-title">Eight layouts</p>
+          <p class="tip-hint">Picked at creation, changeable later; the title's flag routes the client.</p>
+          <ol class="token-list">
+            <li class="token-glyph">grid · §m§a · large tiles, three per row</li>
+            <li class="token-glyph">left_button · §m§b · buttons on the left</li>
+            <li class="token-glyph">bottom_button · §m§c · buttons at the bottom</li>
+            <li class="token-glyph">image_grid · §m§d · titled thumbnails</li>
+            <li class="token-glyph">square_image · §m§e · one square image</li>
+            <li class="token-glyph">motd · §m§f · column, scrolling text</li>
+            <li class="token-glyph">store · §m§0 · tabs and products</li>
+            <li class="token-glyph">wrapped · §m§1 · recap, scrolling visuals</li>
+          </ol>
+        </div>
+      </div>
+
+      <figure class="figure">
+        <div class="frame">
+          <img src="../assets/screens/bedrock-form.png" width="1440" height="900" loading="lazy"
+               alt="The Bedrock form editor: the layout and the button list on the left, the grid preview in the middle, the selected button's inspector and its icon on the right.">
+        </div>
+        <figcaption>In the studio: the layout and the buttons, a preview true to the pack, the selected button's inspector.</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <!-- ---------- Démarrer ---------- -->
-  <section id="get-started" class="section alt" aria-labelledby="start-title">
+  <section id="get-started" class="section" aria-labelledby="start-title">
     <div class="wrap">
       <div class="section-head">
         <h2 id="start-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-download"></use></svg> Get started</h2>
@@ -522,13 +611,20 @@
   </section>
 
   <!-- ---------- Documentation ---------- -->
-  <section id="documentation" class="section" aria-labelledby="docs-title">
+  <section id="documentation" class="section alt" aria-labelledby="docs-title">
     <div class="wrap">
       <div class="section-head">
         <h2 id="docs-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-book"></use></svg> Documentation</h2>
         <p class="section-lead">The documentation lives in the repository, next to the code it describes. It is written in French.</p>
       </div>
       <ul class="grid cols-2" style="margin: 0; padding: 0; list-style: none;">
+        <li>
+          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/guide.md">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-play"></use></svg></span>
+            <span><strong>Getting-started guide</strong><span>A first Java menu and a first Bedrock form, from creation to opening in game.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
         <li>
           <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/rendering.md">
             <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-chest"></use></svg></span>
@@ -540,6 +636,13 @@
           <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/format.md">
             <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-code"></use></svg></span>
             <span><strong>Menu format</strong><span>Layers, texts, slots, state, conditions, actions, templates.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
+        <li>
+          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/bedrock.md">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-layout"></use></svg></span>
+            <span><strong>Menu Forge on Bedrock</strong><span>Export, <code>runtime.json</code>, forms and layouts, server-side execution.</span></span>
             <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
           </a>
         </li>
@@ -611,7 +714,7 @@
   </section>
 
   <!-- ---------- Mentions ---------- -->
-  <section id="notices" class="section alt" aria-labelledby="legal-title">
+  <section id="notices" class="section" aria-labelledby="legal-title">
     <div class="wrap">
       <div class="section-head">
         <h2 id="legal-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-file"></use></svg> Notices</h2>
