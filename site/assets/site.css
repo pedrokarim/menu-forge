@@ -1045,6 +1045,8 @@ h3 {
 .code {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  /* Le bouton garde sa hauteur ; la commande prend l’espace laissé par une carte plus courte. */
+  grid-template-rows: auto 1fr;
   gap: 6px;
   margin: 0;
 }
@@ -1053,6 +1055,9 @@ h3 {
   margin: 0;
   padding: 14px 16px;
   overflow-x: auto;
+  /* Une commande trop longue revient à la ligne (le texte copié, lui, ne change pas). */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font: 14px/1.7 var(--font-mono);
   color: var(--ds-ink);
   background: var(--ds-field);
@@ -1070,6 +1075,11 @@ h3 {
 .code .copy {
   order: -1;
   justify-self: end;
+}
+
+/* Groupe de touches (« Ctrl+E ») jamais coupé en fin de ligne. */
+.nowrap {
+  white-space: nowrap;
 }
 
 .prereq {
