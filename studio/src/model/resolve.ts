@@ -103,6 +103,10 @@ function expandIncludes(
       errors.push(`Composant introuvable : ${target}`);
       continue;
     }
+    if (component.form) {
+      errors.push(`« ${target} » est un formulaire Bedrock : il ne peut pas servir de composant`);
+      continue;
+    }
     const resolved = resolveRecursive(component, lookup, [...chain, target], errors);
     const origin: ElementOrigin = { kind: 'component', id: target };
     const prefix = include.prefix ?? '';
@@ -164,6 +168,10 @@ function resolveRecursive(
       errors.push(`Gabarit introuvable : ${parentId}`);
       continue;
     }
+    if (parent.form) {
+      errors.push(`« ${parentId} » est un formulaire Bedrock : il ne peut pas servir de gabarit`);
+      continue;
+    }
     const resolved = resolveRecursive(parent, lookup, [...chain, parentId], errors);
     const origin: ElementOrigin = { kind: 'template', id: parentId };
     inherited = {
@@ -189,6 +197,13 @@ function resolveRecursive(
  * fait la lib (`TemplateResolver`, cf. docs/format.md § Gabarits et § Composants).
  */
 export function resolveMenu(menu: MenuDefinition, lookup: (id: string) => MenuDefinition | undefined): ResolvedMenu {
+  // Formulaire Bedrock : ni gabarit ni composant, il est déjà « résolu ».
+  if (menu.form) {
+    const errors: string[] = [];
+    if ((menu.extends ?? []).length > 0) errors.push('Un formulaire Bedrock n’hérite pas de gabarit (extends ignoré)');
+    if ((menu.includes ?? []).length > 0) errors.push('Un formulaire Bedrock n’inclut pas de composant (includes ignoré)');
+    return { menu, inherited: new Set(), origins: new Map(), errors };
+  }
   const errors: string[] = [];
   const resolved = resolveRecursive(menu, lookup, [menu.id], errors);
 

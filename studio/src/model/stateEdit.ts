@@ -100,6 +100,11 @@ export function renameEnumValue(draft: MenuDefinition, state: string, from: stri
       if (action.type === 'setState' && action.state === state && action.value === from) action.value = to;
     }
   }
+  for (const button of draft.form?.buttons ?? []) {
+    for (const action of button.onClick ?? []) {
+      if (action.type === 'setState' && action.state === state && action.value === from) action.value = to;
+    }
+  }
 }
 
 /** Applique `fn` à chaque condition du menu (couches, textes, slots, instances). */
@@ -111,6 +116,7 @@ export function forEachCondition(menu: MenuDefinition, fn: (condition: Condition
     if (slot.enabledWhen) slot.enabledWhen = fn(slot.enabledWhen);
   }
   for (const include of menu.includes ?? []) if (include.visibleWhen) include.visibleWhen = fn(include.visibleWhen);
+  for (const button of menu.form?.buttons ?? []) if (button.visibleWhen) button.visibleWhen = fn(button.visibleWhen);
 }
 
 /** Condition réécrite nœud par nœud (feuilles comprises). */
@@ -151,6 +157,15 @@ export function renameState(draft: MenuDefinition, from: string, to: string) {
     if (slot.item?.name) slot.item.name = renameVariables(slot.item.name, from, to);
     if (slot.item?.lore) slot.item.lore = slot.item.lore.map((line) => renameVariables(line, from, to));
   }
+  if (draft.form) {
+    draft.form.title = renameVariables(draft.form.title, from, to);
+    if (draft.form.content !== undefined) draft.form.content = renameVariables(draft.form.content, from, to);
+    for (const button of draft.form.buttons) {
+      for (const action of button.onClick ?? []) if (action.type === 'setState' && action.state === from) action.state = to;
+      button.text = renameVariables(button.text, from, to);
+      if (button.subtitle !== undefined) button.subtitle = renameVariables(button.subtitle, from, to);
+    }
+  }
 }
 
 function conditionCites(condition: Condition | undefined, name: string): boolean {
@@ -183,6 +198,15 @@ export function stateUsageCount(menu: MenuDefinition, name: string): number {
       (slot.onClick ?? []).some((action) => citesAction(action, name)) ||
       variable(slot.item?.name) ||
       (slot.item?.lore ?? []).some(variable);
+    if (cited) count++;
+  }
+  if (menu.form && (variable(menu.form.title) || variable(menu.form.content))) count++;
+  for (const button of menu.form?.buttons ?? []) {
+    const cited =
+      conditionCites(button.visibleWhen, name) ||
+      (button.onClick ?? []).some((action) => citesAction(action, name)) ||
+      variable(button.text) ||
+      variable(button.subtitle);
     if (cited) count++;
   }
   return count;

@@ -65,6 +65,20 @@ class WorkspaceTest extends MockServerTest {
   }
 
   @Test
+  void bedrockFormsAreIgnoredWithoutError() {
+    writeMenu(workspace, "form_hub", """
+      { "id": "form_hub", "form": { "layout": "grid", "title": "Hub",
+        "buttons": [{ "id": "a", "text": "A", "onClick": [{ "type": "open", "menu": "detail" }] }] } }
+      """);
+    writeMenu(workspace, "detail", DETAIL);
+
+    final MenuForgeService.ReloadReport report = service.reloadWorkspace();
+    assertEquals(List.of(), report.errors());
+    assertTrue(service.menuIds().contains("detail"));
+    assertFalse(service.menuIds().contains("form_hub"));
+  }
+
+  @Test
   void invalidMenusAreReportedWithoutBlockingTheOthers() {
     writeMenu(workspace, "broken", "{ \"id\": \"broken\", \"layers\": [{ \"id\": \"x\" }] }");
     writeMenu(workspace, "missing_texture", """

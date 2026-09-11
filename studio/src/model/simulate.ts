@@ -213,6 +213,28 @@ export function clickSlot(session: TrySession, lookup: ResolvedLookup, slotId: s
   return draft.done();
 }
 
+/**
+ * Clic sur un bouton du formulaire Bedrock affiché : ses actions s’exécutent
+ * dans l’ordre, comme sur le serveur (le formulaire est ensuite renvoyé, sauf
+ * fermeture).
+ */
+export function clickFormButton(session: TrySession, lookup: ResolvedLookup, buttonId: string): TrySession {
+  const draft = new Draft(session);
+  const frame = draft.top();
+  const menu = frame ? lookup(frame.menuId) : undefined;
+  const button = menu?.form?.buttons.find((candidate) => candidate.id === buttonId);
+  if (!frame || !menu || !button) return session;
+  draft.write('click', `Clic sur « ${button.id} »`);
+  if (!evaluateCondition(button.visibleWhen, buildPreviewContext(menu, frame.values))) {
+    draft.write('info', 'Bouton non envoyé : sa condition d’affichage est fausse');
+    return draft.done();
+  }
+  const actions = button.onClick ?? [];
+  if (actions.length === 0) draft.write('info', 'Aucune action : le serveur renvoie le formulaire');
+  for (const action of actions) runAction(action, draft, lookup);
+  return draft.done();
+}
+
 /** Retour simulé (bouton du panneau), comme l’action `back`. */
 export function goBack(session: TrySession, lookup: ResolvedLookup): TrySession {
   const draft = new Draft(session);

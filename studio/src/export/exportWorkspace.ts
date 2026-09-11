@@ -71,6 +71,20 @@ export function menusForExport(snapshot: WorkspaceSnapshot): MenuDefinition[] {
   return menus;
 }
 
+/**
+ * Menus rendus en Java : les formulaires Bedrock n’ont pas de rendu Java (la
+ * lib les ignore) et ne sont ni exportés vers le plugin ni mis dans le pack.
+ *
+ * @throws s’il ne reste aucun menu coffre
+ */
+export function javaMenus(menus: readonly MenuDefinition[]): MenuDefinition[] {
+  const chests = menus.filter((menu) => !menu.form);
+  if (chests.length === 0) {
+    throw new Error('Aucun menu coffre à exporter : les formulaires Bedrock n’ont pas de rendu Java (bouton « Bedrock »)');
+  }
+  return chests;
+}
+
 /** Textures utilisées par des menus, sans doublon, triées. */
 export function texturesOf(menus: readonly MenuDefinition[]): string[] {
   return [...new Set(menus.flatMap((menu) => menu.layers.map((layer) => layer.texture)))].sort();
@@ -104,7 +118,7 @@ export async function loadWorkspaceTexture(path: string): Promise<RgbaImage | nu
 
 /** Exporte les menus de l’espace et leurs textures vers le dossier du plugin. */
 export async function exportToPlugin(snapshot: WorkspaceSnapshot): Promise<PluginExportResult> {
-  const menus = menusForExport(snapshot);
+  const menus = javaMenus(menusForExport(snapshot));
   const response = await fetch(
     '/api/export/plugin',
     withWriteHeader({
@@ -120,7 +134,7 @@ export async function exportToPlugin(snapshot: WorkspaceSnapshot): Promise<Plugi
 /** Génère un pack ZIP autonome (polices, textures, `pack.mcmeta`) et l’écrit dans `exports/` de l’espace. */
 export async function exportPackZip(snapshot: WorkspaceSnapshot): Promise<PackExportResult> {
   const { export: settings } = await fetchSettings();
-  const menus = menusForExport(snapshot);
+  const menus = javaMenus(menusForExport(snapshot));
   const files = await generatePack(menus, loadWorkspaceTexture, settings.namespace);
   const entries = [
     { path: 'pack.mcmeta', data: packMeta(settings.packFormat, 'Menus de Menu Forge (pack de test)') },

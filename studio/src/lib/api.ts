@@ -1,4 +1,5 @@
 import type { AssetDefinition } from '../asset/model';
+import { menuForDisk, normalizeMenu } from '../model/menu';
 import type { MenuDefinition } from '../model/menu';
 import { withWriteHeader } from './http';
 
@@ -25,15 +26,17 @@ function encodeTexturePath(path: string): string {
   return path.split('/').map(encodeURIComponent).join('/');
 }
 
-export function fetchWorkspace(): Promise<WorkspaceSnapshot> {
-  return request<WorkspaceSnapshot>('/api/workspace');
+/** Contenu de l’espace ; les formulaires Bedrock reçoivent en mémoire un coffre neutre (`normalizeMenu`). */
+export async function fetchWorkspace(): Promise<WorkspaceSnapshot> {
+  const snapshot = await request<WorkspaceSnapshot>('/api/workspace');
+  return { ...snapshot, menus: snapshot.menus.map(normalizeMenu), templates: snapshot.templates.map(normalizeMenu) };
 }
 
 export function saveMenu(menu: MenuDefinition): Promise<void> {
   return request<void>(`/api/menus/${encodeURIComponent(menu.id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(menu, null, 2),
+    body: JSON.stringify(menuForDisk(menu), null, 2),
   });
 }
 

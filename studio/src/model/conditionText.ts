@@ -7,6 +7,7 @@ export function menuConditions(menu: MenuDefinition): Condition[] {
     ...(menu.texts ?? []).map((text) => text.visibleWhen),
     ...(menu.slots ?? []).flatMap((slot) => [slot.visibleWhen, slot.enabledWhen]),
     ...(menu.includes ?? []).map((include) => include.visibleWhen),
+    ...(menu.form?.buttons ?? []).map((button) => button.visibleWhen),
   ];
   return conditions.filter((condition): condition is Condition => condition !== undefined);
 }

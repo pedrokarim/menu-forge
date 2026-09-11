@@ -104,9 +104,15 @@ final class WorkspaceLoader {
       roots.stream().map(root -> new DirectoryTextureSource(root.textures())).collect(Collectors.toList())));
     final TemplateResolver resolver = new TemplateResolver(definitions::get);
     final Map<String, CompiledMenu> menus = new TreeMap<>();
+    int bedrockForms = 0;
     for (final MenuDefinition definition : definitions.values()) {
       // Gabarits et composants : des pièces assemblées dans les menus, jamais ouvertes seules.
       if (definition.partial()) {
+        continue;
+      }
+      // Formulaires Bedrock : pas de rendu Java, ignorés sans erreur.
+      if (definition.bedrockForm()) {
+        bedrockForms++;
         continue;
       }
       try {
@@ -116,6 +122,10 @@ final class WorkspaceLoader {
       } catch (final MenuForgeException exception) {
         errors.add(sources.get(definition.id()) + " : " + exception.getMessage());
       }
+    }
+
+    if (bedrockForms > 0) {
+      logger.info(bedrockForms + " formulaire(s) Bedrock ignoré(s) : pas de rendu Java");
     }
 
     final MenuDefinition calibration = CalibrationMenu.register(textures, 6);

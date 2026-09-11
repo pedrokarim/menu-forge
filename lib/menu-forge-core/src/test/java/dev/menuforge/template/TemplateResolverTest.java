@@ -115,4 +115,19 @@ class TemplateResolverTest {
       () -> resolver(menu).resolve(menu));
     assertTrue(error.getMessage().contains("ghost"), error.getMessage());
   }
+  @Test
+  void aBedrockFormServesNeitherAsTemplateNorAsComponent() {
+    final MenuDefinition form = TestMenus.parse("""
+      { "id": "hub", "form": { "layout": "grid", "title": "Hub", "buttons": [] } }
+      """);
+    final MenuDefinition heir = TestMenus.parse("""
+      { "id": "heir", "extends": ["hub"], "container": { "rows": 1 } }
+      """);
+    final MenuDefinition includer = TestMenus.parse("""
+      { "id": "includer", "includes": [{ "component": "hub" }], "container": { "rows": 1 } }
+      """);
+    final TemplateResolver resolver = resolver(form, heir, includer);
+    assertTrue(assertThrows(TemplateResolutionException.class, () -> resolver.resolve(heir)).getMessage().contains("gabarit"));
+    assertTrue(assertThrows(TemplateResolutionException.class, () -> resolver.resolve(includer)).getMessage().contains("composant"));
+  }
 }

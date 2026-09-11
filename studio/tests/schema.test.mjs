@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import { ACTION_TYPES } from '../src/model/actions.ts';
+import { FORM_LAYOUTS } from '../src/model/bedrockForm.ts';
 import { CONDITION_KINDS } from '../src/model/conditionText.ts';
 import { STATE_TYPES } from '../src/model/stateEdit.ts';
 import { validate } from './jsonSchema.mjs';
@@ -46,6 +47,38 @@ test('l’exemple complet de docs/format.md respecte le schéma', () => {
   assertValid('docs/format.md', JSON.parse(example[1]));
 });
 
+test('l’exemple de formulaire Bedrock de docs/format.md respecte le schéma', () => {
+  const markdown = readFileSync(new URL('docs/format.md', repository), 'utf8');
+  const example = /## Formulaire Bedrock[\s\S]*?```json\r?\n([\s\S]*?)```/.exec(markdown);
+  assert.ok(example, 'bloc JSON introuvable après « Formulaire Bedrock »');
+  const form = JSON.parse(example[1]);
+  assert.ok(form.form && !form.container);
+  assertValid('docs/format.md (formulaire)', form);
+});
+
+test('les formulaires Bedrock mal formés sont refusés', () => {
+  const base = { formatVersion: 1, id: 'hub', form: { layout: 'grid', title: 'Hub', buttons: [{ id: 'a', text: 'A' }] } };
+  const withButton = (button) => ({ ...base, form: { ...base.form, buttons: [{ id: 'a', text: 'A', ...button }] } });
+  assertValid('formulaire minimal', base);
+  const cases = [
+    ['formulaire avec un coffre', { ...base, container: { type: 'chest', rows: 3 } }, '$.container'],
+    ['formulaire avec des couches', { ...base, layers: [] }, '$.layers'],
+    ['formulaire qui hérite', { ...base, extends: ['frame'] }, '$.extends'],
+    ['disposition inconnue', { ...base, form: { ...base.form, layout: 'carousel' } }, '$.form.layout'],
+    ['formulaire sans titre', { ...base, form: { layout: 'grid', buttons: [] } }, '$.form.title'],
+    ['bouton sans identifiant', { ...base, form: { ...base.form, buttons: [{ text: 'A' }] } }, '$.form.buttons[0].id'],
+    ['rôle inconnu', withButton({ role: 'tab' }), '$.form.buttons[0].role'],
+    ['icône à deux clés', withButton({ icon: { path: 'textures/items/diamond', url: 'https://example.org/a.png' } }), '$.form.buttons[0].icon'],
+    ['texture d’icône sans PNG', withButton({ icon: { texture: 'icons/a.jpg' } }), '$.form.buttons[0].icon'],
+    ['action inconnue', withButton({ onClick: [{ type: 'teleport' }] }), '$.form.buttons[0].onClick[0]'],
+  ];
+  for (const [label, document, path] of cases) {
+    const errors = validate(schema, document);
+    assert.ok(errors.length > 0, `${label} : aurait dû être refusé`);
+    assert.ok(errors.some((error) => error.startsWith(path)), `${label} : chemin ${path} attendu dans ${errors.join(' | ')}`);
+  }
+});
+
 test('les documents mal formés sont refusés, avec le chemin de la clé fautive', () => {
   const base = { formatVersion: 1, id: 'menu', container: { type: 'chest', rows: 6 }, layers: [] };
   const button = { id: 's', kind: 'button', area: { col: 0, row: 0 } };
@@ -85,4 +118,5 @@ test('le schéma et les types du studio listent les mêmes actions, conditions e
   assert.deepEqual(conditionKeys.sort(), CONDITION_KINDS.map((info) => info.kind).sort());
   const stateTypes = branches('stateDefinition').map((branch) => branch.properties.type.const);
   assert.deepEqual(stateTypes.sort(), STATE_TYPES.map((info) => info.type).sort());
+  assert.deepEqual([...schema.$defs.formLayout.enum].sort(), FORM_LAYOUTS.map((info) => info.layout).sort());
 });

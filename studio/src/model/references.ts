@@ -13,10 +13,15 @@ export interface MenuReference {
   includes: number;
 }
 
+/** Listes d’actions du menu : celles des slots, puis celles des boutons d’un formulaire Bedrock. */
+function actionLists(menu: MenuDefinition) {
+  return [...(menu.slots ?? []), ...(menu.form?.buttons ?? [])].map((element) => element.onClick ?? []);
+}
+
 function openActions(menu: MenuDefinition, target: string): number {
   let count = 0;
-  for (const slot of menu.slots ?? []) {
-    for (const action of slot.onClick ?? []) if (action.type === 'open' && action.menu === target) count++;
+  for (const actions of actionLists(menu)) {
+    for (const action of actions) if (action.type === 'open' && action.menu === target) count++;
   }
   return count;
 }
@@ -42,8 +47,8 @@ export function rewriteMenuReferences(draft: MenuDefinition, from: string, to: s
     draft.extends = draft.extends.map((id) => (id === from ? to : id));
     changed = true;
   }
-  for (const slot of draft.slots ?? []) {
-    for (const action of slot.onClick ?? []) {
+  for (const actions of actionLists(draft)) {
+    for (const action of actions) {
       if (action.type === 'open' && action.menu === from) {
         action.menu = to;
         changed = true;

@@ -75,6 +75,7 @@ Positions de slots : **colonne / ligne** de la grille du coffre.
 | `layers` | liste | Images du titre, de bas en haut (§ Couches) |
 | `texts` | liste | Textes dynamiques du titre (§ Textes) |
 | `slots` | liste | Zones de slots et leur comportement (§ Slots) |
+| `form` | objet | Formulaire Bedrock à la place d’un coffre (§ Formulaire Bedrock) |
 
 ## Couches (`layers`)
 
@@ -289,6 +290,109 @@ détacher une instance (ses éléments deviennent propres au menu). La parité
 studio / lib est vérifiée par les fixtures de
 `lib/menu-forge-core/src/test/resources/parity`, jouées par la lib
 (`ParityFixturesTest`) et par le studio (`studio/tests/parity.test.mjs`).
+
+## Formulaire Bedrock (`form`)
+
+Un menu peut être, à la place d’un coffre, un **formulaire Bedrock** : le
+formulaire à boutons du client Bedrock (`ModalFormRequest` de type `form`),
+affiché dans l’une des **huit dispositions** du pack `mcrs_ui` du serveur
+(grille, liste à gauche, boutique…). Titre, texte de contenu et boutons (texte,
+icône, actions) : c’est tout.
+
+**Pas de rendu Java.** La lib Java lit un formulaire sans erreur et l’ignore :
+il n’est ni ouvert, ni mis dans le pack, et une action `open` qui le vise
+depuis un coffre Java est traitée comme un menu inconnu (journalisée). Le
+studio ne l’exporte que pour Bedrock ([`bedrock.md`](bedrock.md) § 9), où le
+serveur l’envoie tel quel : aucune disposition n’est générée.
+
+```json
+{
+  "formatVersion": 1,
+  "id": "hub",
+  "name": "Hub",
+  "state": { "vip": { "type": "bool", "default": false } },
+  "form": {
+    "layout": "grid",
+    "title": "§l§6mc-rs§r §eHUB",
+    "content": "§7Choisis une action",
+    "buttons": [
+      {
+        "id": "spawn",
+        "text": "§a▶ Téléporter au spawn",
+        "icon": { "path": "textures/items/compass_item" },
+        "onClick": [{ "type": "command", "command": "tp {mcrs.spawn}", "as": "player" }, { "type": "close" }]
+      },
+      {
+        "id": "shop",
+        "text": "Boutique",
+        "subtitle": "§e{state.vip}",
+        "icon": { "texture": "icons/shop.png" },
+        "onClick": [{ "type": "open", "menu": "shop" }]
+      },
+      {
+        "id": "admin",
+        "text": "§cAdministration",
+        "icon": { "url": "https://example.org/admin.png" },
+        "visibleWhen": { "flag": "viewer.op" },
+        "onClick": [{ "type": "open", "menu": "admin" }]
+      }
+    ]
+  }
+}
+```
+
+La clé `form` remplace `container`, `layers`, `texts` et `slots` ; un
+formulaire n’hérite pas de gabarit et n’inclut pas de composant (`extends`,
+`includes`, `template` et `component` sont refusés), et ne peut servir ni de
+gabarit ni de composant. `state` reste permis : ses variables servent aux
+conditions, à `setState` et aux variables `{state.<nom>}` des textes.
+
+| Clé de `form` | Rôle |
+|---|---|
+| `layout` | Disposition (tableau ci-dessous) |
+| `title` | Titre, codes `§` et variables ; le serveur ajoute devant le drapeau de la disposition et une espace |
+| `content` | Texte de contenu (`#form_text`), lu selon la disposition |
+| `buttons` | Boutons, dans l’ordre d’affichage |
+
+| Clé d’un bouton | Rôle |
+|---|---|
+| `id` | Identifiant unique dans le formulaire |
+| `text` | Texte, codes `§` et variables `{…}` |
+| `subtitle` | Envoyé après une tabulation (`texte\tsous-titre`), lu par certaines dispositions |
+| `role` | `banner` : entrée « bannière » (préfixe `§m§a `), image, catégorie ou en-tête selon la disposition ; `special` : bouton spécial, violet (préfixe `§m§b `) ; absent : bouton ordinaire |
+| `icon` | Image du bouton, **une** clé : `path` (texture Bedrock vanilla ou d’un pack du serveur, sans extension : `textures/items/diamond`), `texture` (PNG de l’espace de travail, copié dans le pack Menu Forge à l’export) ou `url` (image téléchargée par le client) |
+| `onClick` | Actions (§ Actions), exécutées par le serveur dans l’ordre |
+| `visibleWhen` | Le bouton n’est pas envoyé si la condition est fausse |
+
+Dispositions (fichiers `ui/mcrs/server_form/*.json` du pack `mcrs_ui`) :
+
+| `layout` | Drapeau | Allure | `content` | Bannière (`banner`) | `special` |
+|---|---|---|---|---|---|
+| `grid` | `§m§a` | grandes cases, trois par ligne, image au-dessus du texte | description au-dessus de la grille | – | – |
+| `image_grid` | `§m§d` | vignettes, titre superposé | description au-dessus de la grille | – | – |
+| `square_image` | `§m§e` | une image carrée centrée | description en bas | l’image carrée | – |
+| `store` | `§m§0` | onglets verts, grille de produits | nombre d’onglets, dans ses deux premiers caractères (`a3…` : 3) | un onglet | – |
+| `left_button` | `§m§b` | liste à gauche, description à droite | la description | une vignette sous la description | oui |
+| `bottom_button` | `§m§c` | vignette et description en haut, boutons en bas | la description | la vignette | oui |
+| `motd` | `§m§f` | colonne étroite, boutons verts côte à côte | le message (cadre qui défile) | l’image du haut, haute du nombre écrit dans son texte (`80`) | – |
+| `wrapped` | `§m§1` | lien, visuels qui défilent, boutons violets | le lien | un visuel | – |
+
+Ce que lisent les dispositions (liaisons du pack, reproduites par l’aperçu du
+studio) :
+
+- le texte d’un bouton est coupé au **100ᵉ caractère** : ce qui précède (sans
+  la tabulation) est le titre, ce qui suit, le sous-titre (description, prix,
+  pastille). Un sous-titre n’apparaît donc à part que si le titre est complété
+  jusqu’au 100ᵉ caractère ; sinon il suit le titre ;
+- une bannière est reconnue au drapeau `§m§a` n’importe où dans le texte ;
+- la boutique affiche en grille les **premières** entrées (autant que
+  d’entrées moins le nombre d’onglets) et en onglets les bannières : les
+  onglets se placent donc après les produits.
+
+Au clic, le client ferme le formulaire et renvoie le **rang du bouton parmi
+ceux envoyés** (un bouton masqué par `visibleWhen` ne compte pas) ; le serveur
+exécute ses actions puis renvoie le formulaire, sauf fermeture (`close`, ou
+`back` sans menu précédent). `open` peut viser un coffre comme un formulaire.
 
 ## Schéma JSON
 

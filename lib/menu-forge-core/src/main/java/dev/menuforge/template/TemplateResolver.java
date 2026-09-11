@@ -81,6 +81,10 @@ public final class TemplateResolver {
       if (parent == null) {
         throw new TemplateResolutionException("gabarit introuvable « " + parentId + " » (hérité par « " + menu.id() + " »)");
       }
+      if (parent.bedrockForm()) {
+        throw new TemplateResolutionException("« " + parentId + " » est un formulaire Bedrock : il ne peut pas servir de gabarit"
+          + " (hérité par « " + menu.id() + " »)");
+      }
       final MenuDefinition resolvedParent = resolve(parent, nextChain);
       accumulated = accumulated == null ? resolvedParent : merge(accumulated, resolvedParent);
     }
@@ -113,6 +117,10 @@ public final class TemplateResolver {
       if (component == null) {
         throw new TemplateResolutionException("composant introuvable « " + include.component() + " » (inclus par « "
           + menu.id() + " »)");
+      }
+      if (component.bedrockForm()) {
+        throw new TemplateResolutionException("« " + include.component() + " » est un formulaire Bedrock : il ne peut pas"
+          + " servir de composant (inclus par « " + menu.id() + " »)");
       }
       final MenuDefinition resolved = resolve(component, chain);
       final String prefix = include.prefix();

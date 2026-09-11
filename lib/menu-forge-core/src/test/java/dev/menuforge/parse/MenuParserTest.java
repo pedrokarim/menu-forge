@@ -73,6 +73,24 @@ class MenuParserTest {
   }
 
   @Test
+  void readsABedrockFormWithoutJavaRendering() {
+    final MenuDefinition form = new MenuParser().parse("""
+      { "formatVersion": 1, "id": "hub", "name": "Hub",
+        "state": { "vip": { "type": "bool", "default": false } },
+        "form": { "layout": "grid", "title": "§6Hub", "content": "Choisis",
+          "buttons": [{ "id": "spawn", "text": "Spawn", "icon": { "path": "textures/items/compass_item" },
+                        "onClick": [{ "type": "command", "command": "spawn" }, { "type": "close" }] }] } }
+      """, "hub.menu.json");
+    assertTrue(form.bedrockForm());
+    assertNull(form.container());
+    assertTrue(form.layers().isEmpty());
+    assertTrue(form.slots().isEmpty());
+    assertEquals(List.of("vip"), List.copyOf(form.state().keySet()));
+    assertFalse(TestMenus.menu("badges").bedrockForm());
+    assertThrows(MenuFormatException.class, () -> new MenuParser().parse("{ \"id\": \"x\", \"form\": 3 }", "x.menu.json"));
+  }
+
+  @Test
   void ignoresTheStudioGeneratorMetadata() {
     final MenuDefinition navigation = TestMenus.menu("navigation");
     assertTrue(navigation.template());

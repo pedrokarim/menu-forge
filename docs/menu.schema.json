@@ -32,9 +32,77 @@
     },
     "layers": { "type": "array", "description": "Images du titre, de bas en haut.", "items": { "$ref": "#/$defs/layer" } },
     "texts": { "type": "array", "description": "Textes dynamiques du titre.", "items": { "$ref": "#/$defs/text" } },
-    "slots": { "type": "array", "description": "Zones de slots et leur comportement.", "items": { "$ref": "#/$defs/slot" } }
+    "slots": { "type": "array", "description": "Zones de slots et leur comportement.", "items": { "$ref": "#/$defs/slot" } },
+    "form": { "$ref": "#/$defs/form" }
+  },
+  "if": { "required": ["form"] },
+  "then": {
+    "description": "Un formulaire Bedrock n’est pas un coffre : ni conteneur, ni couches, textes ou slots, ni gabarits ou composants.",
+    "properties": {
+      "container": false,
+      "layers": false,
+      "texts": false,
+      "slots": false,
+      "extends": false,
+      "includes": false,
+      "template": false,
+      "component": false
+    }
   },
   "$defs": {
+    "formLayout": {
+      "description": "Disposition du pack mcrs_ui (drapeau de titre §m§…), cf. docs/format.md § Formulaire Bedrock.",
+      "enum": ["grid", "image_grid", "square_image", "store", "left_button", "bottom_button", "motd", "wrapped"]
+    },
+    "formIcon": {
+      "description": "Image d’un bouton : une seule des trois clés.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["path"],
+          "additionalProperties": false,
+          "properties": { "path": { "type": "string", "pattern": "^textures/", "description": "Texture Bedrock (vanilla ou d’un pack du serveur), sans extension." } }
+        },
+        {
+          "type": "object",
+          "required": ["texture"],
+          "additionalProperties": false,
+          "properties": { "texture": { "type": "string", "pattern": "\\.png$", "description": "PNG de l’espace (relatif à textures/), copié dans le pack Menu Forge." } }
+        },
+        {
+          "type": "object",
+          "required": ["url"],
+          "additionalProperties": false,
+          "properties": { "url": { "type": "string", "pattern": "^https?://", "description": "Image téléchargée par le client." } }
+        }
+      ]
+    },
+    "formButton": {
+      "type": "object",
+      "required": ["id", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "text": { "type": "string", "description": "Codes §, variables {…}." },
+        "subtitle": { "type": "string", "description": "Envoyé après une tabulation." },
+        "role": { "enum": ["banner", "special"], "description": "banner : entrée « bannière » (§m§a) ; special : bouton spécial (§m§b)." },
+        "icon": { "$ref": "#/$defs/formIcon" },
+        "onClick": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+        "visibleWhen": { "$ref": "#/$defs/condition" }
+      }
+    },
+    "form": {
+      "type": "object",
+      "description": "Formulaire Bedrock (ModalFormRequest de type form) : pas de rendu Java.",
+      "required": ["layout", "title", "buttons"],
+      "additionalProperties": false,
+      "properties": {
+        "layout": { "$ref": "#/$defs/formLayout" },
+        "title": { "type": "string", "description": "Codes §, variables ; le serveur ajoute devant le drapeau de la disposition." },
+        "content": { "type": "string", "description": "Texte de contenu (#form_text), lu selon la disposition." },
+        "buttons": { "type": "array", "items": { "$ref": "#/$defs/formButton" } }
+      }
+    },
     "menuId": { "type": "string", "pattern": "^[a-z0-9_]+$" },
     "elementId": { "type": "string", "minLength": 1 },
     "stateValue": { "type": ["string", "number", "boolean"] },

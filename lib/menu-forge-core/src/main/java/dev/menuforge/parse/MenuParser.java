@@ -50,6 +50,12 @@ public final class MenuParser {
   public static final Pattern MENU_ID = Pattern.compile("[a-z0-9_]+");
   /** Format d’une couleur hexadécimale. */
   public static final Pattern HEX_COLOR = Pattern.compile("#[0-9a-fA-F]{6}");
+  /**
+   * Clé d’un formulaire Bedrock : présente, le menu n’a pas de rendu Java. Son
+   * contenu (disposition, boutons) n’est pas lu ; le menu est marqué
+   * {@link MenuDefinition#bedrockForm()} et ignoré au chargement.
+   */
+  public static final String FORM_KEY = "form";
 
   /** Lit un menu depuis une chaîne JSON ; {@code source} sert aux messages d’erreur. */
   public MenuDefinition parse(final String json, final String source) {
@@ -119,8 +125,13 @@ public final class MenuParser {
       final List<Layer> layers = list(root, "layers", path, this::layer);
       final List<TextElement> texts = list(root, "texts", path, this::text);
       final List<Slot> slots = list(root, "slots", path, this::slot);
+      // Formulaire Bedrock : seule sa forme est vérifiée, son contenu ne concerne que les serveurs Bedrock.
+      final boolean bedrockForm = root.has(FORM_KEY) && !root.get(FORM_KEY).isJsonNull();
+      if (bedrockForm) {
+        object(root.get(FORM_KEY), path + "." + FORM_KEY);
+      }
       return new MenuDefinition(formatVersion, id, name, template, parents, container, state, layers, texts, slots,
-        component, includes);
+        component, includes, bedrockForm);
     }
 
     private Include include(final JsonElement element, final String path) {

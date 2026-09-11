@@ -132,6 +132,45 @@ export type StateDefinition =
   | { type: 'int'; default?: number; min?: number; max?: number }
   | { type: 'page'; list: string };
 
+/**
+ * Disposition d’un formulaire Bedrock : une des huit du pack `mcrs_ui`
+ * (cf. docs/format.md § Formulaire Bedrock, `model/bedrockForm.ts`).
+ */
+export type FormLayout = 'grid' | 'image_grid' | 'square_image' | 'store' | 'left_button' | 'bottom_button' | 'motd' | 'wrapped';
+
+/**
+ * Image d’un bouton de formulaire : chemin de texture Bedrock (vanilla ou d’un
+ * pack du serveur, sans extension), texture de l’espace de travail (PNG
+ * exporté dans le pack Menu Forge) ou adresse web.
+ */
+export type FormIcon = { path: string } | { texture: string } | { url: string };
+
+/** Rôle d’un bouton pour la disposition : entrée « bannière » (`§m§a`) ou bouton spécial (`§m§b`) ; absent = bouton ordinaire. */
+export type FormButtonRole = 'banner' | 'special';
+
+export interface FormButton {
+  id: string;
+  /** Texte du bouton (codes `§`, variables `{…}`). */
+  text: string;
+  /** Envoyé après une tabulation (`texte\tsous-titre`), lu par certaines dispositions. */
+  subtitle?: string;
+  role?: FormButtonRole;
+  icon?: FormIcon;
+  onClick?: Action[];
+  /** Le bouton n’est pas envoyé si la condition est fausse. */
+  visibleWhen?: Condition;
+}
+
+/** Formulaire Bedrock (`ModalFormRequest` de type `form`) : pas de rendu Java. */
+export interface BedrockForm {
+  layout: FormLayout;
+  /** Titre (codes `§`, variables) ; le drapeau de la disposition est ajouté devant à l’envoi. */
+  title: string;
+  /** Texte de contenu (`#form_text`), selon la disposition : description, lien, nombre d’onglets… */
+  content?: string;
+  buttons: FormButton[];
+}
+
 export interface MenuDefinition {
   formatVersion: 1;
   id: string;
@@ -148,9 +187,41 @@ export interface MenuDefinition {
   layers: Layer[];
   texts?: TextElement[];
   slots?: Slot[];
+  /**
+   * Formulaire Bedrock : présent, le menu n’est pas un coffre. Son fichier n’a
+   * alors ni `container` ni `layers` ; en mémoire, le studio lui en donne des
+   * valeurs neutres (`normalizeMenu`) retirées à l’enregistrement (`menuForDisk`).
+   */
+  form?: BedrockForm;
 }
 
 export const ID_PATTERN = /^[a-z0-9_]+$/;
+
+/** Vrai pour un formulaire Bedrock (pas de coffre, pas de rendu Java). */
+export function isBedrockForm(menu: Pick<MenuDefinition, 'form'>): boolean {
+  return menu.form !== undefined;
+}
+
+/**
+ * Menu lu sur disque → forme en mémoire : un formulaire Bedrock reçoit un
+ * coffre et une liste de couches neutres, pour le code commun aux menus.
+ */
+export function normalizeMenu(raw: MenuDefinition): MenuDefinition {
+  if (!raw.form) return raw;
+  return { ...raw, container: raw.container ?? { type: 'chest', rows: 6 }, layers: raw.layers ?? [] };
+}
+
+/** Menu en mémoire → fichier : un formulaire perd le coffre et les listes vides ajoutés en mémoire. */
+export function menuForDisk(menu: MenuDefinition): MenuDefinition {
+  if (!menu.form) return menu;
+  const copy: Partial<MenuDefinition> = { ...menu };
+  delete copy.container;
+  if ((copy.layers ?? []).length === 0) delete copy.layers;
+  if ((copy.texts ?? []).length === 0) delete copy.texts;
+  if ((copy.slots ?? []).length === 0) delete copy.slots;
+  if (copy.state && Object.keys(copy.state).length === 0) delete copy.state;
+  return copy as MenuDefinition;
+}
 
 export function createEmptyMenu(id: string, name: string, rows = 6): MenuDefinition {
   return {

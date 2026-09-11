@@ -26,6 +26,8 @@ import java.util.Objects;
  * @param slots         zones de slots
  * @param component     {@code true} pour un composant (inclus par d’autres menus, jamais ouvert seul)
  * @param includes      instances de composants (clé JSON {@code includes}), vides après résolution
+ * @param bedrockForm   {@code true} pour un formulaire Bedrock (clé JSON {@code form}) : pas de rendu Java,
+ *                      la lib le lit sans erreur mais ne l’ouvre jamais (voir {@code docs/format.md})
  */
 public record MenuDefinition(
   int formatVersion,
@@ -39,7 +41,8 @@ public record MenuDefinition(
   List<TextElement> texts,
   List<Slot> slots,
   boolean component,
-  List<Include> includes
+  List<Include> includes,
+  boolean bedrockForm
 ) {
 
   /** Seule version du format prise en charge. */
@@ -60,7 +63,15 @@ public record MenuDefinition(
   public MenuDefinition(final int formatVersion, final String id, final String name, final boolean template,
                         final List<String> parents, final ContainerSpec container, final Map<String, StateDefinition> state,
                         final List<Layer> layers, final List<TextElement> texts, final List<Slot> slots) {
-    this(formatVersion, id, name, template, parents, container, state, layers, texts, slots, false, List.of());
+    this(formatVersion, id, name, template, parents, container, state, layers, texts, slots, false, List.of(), false);
+  }
+
+  /** Menu coffre (pas un formulaire Bedrock). */
+  public MenuDefinition(final int formatVersion, final String id, final String name, final boolean template,
+                        final List<String> parents, final ContainerSpec container, final Map<String, StateDefinition> state,
+                        final List<Layer> layers, final List<TextElement> texts, final List<Slot> slots,
+                        final boolean component, final List<Include> includes) {
+    this(formatVersion, id, name, template, parents, container, state, layers, texts, slots, component, includes, false);
   }
 
   /** Gabarit ou composant : une pièce à assembler, sans police propre et jamais ouverte seule. */
