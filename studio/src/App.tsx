@@ -32,7 +32,11 @@ import { AboutScreen } from './screens/AboutScreen';
 import { EditorScreen } from './screens/EditorScreen';
 import type { EditorPreferences, EditorRequest } from './screens/EditorScreen';
 import { HomeScreen } from './screens/HomeScreen';
-import type { QuickAction } from './screens/HomeScreen';
+import type { DocumentAction, QuickAction } from './screens/HomeScreen';
+import { RenameDocumentDialog } from './components/DocumentDialogs';
+import { duplicateWithFreeId, renameWithReferences, trashWithConfirmation } from './lib/documents';
+import type { DocumentEvent } from './lib/documents';
+import { menuReferences } from './model/references';
 import { LibrariesScreen } from './screens/LibrariesScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { WorkspacesScreen } from './screens/WorkspacesScreen';
@@ -76,6 +80,10 @@ export default function App() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [welcomed, setWelcomed] = useState(false);
   const [openDocument, setOpenDocument] = useState<OpenDocument | null>(null);
+  // Accueil relu après une action sur un document ; document en cours de renommage ; événement pour l’éditeur.
+  const [homeVersion, setHomeVersion] = useState(0);
+  const [renaming, setRenaming] = useState<RecentDocument | null>(null);
+  const [documentEvent, setDocumentEvent] = useState<DocumentEvent | null>(null);
 
   const handleDocumentChange = useCallback((kind: OpenDocument['kind'] | null, name: string | null) => {
     setOpenDocument(kind && name ? { kind, name } : null);
@@ -124,7 +132,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [screen, activePath]);
+  }, [screen, activePath, homeVersion]);
 
   const routeMode = route?.screen === 'editor' ? route.mode : editorRoute.mode;
   const routeId = route?.screen === 'editor' ? route.id : editorRoute.id;
@@ -177,6 +185,59 @@ export default function App() {
     [settings],
   );
   const confirmRemoval = settings?.ui.confirmations.delete ?? true;
+
+  /** Le document est ouvert dans l’éditeur avec des modifications non enregistrées. */
+  const openAndDirty = (document: RecentDocument) =>
+    editorDirty && editorRoute.id === document.id && editorRoute.mode === (document.type === 'menu' ? 'menus' : 'assets');
+
+  /** Accueil : renommer, dupliquer ou mettre à la corbeille un document récent ; l’éditeur suit. */
+  const documentAction = async (document: RecentDocument, action: DocumentAction) => {
+    const discardAllowed = () =>
+      !openAndDirty(document) ||
+      !preferences.confirmDiscard ||
+      window.confirm(`« ${document.name} » a des modifications non enregistrées dans l’éditeur. Continuer quand même${NBSP}?`);
+    if (action === 'rename') {
+      // Un menu renommé garde ses modifications en cours ; un asset ouvert est relu du disque.
+      if (document.type === 'asset' && !discardAllowed()) return;
+      setRenaming(document);
+      return;
+    }
+    if (action === 'duplicate') {
+      const known = (document.type === 'menu' ? snapshot?.menus : snapshot?.assets) ?? [];
+      const summary = await duplicateWithFreeId(document.type, document.id, document.name, known.map((candidate) => candidate.id));
+      setDocumentEvent({ kind: 'duplicated', type: document.type, from: document.id, to: summary.id, name: summary.name, nonce: Date.now() });
+      setHomeVersion((version) => version + 1);
+      return;
+    }
+    if (!discardAllowed()) return;
+    const trashed = await trashWithConfirmation(document.type, document.id, document.name, confirmRemoval);
+    if (!trashed) return;
+    setDocumentEvent({ kind: 'trashed', type: document.type, from: document.id, nonce: Date.now() });
+    setHomeVersion((version) => version + 1);
+  };
+
+  const confirmRename = async (to: string, name: string, updateReferences: boolean) => {
+    if (!renaming) return;
+    const { summary, updated } = await renameWithReferences({
+      type: renaming.type,
+      from: renaming.id,
+      to,
+      name,
+      menus: snapshot?.menus ?? [],
+      updateReferences,
+    });
+    setDocumentEvent({
+      kind: 'renamed',
+      type: renaming.type,
+      from: renaming.id,
+      to: summary.id,
+      name: summary.name,
+      updated,
+      nonce: Date.now(),
+    });
+    setRenaming(null);
+    setHomeVersion((version) => version + 1);
+  };
 
   const switchWorkspace = async (path: string) => {
     if (
@@ -309,6 +370,7 @@ export default function App() {
               workspacePill={pill}
               onDirtyChange={setEditorDirty}
               onDocumentChange={handleDocumentChange}
+              documentEvent={documentEvent}
             />
           )}
         </div>
@@ -324,6 +386,7 @@ export default function App() {
               navigate({ screen: 'editor', mode: document.type === 'menu' ? 'menus' : 'assets', id: document.id })
             }
             onSwitchWorkspace={switchWorkspace}
+            onDocumentAction={documentAction}
           />
         )}
         {screen === 'workspaces' && (
@@ -364,6 +427,17 @@ export default function App() {
         {screen === 'about' && <AboutScreen pill={pill} app={app} />}
       </div>
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {renaming && (
+        <RenameDocumentDialog
+          type={renaming.type}
+          id={renaming.id}
+          name={renaming.name}
+          existingIds={((renaming.type === 'menu' ? snapshot?.menus : snapshot?.assets) ?? []).map((candidate) => candidate.id)}
+          references={renaming.type === 'menu' ? menuReferences(snapshot?.menus ?? [], renaming.id) : []}
+          onCancel={() => setRenaming(null)}
+          onConfirm={confirmRename}
+        />
+      )}
       </div>
     </div>
     </ContextMenuProvider>

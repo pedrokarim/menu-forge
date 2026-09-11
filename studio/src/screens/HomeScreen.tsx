@@ -11,8 +11,13 @@ import { Notice, ScreenFrame } from '../shell/ScreenFrame';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { ShortcutKeys } from '../ui/Keys';
+import { Tooltip } from '../ui/Tooltip';
+import { useContextMenu } from '../ui/menuContext';
+import type { MenuEntry } from '../ui/menuContext';
 
 export type QuickAction = 'new-menu' | 'new-asset' | 'import-font' | 'open-workspace';
+/** Gestion d’un document récent depuis l’accueil. */
+export type DocumentAction = 'rename' | 'duplicate' | 'trash';
 
 const QUICK_ACTIONS: ReadonlyArray<{ kind: QuickAction; icon: IconName; title: string; text: string; shortcut?: string }> = [
   { kind: 'new-menu', icon: 'chest', title: 'Nouveau menu', text: 'Vierge ou à partir d’un gabarit : coffre, modale, liste paginée…' },
@@ -82,6 +87,8 @@ interface HomeScreenProps {
   workspaces: WorkspaceSummary[];
   onQuickAction: (action: QuickAction) => void;
   onOpenDocument: (document: RecentDocument) => void;
+  /** Renommer, dupliquer ou mettre à la corbeille un document récent (une erreur s’affiche sous la liste). */
+  onDocumentAction: (document: RecentDocument, action: DocumentAction) => Promise<void>;
   onSwitchWorkspace: (path: string) => Promise<void>;
 }
 
@@ -94,9 +101,29 @@ export function HomeScreen({
   workspaces,
   onQuickAction,
   onOpenDocument,
+  onDocumentAction,
   onSwitchWorkspace,
 }: HomeScreenProps) {
   const [notice, setNotice] = useState<{ kind: 'error'; text: string } | null>(null);
+  const [documentNotice, setDocumentNotice] = useState<{ kind: 'error'; text: string } | null>(null);
+  const openContextMenu = useContextMenu();
+
+  const act = (document: RecentDocument, action: DocumentAction) => {
+    setDocumentNotice(null);
+    void onDocumentAction(document, action).catch((error: unknown) =>
+      setDocumentNotice({ kind: 'error', text: `Action impossible sur « ${document.name} »${NBSP}: ${errorMessage(error)}` }),
+    );
+  };
+
+  /** Actions d’un document récent (clic droit sur sa carte, ou bouton « … »). */
+  const documentMenu = (document: RecentDocument): MenuEntry[] => [
+    { heading: `${document.type === 'menu' ? 'Menu' : 'Asset'} « ${document.name} »` },
+    { label: 'Ouvrir', icon: 'open', onSelect: () => onOpenDocument(document) },
+    { label: 'Renommer…', icon: 'pencil', onSelect: () => act(document, 'rename') },
+    { label: 'Dupliquer', icon: 'copy', onSelect: () => act(document, 'duplicate') },
+    { separator: true },
+    { label: 'Mettre à la corbeille', icon: 'trash', danger: true, onSelect: () => act(document, 'trash') },
+  ];
   const others = workspaces.filter((candidate) => !candidate.active).slice(0, 5);
   const documents = (recent ?? []).slice(0, RECENT_LIMIT);
 
@@ -161,11 +188,12 @@ export function HomeScreen({
         ) : (
           <div className="doc-grid">
             {documents.map((document) => (
+              <div key={`${document.type}-${document.id}`} className="doc-card-wrap">
               <button
-                key={`${document.type}-${document.id}`}
                 type="button"
                 className="doc-card"
                 onClick={() => onOpenDocument(document)}
+                onContextMenu={(event) => openContextMenu(event, documentMenu(document))}
               >
                 <span className="doc-thumb">
                   <DocumentThumbnail document={document} snapshot={snapshot} />
@@ -182,9 +210,21 @@ export function HomeScreen({
                   </span>
                 </span>
               </button>
+              <Tooltip label="Actions du document" hint="Renommer, dupliquer, mettre à la corbeille">
+                <button
+                  type="button"
+                  className="doc-card-more icon-only icon-sm"
+                  aria-label={`Actions de « ${document.name} »`}
+                  onClick={(event) => openContextMenu(event, documentMenu(document))}
+                >
+                  <Icon name="more" />
+                </button>
+              </Tooltip>
+              </div>
             ))}
           </div>
         )}
+        <Notice notice={documentNotice} />
       </section>
 
       {others.length > 0 && (
