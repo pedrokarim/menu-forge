@@ -34,3 +34,6 @@ Thumbs.db
 # Journaux
 *.log
 npm-debug.log*
+
+# Notes de travail locales (suivi, idées, références), jamais publiées
+.planning/
