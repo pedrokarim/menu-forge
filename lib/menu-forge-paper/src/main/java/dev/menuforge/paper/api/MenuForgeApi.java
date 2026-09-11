@@ -72,8 +72,14 @@ public interface MenuForgeApi {
   /** Ajoute un fournisseur de drapeaux ({@code viewer.*}, drapeaux custom). */
   void registerFlagProvider(FlagProvider provider);
 
+  /** Retire un fournisseur de drapeaux (désactivation du plugin qui l’a ajouté). */
+  void unregisterFlagProvider(FlagProvider provider);
+
   /** Ajoute une source de variables pour les noms que la lib ne connaît pas. */
   void registerPlaceholderResolver(PlaceholderResolver resolver);
+
+  /** Retire une source de variables. */
+  void unregisterPlaceholderResolver(PlaceholderResolver resolver);
 
   /** Remplace la fabrique d’items ({@code ref} et item invisible). {@code null} = fabrique par défaut. */
   void setItemFactory(ItemFactory factory);

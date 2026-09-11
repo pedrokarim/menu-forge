@@ -286,8 +286,18 @@ public final class MenuForgeService implements MenuForgeApi {
   }
 
   @Override
+  public void unregisterFlagProvider(final FlagProvider provider) {
+    flagProviders.remove(provider);
+  }
+
+  @Override
   public void registerPlaceholderResolver(final PlaceholderResolver resolver) {
     placeholderResolvers.add(Objects.requireNonNull(resolver, "resolver"));
+  }
+
+  @Override
+  public void unregisterPlaceholderResolver(final PlaceholderResolver resolver) {
+    placeholderResolvers.remove(resolver);
   }
 
   @Override

@@ -101,6 +101,22 @@ class MenuOpeningTest extends MockServerTest {
   }
 
   @Test
+  void unregisteredProvidersAreNoLongerAsked() {
+    final PlayerMock player = server.addPlayer();
+    final dev.menuforge.paper.api.FlagProvider flags = (viewer, flag) -> "viewer.isStaff".equals(flag) ? Boolean.TRUE : null;
+    final dev.menuforge.paper.api.PlaceholderResolver coins = (viewer, name) -> "coins".equals(name) ? "42" : null;
+    service.registerFlagProvider(flags);
+    service.registerPlaceholderResolver(coins);
+    service.open(player, "shop");
+    assertEquals("42 pièces", plain(holder(player).getInventory().getItem(13).getItemMeta().displayName()));
+
+    service.unregisterFlagProvider(flags);
+    service.unregisterPlaceholderResolver(coins);
+    service.open(player, "shop");
+    assertNull(holder(player).getInventory().getItem(13));
+  }
+
+  @Test
   void initialStateIsValidatedAndPagesAreClamped() {
     final PlayerMock player = server.addPlayer();
     service.registerListProvider("entries", request -> List.of());
