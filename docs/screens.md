@@ -159,6 +159,23 @@ taille, palette ; l’image est ramenée sur la grille des pixels, en palette
 imposée, avec une vraie transparence, puis ouverte dans l’éditeur de pixels.
 Fournisseurs, confidentialité et contraintes : [`ai.md`](ai.md).
 
+**Formulaire Bedrock.** Un menu créé avec une disposition Bedrock
+(« Nouveau menu », section « Formulaire Bedrock ») s’ouvre dans son propre
+éditeur, chargé à la demande. Colonne de gauche : la disposition (huit, celles
+du pack `mcrs_ui`), le titre et le contenu, puis la liste des boutons – glisser
+pour réordonner, clic droit pour dupliquer, monter, descendre ou supprimer,
+« Ajouter » pour un bouton, une bannière ou un bouton spécial selon la
+disposition ; l’onglet « Bibliothèque » fait d’une texture l’icône du bouton
+sélectionné. Au centre, l’aperçu reprend la géométrie des JSON du pack, sur un
+écran simulé (PC, grand ou petit écran) ; « Essayer » (`E`) exécute les
+actions d’un clic comme le serveur. À droite, l’inspecteur du bouton :
+identifiant, texte, sous-titre, rôle, icône (texture de l’espace, PNG importé,
+icône de 32 × 32 dessinée dans l’éditeur de pixels, texture du jeu citée par son
+chemin, adresse web), « Envoyé si » (`visibleWhen`) et actions au clic ; puis
+les variables d’état et l’aperçu des drapeaux. Les textes et chemins longs
+passent à la ligne : rien ne déborde de la colonne. Format :
+[`format.md`](format.md) § Formulaire Bedrock ; export : [`bedrock.md`](bedrock.md) § 9.
+
 La fenêtre descend à 1180 × 700 : en dessous, rail d’écrans et trois colonnes
 ne laissent plus à la toile la place de ses outils.
 
@@ -178,6 +195,8 @@ ne laissent plus à la toile la place de ses outils.
 - **Éditeur** : zoom par défaut, grille, aimantation, confirmations.
 - **Export vers le plugin** : dossier des ressources d’enderium-core,
   namespace, `pack_format` (32 = 1.20.5/1.20.6, 34 = 1.21, 46 = 1.21.4).
+- **Export pour Bedrock** : dossier du serveur Bedrock, qui reçoit le pack
+  (`pack/`) et `runtime.json` ; pour mc-rs, `menu_forge/export`.
 - **IA** : une fiche par fournisseur (OpenAI, Google Gemini, Anthropic,
   Mistral, Stability AI, fal, Replicate, ComfyUI, Automatic1111, Ollama,
   Codex CLI) : activer, clé d’API rangée dans le trousseau du système

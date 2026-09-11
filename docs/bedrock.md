@@ -426,6 +426,7 @@ studio, `menu_forge/catalog.rs` de mc-rs, `_global_variables.json` et
 
 ## 10. Voir aussi
 
+- [`guide.md`](guide.md) : prise en main pas à pas, Java et Bedrock ;
 - [`format.md`](format.md) : le format des menus (inchangé) ;
 - [`rendering.md`](rendering.md) : le repère de coordonnées, commun aux deux
   plateformes ;

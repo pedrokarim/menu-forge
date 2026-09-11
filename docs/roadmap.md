@@ -206,6 +206,34 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
 - **Depuis** : la génération de menus par IA contrainte par ce schéma est faite
   (validation et correction bornée, voir [`ai.md`](ai.md)).
 
+## Bedrock (2026-09-12)
+
+Deuxième édition du jeu, par le serveur natif mc-rs. Contrat et détails :
+[`bedrock.md`](bedrock.md) ; prise en main : [`guide.md`](guide.md).
+
+- **Fait** :
+  - **exporteur Bedrock** (« Bedrock » dans la barre d’outils, dossier réglé
+    dans Paramètres › Export pour Bedrock) : pack de ressources (dispositions
+    JSON UI générées pour les menus coffre, textures, routeur) et descripteur
+    d’exécution `runtime.json`, générés de façon déterministe ;
+  - **formulaires Bedrock** (clé `form` du format, schéma et lib Java à jour) :
+    huit dispositions du pack `mcrs_ui`, boutons avec texte, sous-titre, rôle,
+    icône, actions et condition `visibleWhen` ; éditeur dédié, avec un aperçu
+    fidèle aux dispositions et le mode « Essayer » ;
+  - **portage des écrans de mc-rs** : le hub `/menu` et ses panneaux de
+    démonstration, repris à l’identique en formulaires Bedrock
+    ([`bedrock.md`](bedrock.md) § 8).
+- **Vérifié** : en jeu sur un client Bedrock, avec mc-rs (`/mf open <id>`,
+  `/mf list`, `/mf reload`) ; `npm test` (export et formulaires) ; scénario de
+  bout en bout `09-bedrock-forms` (création, disposition, icône, aperçu,
+  export, débordements à 1024 × 600, 1280 × 800 et 1600 × 900).
+- **À venir** :
+  - **E4** : passer par Geyser et Floodgate, pour les joueurs Bedrock d’un
+    serveur Java ;
+  - **E5** : aperçu Bedrock avancé dans le studio ;
+  - **E6** : rendu « coffre surchargé », pour les slots `input` qu’un
+    formulaire ne peut pas porter.
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et
@@ -216,3 +244,5 @@ Les gestes attendus d’un logiciel d’édition, dans les deux éditeurs :
    - repères posés à la main (règles, guides) ;
    - restaurer un document depuis la corbeille.
 4. **Décider** du sort de `generic_54.png` (effet global sur tous les coffres).
+5. **Bedrock** : Geyser et Floodgate (E4), aperçu Bedrock avancé (E5), coffre
+   surchargé (E6).
