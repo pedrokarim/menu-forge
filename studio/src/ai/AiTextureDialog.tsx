@@ -14,6 +14,7 @@ import { DEFAULT_CONSTRAINTS, constrainTexture, extractPalette, parsePalette } f
 import type { PaletteChoice, Rgb } from './constrain';
 import { cancelJob, consumeJob, getJob, isRunning, latestJob, useJob, useWatchJob } from './jobs';
 import { JobPanel } from './JobPanel';
+import { nameFromPrompt } from './naming';
 import { textureHistory } from './session';
 import type { TextureGeneration } from './session';
 import { startTextureJob } from './textureJob';
@@ -175,7 +176,8 @@ export function AiTextureDialog({ existingIds, reference, jobId: requestedJob = 
   if (generation && generation.id !== named) {
     setNamed(generation.id);
     if (!idTouched && name === DEFAULT_NAME) {
-      const suggested = generation.prompt.slice(0, 40);
+      // Coupé au dernier mot entier, sans ponctuation pendante : l’identifiant qui en dérive reste lisible.
+      const suggested = nameFromPrompt(generation.prompt) || DEFAULT_NAME;
       setName(suggested);
       setId(uniqueId(sanitizeId(suggested) || 'texture_ia', existingIds));
     }
