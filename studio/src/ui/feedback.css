@@ -1,0 +1,236 @@
+/* Retour d’activité : picto animé au pixel, notifications (toasts) et
+   indicateur des tâches de fond dans le rail. Paquet principal : léger. */
+
+/* ---------- Picto animé ---------- */
+
+/* 3 × 6 px + 2 × 3 px = 24 px : chaque carré tombe sur des pixels entiers. */
+.pixel-spinner {
+  display: inline-grid;
+  flex: none;
+  grid-template-columns: repeat(3, 6px);
+  grid-template-rows: repeat(3, 6px);
+  gap: 3px;
+  width: 24px;
+  height: 24px;
+}
+
+.pixel-spinner-12 {
+  grid-template-columns: repeat(3, 4px);
+  grid-template-rows: repeat(3, 4px);
+  gap: 0;
+  width: 12px;
+  height: 12px;
+}
+
+.pixel-spinner i {
+  background: var(--ds-gold-lo);
+  animation: pixel-spinner 960ms steps(1, end) infinite;
+}
+
+/* Un carré brille (or clair), laisse une traîne (or), puis s’éteint. */
+@keyframes pixel-spinner {
+  0% {
+    background: var(--ds-gold-hi);
+  }
+  12.5% {
+    background: var(--ds-gold);
+  }
+  25%,
+  100% {
+    background: var(--ds-gold-lo);
+  }
+}
+
+/* ---------- Notifications ---------- */
+
+.toast-stack {
+  --toast-bottom: 40px;
+  position: fixed;
+  right: 16px;
+  bottom: var(--toast-bottom);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  /* Jamais plus large que la zone à droite du rail ; jamais plus haute que la moitié basse de
+     la fenêtre, pour laisser libres les barres d’outils du haut, même à 1024 × 600. */
+  width: min(360px, calc(100vw - 104px));
+  max-height: min(calc(100vh - var(--toast-bottom) - 56px), 55vh);
+  pointer-events: none;
+}
+
+.toast-stack > * {
+  pointer-events: auto;
+}
+
+/* La liste défile quand elle dépasse ; `column-reverse` : elle part du bas (les plus récentes). */
+.toast-list {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  min-height: 0;
+  padding: 2px 2px 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Un dialogue est ouvert : la pile attend qu’il se ferme (elle ne recouvre jamais ses boutons). */
+body:has(.modal-backdrop) .toast-stack {
+  display: none;
+}
+
+.toast-more {
+  flex: none;
+  align-self: flex-end;
+  gap: 6px;
+}
+
+.toast {
+  --toast-accent: var(--ds-info);
+  position: relative;
+  display: grid;
+  flex: none;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 8px 10px 16px;
+  background-color: var(--ds-panel);
+  background-image: var(--checker);
+  background-size: 12px 12px;
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-panel), 0 4px 0 rgba(0, 0, 0, 0.35);
+  /* Entrée : un volet qui s’ouvre depuis le bord droit, par paliers de pixels. */
+  animation: toast-in 180ms steps(6, end) backwards;
+}
+
+/* Liseré de la variante, contre le bord gauche. */
+.toast::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: 4px;
+  background: var(--toast-accent);
+}
+
+.toast-progress {
+  --toast-accent: var(--ds-gold);
+}
+
+.toast-success {
+  --toast-accent: var(--ds-ok);
+}
+
+.toast-error {
+  --toast-accent: var(--ds-danger);
+}
+
+.toast.is-leaving {
+  animation: toast-out 180ms steps(6, end) forwards;
+}
+
+@keyframes toast-in {
+  from {
+    clip-path: inset(-8px -8px -8px 100%);
+  }
+  to {
+    clip-path: inset(-8px);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    clip-path: inset(-8px);
+  }
+  to {
+    clip-path: inset(-8px -8px -8px 100%);
+  }
+}
+
+.toast-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--toast-accent);
+}
+
+.toast-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  /* Aligné sur le picto de 24 px. */
+  padding-top: 3px;
+}
+
+.toast-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.toast-title {
+  min-width: 0;
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--ds-ink-strong);
+  overflow-wrap: anywhere;
+}
+
+.toast-clock {
+  flex: none;
+  font: 11px/1.4 var(--font-mono);
+  color: var(--ds-gold);
+}
+
+.toast-message {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ds-muted);
+  overflow-wrap: anywhere;
+}
+
+.toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* ---------- Indicateur du rail ---------- */
+
+.rail-jobs {
+  color: var(--ds-gold);
+}
+
+.rail-jobs-count {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font: 700 10px/14px var(--font-mono);
+  color: var(--ds-gold-ink);
+  text-align: center;
+  background: var(--ds-gold);
+  box-shadow: 0 0 0 2px var(--ds-panel-sunken);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-spinner i {
+    background: var(--ds-gold);
+    animation: none;
+  }
+
+  .toast,
+  .toast.is-leaving {
+    animation: none;
+  }
+}
