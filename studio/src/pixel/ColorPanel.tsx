@@ -90,7 +90,8 @@ export function ColorPanel({ primary, secondary, onChange, onSwap, recent, docum
         <h3>Couleurs</h3>
         <IconButton icon="swap" label="Échanger les couleurs" shortcut="X" variant="ghost" onClick={onSwap} />
       </header>
-      <div className="pixel-color-pair">
+      {/* Les deux pastilles se chevauchent exprès, décalées comme dans les logiciels de dessin. */}
+      <div className="pixel-color-pair" data-audit-layered>
         <Tooltip label="Couleur principale" hint="Clic gauche des outils de dessin">
           <button
             type="button"

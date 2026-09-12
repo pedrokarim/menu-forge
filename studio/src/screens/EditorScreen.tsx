@@ -1690,6 +1690,7 @@ export function EditorScreen({
                 onContextMenu={(event) => openContextMenu(event, documentMenu('menu'))}
                 disabled={knownMenus.length === 0}
                 aria-label="Menu ouvert"
+                title={menu?.name}
               >
                 {!menu && <option value="">Aucun menu</option>}
                 {menu && !menuIsOnDisk && <option value={menu.id}>{menu.name} (non enregistré)</option>}
@@ -1740,6 +1741,7 @@ export function EditorScreen({
               >
                 <button
                   type="button"
+                 
                   onClick={() => void runExport('plugin')}
                   disabled={exporting || knownMenus.length === 0}
                   aria-keyshortcuts="Control+E"
@@ -1755,6 +1757,7 @@ export function EditorScreen({
               >
                 <button
                   type="button"
+                 
                   onClick={() => void runExport('pack')}
                   disabled={exporting || knownMenus.length === 0}
                   aria-keyshortcuts="Control+Shift+E"
@@ -1774,6 +1777,7 @@ export function EditorScreen({
               onContextMenu={(event) => openContextMenu(event, documentMenu('asset'))}
               disabled={knownAssets.length === 0}
               aria-label="Asset ouvert"
+              title={currentAsset?.name}
             >
               {!currentAsset && <option value="">Aucun asset</option>}
               {knownAssets.map((candidate) => (
@@ -1819,6 +1823,7 @@ export function EditorScreen({
               onContextMenu={(event) => openContextMenu(event, documentMenu('pixel'))}
               disabled={pixelList.length === 0}
               aria-label="Image ouverte"
+              title={currentPixel?.name}
             >
               {!currentPixel && <option value="">Aucune image</option>}
               {pixelList.map((candidate) => (
@@ -1900,7 +1905,10 @@ export function EditorScreen({
               onClick={() => setLeftTab('outline')}
             >
               <Icon name="list" />
-              Éléments
+              {/* Coupé par des points de suspension plutôt que de baver sur la barre voisine. */}
+              <span className="tab-label" title="Éléments">
+                Éléments
+              </span>
             </button>
             <button
               type="button"
@@ -1910,7 +1918,10 @@ export function EditorScreen({
               onClick={() => setLeftTab('library')}
             >
               <Icon name="library" />
-              Bibliothèque
+              {/* Coupé par des points de suspension plutôt que de baver sur la barre voisine. */}
+              <span className="tab-label" title="Bibliothèque">
+                Bibliothèque
+              </span>
             </button>
           </div>
           {/* Les deux onglets restent montés : la bibliothèque garde ses filtres et son index. */}
@@ -2037,7 +2048,8 @@ export function EditorScreen({
               <IconButton
                 icon="minus"
                 label="Zoom arrière"
-                shortcut="Ctrl+molette"
+                shortcut="-"
+                hint="Ctrl+molette : sur le pointeur"
                 size={24}
                 disabled={effectiveZoom <= ZOOM_LEVELS[0]}
                 onClick={() => setManualZoom(stepZoom(ZOOM_LEVELS, effectiveZoom, -1))}
@@ -2058,10 +2070,12 @@ export function EditorScreen({
                   </option>
                 ))}
               </select>
+              </Tooltip>
               <IconButton
                 icon="plus"
                 label="Zoom avant"
-                shortcut="Ctrl+molette"
+                shortcut="+"
+                hint="Ctrl+molette : sur le pointeur"
                 size={24}
                 disabled={effectiveZoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
                 onClick={() => setManualZoom(stepZoom(ZOOM_LEVELS, effectiveZoom, 1))}
@@ -2279,7 +2293,7 @@ export function EditorScreen({
       )}
 
       <footer className="statusbar">
-        <span className="statusbar-path">
+        <span className="statusbar-path" title={workspace?.root}>
           Espace de travail : <code>{workspace?.root ?? '…'}</code>
         </span>
         {mode === 'menus' && resolved && (

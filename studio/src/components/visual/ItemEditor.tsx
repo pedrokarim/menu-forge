@@ -148,7 +148,8 @@ export function ItemEditor({ item, variables, onChange }: ItemEditorProps) {
       <div className="segmented-mini" role="radiogroup" aria-label="Rendu de l’item">
         {MODES.map((entry) => (
           <Tooltip key={entry.mode} label={entry.label} hint={entry.hint}>
-            <button type="button" role="radio" aria-checked={mode === entry.mode} onClick={() => setMode(entry.mode)}>
+            {/* Nom accessible complet : la colonne étroite coupe le libellé par des points de suspension. */}
+            <button type="button" role="radio" aria-checked={mode === entry.mode} aria-label={entry.label} onClick={() => setMode(entry.mode)}>
               <Icon name={entry.icon} />
               <span className="segmented-text">{entry.label}</span>
             </button>

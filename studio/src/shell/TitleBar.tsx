@@ -69,7 +69,8 @@ export function TitleBar({ context, confirmClose }: TitleBarProps) {
       <span className="titlebar-name" data-tauri-drag-region>
         Menu Forge
       </span>
-      <span className="titlebar-context" data-tauri-drag-region>
+      {/* Barre de 32 px : une seule ligne possible, le nom entier reste dans l’infobulle. */}
+      <span className="titlebar-context" title={context} data-audit-ellipsis data-tauri-drag-region>
         {context}
       </span>
       <div className="titlebar-controls">

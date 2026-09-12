@@ -259,7 +259,8 @@ export function PixelCanvas(props: PixelCanvasProps) {
     return () => observer.disconnect();
   }, []);
 
-  // « Ajuster » à l’ouverture et à chaque changement de taille de l’image ; sinon la vue reste dans la zone.
+  // « Ajuster » à l’ouverture, à chaque changement de taille de l’image, et quand la zone change de taille
+  // (colonne redimensionnée, fenêtre) tant que la vue n’a pas été touchée ; sinon elle reste dans la zone.
   useLayoutEffect(() => {
     if (!stage) return;
     const key = `${width}x${height}`;

@@ -1,6 +1,7 @@
 /* Éditeur d’assets (« mode libre ») : remplace les trois colonnes des menus.
    Mêmes jetons Deepslate que le reste du studio (voir index.css). */
 
+/* Colonnes réglables à la souris, comme en mode Menus (voir .workspace). */
 .asset-editor {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 340px;
@@ -29,42 +30,42 @@
   min-height: 0;
 }
 
-/* Barre d’outils de la toile */
+/* Barre d’outils de la toile : règles communes avec l’éditeur de pixels dans index.css. */
 
-.asset-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  padding: 7px 12px 8px;
-  background: var(--ds-panel-raised);
-  border-bottom: 2px solid var(--ds-edge-soft);
-  box-shadow: inset 0 2px 0 #3d3e47, inset 0 -2px 0 #1f2026;
-}
-
-.asset-toolbar > * {
-  flex: none;
-}
-
-.asset-toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Réglages de la vue calés à droite, comme dans la barre de la toile des menus. */
-.asset-toolbar-end {
-  margin-left: auto;
-}
-
-/* Colonne centrale étroite : les outils ne gardent que picto et touche. */
+/* Colonne centrale étroite : les groupes passent à la ligne entiers, les
+   libellés des outils restent visibles. */
 @container asset-stage (max-width: 700px) {
   .asset-toolbar {
     gap: 8px;
   }
 
-  .asset-toolbar .tool-label {
+  .asset-toolbar .tb-sep {
     display: none;
+  }
+}
+
+/* Colonne très étroite : les cinq outils se resserrent, puis se rangent en
+   deux lignes (trois et deux) plutôt que de déborder sur l’inspecteur. */
+@container asset-stage (max-width: 560px) {
+  .asset-toolbar .asset-segmented > button {
+    gap: 4px;
+    padding-inline: 7px;
+  }
+
+  .asset-toolbar .asset-segmented kbd {
+    margin-left: 0;
+  }
+}
+
+@container asset-stage (max-width: 480px) {
+  .asset-toolbar .asset-segmented {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 2px;
+  }
+
+  .asset-toolbar .asset-segmented > button + button {
+    margin-left: 0;
   }
 }
 
@@ -88,7 +89,8 @@
 }
 
 .asset-region-toolbar.region-grid select {
-  width: 96px;
+  min-width: 96px;
+  field-sizing: content;
 }
 
 .region-grid .mini-input {
@@ -101,7 +103,7 @@
 /* Fenêtre de rognage : sélecteur à gauche, aperçu de la découpe à droite. */
 .crop-dialog {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   align-items: start;
   gap: 16px;
 }
@@ -192,45 +194,11 @@
   box-shadow: inset 0 0 0 1px #24252c;
 }
 
-.asset-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  min-height: 28px;
-  padding: 4px 12px;
-  font-size: 12px;
-  color: var(--ds-muted);
-  background: var(--ds-panel-sunken);
-  border-top: 2px solid var(--ds-edge-soft);
-  box-shadow: inset 0 2px 0 #2c2d34;
-}
-
-.asset-footer-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.asset-status {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ds-ink);
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Liste des éléments */
 
 /* Le <select> prendrait la largeur de son option la plus longue : on la fixe.
    Le « + » est un picto, pas un caractère. */
 .asset-add-select {
-  width: 96px;
   min-height: var(--control-h-sm);
   padding: 1px 24px 1px 26px;
   font-size: 12px;
@@ -240,6 +208,8 @@
   background-position: 7px center, right 6px center;
   background-size: 12px 12px, 12px 12px;
   box-shadow: var(--bevel-raised);
+  min-width: 96px;
+  field-sizing: content;
 }
 
 .asset-add-select:hover:not(:disabled) {
@@ -285,11 +255,12 @@
 }
 
 .asset-region-toolbar select {
-  width: 72px;
   min-height: var(--control-h-sm);
   padding-top: 1px;
   padding-bottom: 1px;
   font-size: 12px;
+  min-width: 72px;
+  field-sizing: content;
 }
 
 .asset-region-scroll {
@@ -386,10 +357,11 @@
   overflow-x: auto;
   font: 11px/1.55 var(--font-mono);
   color: #d8d4e2;
-  white-space: pre;
+  white-space: pre-wrap;
   background: var(--ds-field);
   border: 2px solid var(--ds-edge);
   box-shadow: var(--bevel-sunken);
+  overflow-wrap: anywhere;
 }
 
 .asset-save {

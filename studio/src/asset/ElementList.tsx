@@ -2,6 +2,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { isAdditiveClick } from '../lib/shortcuts';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
+import { nodeText } from '../ui/nodeText';
 import { Tooltip } from '../ui/Tooltip';
 import type { ElementFlag } from './assetEdit';
 import { canMoveBlock, groupLabel, groupMemberIds } from './groups';
@@ -163,7 +164,10 @@ export function ElementList(props: ElementListProps) {
           choose(ids, event);
         }}
       >
-        <span className="outline-label">{label}</span>
+        {/* Texte complet au survol : la colonne étroite coupe les longs textes. */}
+        <span className="outline-label" title={nodeText(label)}>
+          {label}
+        </span>
         {(flags.hidden || flags.locked) && (
           <span className="outline-flags" aria-hidden="true">
             {flags.hidden && <Icon name="eye-off" />}

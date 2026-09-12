@@ -119,10 +119,8 @@
 .action-summary {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .drag-grip {
@@ -165,19 +163,17 @@
 
 .segmented-mini {
   display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
   gap: 2px;
   min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(10ch, 1fr));
 }
 
 .segmented-mini button {
   min-width: 0;
   min-height: var(--control-h-sm);
   padding: 1px 4px;
-  overflow: hidden;
   font-size: 12px;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .segmented-mini button[aria-checked='true'] {
@@ -188,8 +184,8 @@
 }
 
 .segmented-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: normal;
 }
 
 /* Conditions */
@@ -317,6 +313,16 @@
   font: 12px var(--font-mono);
 }
 
+/* Valeur entière visible : le champ prend la largeur de son texte, sans dépasser la colonne. */
+@supports (field-sizing: content) {
+  .chip input {
+    width: auto;
+    min-width: 4ch;
+    max-width: 100%;
+    field-sizing: content;
+  }
+}
+
 .inherited-states li {
   display: flex;
   flex-wrap: wrap;
@@ -424,6 +430,7 @@ button.swatch:where(:active:not(:disabled)) {
   color: var(--ds-muted);
   background: var(--ds-tip-field);
   box-shadow: inset 0 0 0 1px var(--ds-tip-line);
+  flex-wrap: wrap;
 }
 
 .try-stack li.is-current {
@@ -432,11 +439,9 @@ button.swatch:where(:active:not(:disabled)) {
 }
 
 .try-stack-name {
-  flex: 1 1 auto;
+  flex: 1 1 12ch;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .try-log {
@@ -484,10 +489,15 @@ button.swatch:where(:active:not(:disabled)) {
   color: var(--ds-warn);
 }
 
-/* Trois outils sur la toile (Sélection, Slots, Essayer) : sous 880 px de large, leur nom
-   passe dans l’infobulle avant que la barre ne revienne à la ligne (la touche reste). */
-@container stage (max-width: 880px) {
-  .stage-toolbar .tool-label {
-    display: none;
-  }
+/* Identifiant du menu sous son nom, replié s’il est long (jamais une lettre par ligne). */
+.try-stack li > .mono {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Nom de variable héritée : il se replie. */
+.inherited-states li > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

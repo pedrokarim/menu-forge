@@ -22,6 +22,7 @@
   background: var(--ds-panel-sunken);
   border-right: 2px solid var(--ds-edge);
   box-shadow: inset -2px 0 0 #2a2b32;
+  overflow-y: auto;
 }
 
 .rail-logo {
@@ -109,6 +110,10 @@
   max-width: 280px;
   padding-inline: 10px;
   font-weight: 700;
+  /* Un nom d’espace très long passe à la ligne dans la pastille. */
+  white-space: normal;
+  height: auto;
+  text-align: left;
 }
 
 .workspace-pill .icon:first-child {
@@ -117,9 +122,7 @@
 
 .workspace-pill-name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Écran ---------- */
@@ -142,6 +145,7 @@
   background: var(--ds-panel-raised);
   border-bottom: 2px solid var(--ds-edge-soft);
   box-shadow: inset 0 2px 0 #44454f, inset 0 -2px 0 #1f2026;
+  flex-wrap: wrap;
 }
 
 .screen-title {
@@ -153,7 +157,8 @@
   font: 600 18px/1 var(--font-display);
   letter-spacing: 0.02em;
   color: var(--ds-ink-strong);
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .screen-title .icon {
@@ -243,6 +248,7 @@
   color: var(--ds-ink);
   background: var(--ds-panel-sunken);
   box-shadow: inset 0 0 0 1px #3a3b44;
+  overflow-wrap: anywhere;
 }
 
 .notice .icon {
@@ -296,73 +302,91 @@
 
 .home-title {
   margin-bottom: 4px !important;
-  font: 600 28px/1 var(--font-display);
+  /* 1.2 et non 1 : les jambages de la police pixel sortaient de la ligne. */
+  font: 600 28px/1.2 var(--font-display);
   color: var(--ds-ink-strong);
 }
 
-.quick-actions {
+/* Actions rapides et documents récents sur les mêmes colonnes (une action
+   couvre deux documents) : les deux grilles s’alignent à toutes les largeurs. */
+.home-grid {
+  --home-columns: 6;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--home-columns), minmax(0, 1fr));
   gap: 12px;
 }
 
-/* Six actions : une seule ligne sur grand écran, puis 3 + 3, puis deux colonnes. */
-@media (max-width: 1599px) {
-  .quick-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 899px) {
+  .home-grid {
+    --home-columns: 4;
   }
 }
 
-@media (max-width: 1279px) {
-  .quick-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.quick-actions {
+
 }
 
-/* Grandes cases façon inventaire : picto dans une case de slot. */
+.quick-actions > .quick-action {
+  grid-column: span 2;
+}
+
+/* Carte d’action : picto en case de slot, titre et raccourci sur une ligne,
+   description en dessous sur toute la largeur. Hauteur commune à la rangée,
+   contenu calé en haut. */
 .quick-action {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto 1fr auto;
-  align-items: start;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  align-content: start;
   justify-content: stretch;
-  gap: 4px 12px;
-  min-height: 104px;
-  padding: 14px;
+  gap: 8px 10px;
+  min-height: 0;
+  padding: 12px 14px;
   text-align: left;
   white-space: normal;
 }
 
 .quick-action-icon {
   display: grid;
-  grid-row: 1 / span 3;
+  grid-row: 1;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   color: #2b2c33;
   background: var(--ds-slot);
   box-shadow: var(--bevel-slot);
 }
 
 .quick-action strong {
+  grid-row: 1;
+  min-width: 0;
   font: 600 15px/1.25 var(--font-display);
   color: var(--ds-ink-strong);
 }
 
+.quick-action .shortcut-keys {
+  grid-row: 1;
+  grid-column: 3;
+}
+
 .quick-action-text {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  align-self: start;
   font-size: 12px;
   line-height: 1.45;
   color: var(--ds-muted);
-}
-
-.quick-action .shortcut-keys {
-  justify-self: start;
 }
 
 .doc-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
   gap: 12px;
+}
+
+.doc-grid.home-grid {
+  grid-template-columns: repeat(var(--home-columns), minmax(0, 1fr));
 }
 
 .doc-card {
@@ -412,11 +436,10 @@
 }
 
 .doc-name {
-  overflow: hidden;
   font-weight: 700;
   color: var(--ds-ink-strong);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .doc-sub {
@@ -424,11 +447,10 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  overflow: hidden;
   font-size: 12px;
   color: var(--ds-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  flex-wrap: wrap;
 }
 
 .kind-dot.doc-kind-menu {
@@ -512,18 +534,14 @@ button.row-card:where(:active:not(:disabled)) {
 
 .row-title-text {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .row-path {
   min-width: 0;
-  overflow: hidden;
   font: 11.5px/1.4 var(--font-mono);
   color: var(--ds-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .row-meta {
@@ -546,7 +564,7 @@ button.row-card:where(:active:not(:disabled)) {
 
 .row-edit {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
 }
 
@@ -637,6 +655,8 @@ button.row-card:where(:active:not(:disabled)) {
 .setting-text {
   display: grid;
   gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .setting-text strong {
@@ -681,7 +701,8 @@ button.row-card:where(:active:not(:disabled)) {
 
 .about-name {
   margin-bottom: 6px !important;
-  font: 600 34px/1 var(--font-display);
+  /* 1.2 et non 1 : les jambages de la police pixel sortaient de la ligne. */
+  font: 600 34px/1.2 var(--font-display);
   color: var(--ds-ink-strong);
 }
 
@@ -704,9 +725,10 @@ button.row-card:where(:active:not(:disabled)) {
 }
 
 .info-table tbody th {
-  width: 180px;
+  width: max-content;
   font-weight: 400;
   color: var(--ds-muted);
+  max-width: 40%;
 }
 
 .info-table thead th {
@@ -733,9 +755,11 @@ button.row-card:where(:active:not(:disabled)) {
   width: min(860px, calc(100vw - 48px));
 }
 
+/* Deux colonnes quand elles tiennent, une seule sinon : un libellé ne doit jamais
+   être coupé par la largeur du dialogue. */
 .shortcut-groups {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 18px 32px;
 }
 
@@ -747,7 +771,7 @@ button.row-card:where(:active:not(:disabled)) {
 }
 
 .shortcut-group .shortcut-list {
-  grid-template-columns: 128px minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
 }
 
 /* ---------- Barre de titre (appli de bureau) ---------- */
@@ -870,4 +894,15 @@ button.row-card:where(:active:not(:disabled)) {
 .doc-card-wrap:hover .doc-card-more,
 .doc-card-wrap:focus-within .doc-card-more {
   opacity: 1;
+}
+
+/* Identifiant ou chemin d’un pack : il se replie dans la carte. */
+.row-meta > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Texte d’un message : il se replie à côté du picto. */
+.notice > :not(.icon) {
+  min-width: 0;
 }

@@ -145,6 +145,8 @@ export function Segmented<T extends string>({
             type="button"
             className={active ? 'active' : ''}
             aria-pressed={active}
+            // Nom accessible gardé quand la barre étroite masque le libellé (picto et touche seuls).
+            aria-label={option.label}
             aria-keyshortcuts={option.shortcut}
             onClick={() => onChange(option.value)}
           >

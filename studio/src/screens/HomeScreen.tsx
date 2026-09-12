@@ -28,7 +28,8 @@ const QUICK_ACTIONS: ReadonlyArray<{ kind: QuickAction; icon: IconName; title: s
     kind: 'generate-menu',
     icon: 'sparkles',
     title: 'Générer une interface',
-    text: `Boutique, grille, modale, liste ou onglets${NBSP}: un menu complet, en style Deepslate, mc-rs ou sombre à accent.`,
+    // Deux ou trois lignes au plus dans une carte : l’essentiel, sans la liste des styles (le dialogue les montre).
+    text: `Boutique, grille, modale, liste ou onglets${NBSP}: un menu complet, prêt à retoucher.`,
   },
   { kind: 'new-asset', icon: 'image', title: 'Nouvel asset', text: 'Composition libre (boîtes, images, texte) exportée en PNG et en glyphe.' },
   {
@@ -192,26 +193,29 @@ export function HomeScreen({
       </div>
 
       <section className="screen-section" aria-labelledby="home-actions">
+        {/* L’IA en action de section, alignée sur la ligne de base du titre : en septième carte, elle resterait
+            seule sur sa rangée. */}
         <div className="screen-section-head">
           <h2 id="home-actions" className="screen-section-title">
             Actions rapides
           </h2>
           <Tooltip label="Générer une interface par IA" hint="Décrite en quelques mots à une IA, validée, à relire avant enregistrement">
-            <button type="button" onClick={() => onQuickAction('ai-interface')}>
+            <button type="button" className="sm" onClick={() => onQuickAction('ai-interface')}>
               <Icon name="sparkles" />
               Générer une interface par IA…
             </button>
           </Tooltip>
         </div>
-        <div className="quick-actions">
+        {/* Mêmes colonnes que les documents récents : une action couvre deux documents. */}
+        <div className="quick-actions home-grid">
           {QUICK_ACTIONS.map((action) => (
             <button key={action.kind} type="button" className="quick-action" onClick={() => onQuickAction(action.kind)}>
               <span className="quick-action-icon">
-                <Icon name={action.icon} size={24} />
+                <Icon name={action.icon} />
               </span>
               <strong>{action.title}</strong>
-              <span className="quick-action-text">{action.text}</span>
               {action.shortcut && <ShortcutKeys shortcut={action.shortcut} />}
+              <span className="quick-action-text">{action.text}</span>
             </button>
           ))}
         </div>
@@ -237,7 +241,7 @@ export function HomeScreen({
             </button>
           </div>
         ) : (
-          <div className="doc-grid">
+          <div className="doc-grid home-grid">
             {documents.map((document) => (
               <div key={`${document.type}-${document.id}`} className="doc-card-wrap">
               <button
@@ -250,11 +254,15 @@ export function HomeScreen({
                   <DocumentThumbnail document={document} snapshot={snapshot} />
                 </span>
                 <span className="doc-meta">
-                  <span className="doc-name">{document.name}</span>
+                  <span className="doc-name" title={document.name}>
+                    {document.name}
+                  </span>
                   <span className="doc-sub">
                     <span className={`kind-dot doc-kind-${document.type}`} aria-hidden="true" />
                     {document.type === 'menu' ? 'Menu' : document.type === 'asset' ? 'Asset' : 'Image'} ·{' '}
-                    <span className="mono">{document.id}</span>
+                    <span className="mono" title={document.id}>
+                      {document.id}
+                    </span>
                   </span>
                   <span className="doc-sub" title={formatDate(document.modified)}>
                     <Icon name="clock" />

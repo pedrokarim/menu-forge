@@ -1,6 +1,7 @@
 /* Éditeur de pixels : couleurs à gauche, outils et toile au centre, calques
    et document à droite. Mêmes jetons Deepslate que le reste du studio. */
 
+/* Colonnes réglables à la souris, comme en mode Menus (voir .workspace). */
 .pixel-editor {
   display: grid;
   grid-template-columns: 264px minmax(0, 1fr) 300px;
@@ -33,10 +34,18 @@
   min-width: 0;
 }
 
+/* Outil et ses réglages : un groupe qui passe à la ligne en entier (comme les
+   autres), sans se replier sur lui-même : toute la rangée garde une hauteur. */
+.asset-toolbar > .pixel-tool-options {
+  gap: var(--space-2);
+}
+
+/* Hauteur d’un contrôle : même centre et même ligne de base que les boutons voisins. */
 .pixel-tool-name {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: var(--control-h);
   font: 400 14px/1 var(--font-display);
   color: var(--ds-ink-strong);
   white-space: nowrap;
@@ -64,16 +73,19 @@
   font-size: 12px;
 }
 
-.pixel-zoom {
-  width: 96px;
+/* Dans la barre d’outils : la hauteur des boutons voisins. */
+.pixel-tolerance .mini-input {
+  min-height: var(--control-h);
 }
 
-/* Colonne étroite (fenêtre minimale) : les libellés des réglages s’effacent. */
-@container pixel-main (max-width: 640px) {
-  .pixel-tool-name {
-    display: none;
-  }
+.pixel-zoom {
+  min-width: 96px;
+  field-sizing: content;
+}
 
+/* Colonne étroite : les séparateurs s’effacent, les groupes passent à la ligne
+   entiers ; le nom de l’outil reste visible. */
+@container pixel-main (max-width: 640px) {
   .pixel-options .tb-sep {
     display: none;
   }
@@ -174,13 +186,13 @@
   gap: 12px;
   max-width: calc(100% - 16px);
   padding: 3px 8px;
-  overflow: hidden;
   font: 11px var(--font-mono);
   color: var(--ds-muted);
-  white-space: nowrap;
   pointer-events: none;
   background: rgba(11, 11, 14, 0.78);
   box-shadow: inset 0 0 0 1px #24252c;
+  flex-wrap: wrap;
+  row-gap: 2px;
 }
 
 .pixel-readout > span {
@@ -364,8 +376,7 @@
 }
 
 .pixel-layer-list {
-  max-height: 280px;
-  overflow-y: auto;
+
 }
 
 /* Document */

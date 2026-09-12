@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, JSX, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
@@ -670,7 +670,10 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             onClick={() => setLeftTab('elements')}
           >
             <Icon name="list" />
-            Éléments
+            {/* Coupé par des points de suspension plutôt que de baver sur la barre voisine. */}
+            <span className="tab-label" title="Éléments">
+              Éléments
+            </span>
           </button>
           <button
             type="button"
@@ -680,7 +683,10 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             onClick={() => setLeftTab('library')}
           >
             <Icon name="library" />
-            Bibliothèque
+            {/* Coupé par des points de suspension plutôt que de baver sur la barre voisine. */}
+            <span className="tab-label" title="Bibliothèque">
+              Bibliothèque
+            </span>
           </button>
         </div>
         {/* Les deux onglets restent montés : la bibliothèque garde ses filtres et son index. */}

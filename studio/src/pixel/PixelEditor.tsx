@@ -728,7 +728,8 @@ function PixelWorkbench(props: WorkbenchProps) {
   };
 
   const toggle = (on: boolean, icon: IconName, label: string, hint: string, onClick: () => void, shortcut?: string) => (
-    <IconButton icon={icon} label={label} hint={hint} shortcut={shortcut} pressed={on} variant={on ? 'normal' : 'ghost'} onClick={onClick} />
+    // Taille standard des boutons de barre d’outils (24 px de picto), comme annuler et rétablir.
+    <IconButton icon={icon} label={label} hint={hint} shortcut={shortcut} pressed={on} variant={on ? 'normal' : 'ghost'} size={24} onClick={onClick} />
   );
 
   const brushSizes = BRUSH_TOOLS.has(tool) && !(tool === 'rectangle' && options.filled) && !(tool === 'ellipse' && options.filled);
@@ -749,7 +750,10 @@ function PixelWorkbench(props: WorkbenchProps) {
       </aside>
 
       <section className="pixel-main">
+        {/* Quatre groupes, comme les autres barres : l’outil et ses réglages, la symétrie, l’historique,
+            l’affichage. Faute de place, c’est un groupe entier qui passe à la ligne. */}
         <div className="asset-toolbar pixel-options" role="toolbar" aria-label="Réglages de l’outil">
+          <div className="asset-toolbar-group pixel-tool-options" role="group" aria-label={`Outil ${info.label}`}>
           <span className="pixel-tool-name">
             <Icon name={info.icon} />
             {info.label}
@@ -821,12 +825,13 @@ function PixelWorkbench(props: WorkbenchProps) {
           )}
           {(SELECTION_TOOLS.has(tool) || tool === 'move') && (
             <div className="asset-toolbar-group">
-              <IconButton icon="flip-h" label="Retourner horizontalement" shortcut="Maj+H" hint="La sélection, ou toute l’image" variant="ghost" onClick={() => transform('flip-h')} />
-              <IconButton icon="flip-v" label="Retourner verticalement" shortcut="Maj+V" hint="La sélection, ou toute l’image" variant="ghost" onClick={() => transform('flip-v')} />
-              <IconButton icon="rotate-ccw" label="Pivoter de 90° (antihoraire)" hint="La sélection, ou toute l’image" variant="ghost" onClick={() => transform('rotate-ccw')} />
-              <IconButton icon="rotate-cw" label="Pivoter de 90° (horaire)" shortcut="Maj+R" hint="La sélection, ou toute l’image" variant="ghost" onClick={() => transform('rotate-cw')} />
+              <IconButton icon="flip-h" label="Retourner horizontalement" shortcut="Maj+H" hint="La sélection, ou toute l’image" variant="ghost" size={24} onClick={() => transform('flip-h')} />
+              <IconButton icon="flip-v" label="Retourner verticalement" shortcut="Maj+V" hint="La sélection, ou toute l’image" variant="ghost" size={24} onClick={() => transform('flip-v')} />
+              <IconButton icon="rotate-ccw" label="Pivoter de 90° (antihoraire)" hint="La sélection, ou toute l’image" variant="ghost" size={24} onClick={() => transform('rotate-ccw')} />
+              <IconButton icon="rotate-cw" label="Pivoter de 90° (horaire)" shortcut="Maj+R" hint="La sélection, ou toute l’image" variant="ghost" size={24} onClick={() => transform('rotate-cw')} />
             </div>
           )}
+          </div>
           <span className="tb-sep" aria-hidden="true" />
           <div className="asset-toolbar-group" role="group" aria-label="Symétrie">
             {toggle(
@@ -844,9 +849,12 @@ function PixelWorkbench(props: WorkbenchProps) {
               () => setOption('symmetry', { ...options.symmetry, vertical: !options.symmetry.vertical }),
             )}
           </div>
-          <div className="asset-toolbar-group asset-toolbar-end">
+          <span className="tb-sep" aria-hidden="true" />
+          <div className="asset-toolbar-group" role="group" aria-label="Historique">
             <IconButton icon="undo" label="Annuler" shortcut="Ctrl+Z" size={24} disabled={history.past.length === 0} onClick={undo} />
             <IconButton icon="redo" label="Rétablir" shortcut="Ctrl+Y" size={24} disabled={history.future.length === 0} onClick={redo} />
+          </div>
+          <div className="asset-toolbar-group asset-toolbar-end" role="group" aria-label="Affichage">
             <Tooltip label="Grille des pixels" shortcut="Maj+G" hint={`Visible à partir de ×${GRID_MIN_ZOOM}`}>
               <label className="checkbox">
                 <input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />
