@@ -267,6 +267,17 @@ export const tests = [
             },
           },
           {
+            name: 'générer une interface · exemples',
+            hash: MENU,
+            prepare: async (page) => {
+              await clickButton(page, 'Nouveau');
+              await modal(page, 'Nouveau menu').getByRole('button', { name: /Générer une interface/ }).first().click();
+              const dialog = modal(page, 'Générer une interface');
+              await dialog.getByRole('tab', { name: /Exemples/ }).click();
+              await dialog.getByRole('radio', { name: /^Marché,/ }).click();
+            },
+          },
+          {
             name: 'générateur de textures',
             hash: MENU,
             prepare: async (page) => {
