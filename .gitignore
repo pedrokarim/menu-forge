@@ -25,6 +25,10 @@ examples/.trash/
 examples/exports/
 # Captures d’échec des tests de bout en bout du studio (`npm run e2e`).
 studio/e2e/results/
+# Pages de documentation du site, générées depuis docs/ par site/scripts/build.py
+# (et par le workflow Pages à chaque publication).
+site/docs/
+site/en/docs/
 
 # Environnement
 .env

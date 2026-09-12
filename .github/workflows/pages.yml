@@ -1,6 +1,8 @@
-# Publie le dossier site/ sur GitHub Pages (source : « GitHub Actions » dans
-# Settings → Pages). Seuls la page et ses ressources sont publiés : ni les
-# scripts de capture ni leur package.json.
+# Publie le site sur GitHub Pages (source : « GitHub Actions » dans Settings → Pages).
+# Les pages de documentation sont générées ici depuis docs/ (site/scripts/build.py
+# --docs, qui vérifie aussi tous les liens et les ancres : un lien mort bloque la
+# publication). Seuls les pages et leurs ressources sont publiés : ni les scripts de
+# capture ni leur package.json.
 name: Site (GitHub Pages)
 
 on:
@@ -8,6 +10,9 @@ on:
     branches: [main]
     paths:
       - 'site/**'
+      - 'docs/**'
+      - 'lib/README.md'
+      - 'studio/README.md'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -31,6 +36,14 @@ jobs:
       - name: Récupérer le dépôt
         uses: actions/checkout@v5
 
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Générer la documentation et vérifier les liens
+        run: python site/scripts/build.py --docs
+
       - name: Configurer Pages
         uses: actions/configure-pages@v5
 
@@ -38,7 +51,7 @@ jobs:
         run: |
           mkdir -p _site
           cp site/index.html _site/
-          cp -r site/assets site/en _site/
+          cp -r site/assets site/en site/docs _site/
 
       - name: Téléverser l’artefact
         uses: actions/upload-pages-artifact@v4

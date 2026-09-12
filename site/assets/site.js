@@ -77,6 +77,12 @@
     });
   }
 
+  /* ---------- Menu de la documentation ---------- */
+
+  // Ouvert par défaut (sans JavaScript, tout reste visible) ; replié sur écran étroit, où il passe au-dessus du texte.
+  const docMenu = document.querySelector('.doc-menu');
+  if (docMenu && window.matchMedia('(max-width: 1000px)').matches) docMenu.open = false;
+
   /* ---------- Section courante ---------- */
 
   const links = new Map(
