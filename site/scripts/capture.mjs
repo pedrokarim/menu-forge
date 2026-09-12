@@ -731,6 +731,31 @@ shot('interface-generator', 'Générateur d’interfaces : barre d’onglets en 
   return modal;
 });
 
+shot('interface-examples', 'Générateur d’interfaces : galerie d’exemples, vignettes rendues en direct', async (page) => {
+  await open(page, '#/accueil');
+  await page.getByRole('button', { name: 'Voir les exemples', exact: true }).click();
+  const modal = page.locator('.modal').filter({ has: page.locator('.interface-examples') }).first();
+  await modal.waitFor({ timeout: 30000 });
+  await modal.getByRole('radio', { name: /^Marché,/ }).click();
+  // Vignettes dessinées à la demande : on attend toutes celles de la partie visible de la grille.
+  await page.waitForFunction(
+    () => {
+      const grid = document.querySelector('.example-grid')?.getBoundingClientRect();
+      if (!grid) return false;
+      const visible = [...document.querySelectorAll('.example-card canvas')].filter((canvas) => {
+        const rect = canvas.getBoundingClientRect();
+        return rect.top < grid.bottom && rect.bottom > grid.top;
+      });
+      return visible.length > 0 && visible.every((canvas) => canvas.dataset.drawn === 'true');
+    },
+    null,
+    { timeout: 30000 },
+  );
+  await page.mouse.move(5, 5);
+  await wait(300);
+  return modal;
+});
+
 shot('generated-menu', 'Une boutique générée (style mc-rs), ouverte dans l’éditeur', async (page) => {
   const modal = await openInterfaceGenerator(page);
   await field(modal, 'Nom').fill('Marché');

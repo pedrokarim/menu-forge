@@ -777,15 +777,28 @@ h3 {
   list-style: none;
 }
 
+/* Dernière capture seule sur sa rangée de trois : centrée, pas calée à gauche. */
+.gallery > li:last-child:nth-child(3n + 1) {
+  grid-column: 2;
+}
+
 @media (max-width: 1000px) {
   .gallery {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gallery > li:last-child:nth-child(3n + 1) {
+    grid-column: auto;
   }
 }
 
 @media (max-width: 640px) {
   .gallery {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gallery > li:last-child:nth-child(3n + 1) {
+    grid-column: auto;
   }
 }
 
