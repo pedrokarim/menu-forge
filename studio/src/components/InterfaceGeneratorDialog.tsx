@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { NBSP, plural } from '../lib/format';
 import { evaluateCondition } from '../model/conditions';
-import { TEXT_HEIGHT, charAdvance } from '../model/fontMetrics';
-import { drawPanelStyle } from '../model/generator';
-import { GRID_COLUMNS, SLOT_SIZE, WINDOW_WIDTH, areaRect, chestCell, chestCellAt, playerCell, windowHeight } from '../model/geometry';
+import { WINDOW_WIDTH, chestCellAt, windowHeight } from '../model/geometry';
+import { INTERFACE_EXAMPLES, exampleId, exampleOptions } from '../model/interfaceExamples';
+import type { InterfaceExample } from '../model/interfaceExamples';
 import {
   DEFAULT_ACCENTS,
   FAMILY_LABELS,
@@ -13,20 +13,23 @@ import {
   LAYOUT_LABELS,
   generateInterface,
   normalizeOptions,
-  textBox,
 } from '../model/interfaceGenerator';
 import type { ButtonLayout, InterfaceKind, StyleFamily } from '../model/interfaceGenerator';
 import { ID_PATTERN, sanitizeId, uniqueId } from '../model/menu';
-import type { Layer, MenuDefinition, SlotArea, StateValue } from '../model/menu';
-import { DEFAULT_PREVIEW, buildPreviewContext, interpolate } from '../model/preview';
+import type { MenuDefinition, SlotArea, StateValue } from '../model/menu';
+import { DEFAULT_PREVIEW, buildPreviewContext } from '../model/preview';
 import type { PreviewValues } from '../model/preview';
-import { imageToCanvas, renderGeneratorImage } from '../model/textureRender';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { Field, FieldError, Modal, NumberField } from './fields';
+import { InterfaceExamplesGallery } from './InterfaceExamplesGallery';
+import { drawInterfacePreview } from './interfacePreview';
+import type { TextureCache } from './interfacePreview';
 import type { NewMenuInput } from './NewMenuDialog';
-import { SLOT_COLORS } from './slotColors';
 import './generator.css';
+
+/** Vue du dialogue : réglages du générateur, ou galerie d’exemples. */
+export type GeneratorView = 'form' | 'examples';
 
 interface InterfaceGeneratorDialogProps {
   existingIds: string[];
@@ -34,6 +37,8 @@ interface InterfaceGeneratorDialogProps {
   /** Revenir au choix d’un gabarit (absent quand le dialogue est ouvert directement). */
   onBack?: () => void;
   onCreate: (input: NewMenuInput) => Promise<void>;
+  /** Vue à l’ouverture (« Voir les exemples » de l’accueil : la galerie). */
+  initialView?: GeneratorView;
 }
 
 const KIND_ICONS: Record<InterfaceKind, IconName> = {
@@ -47,35 +52,6 @@ const KIND_ICONS: Record<InterfaceKind, IconName> = {
 /** Échelle de l’aperçu (pixels écran par pixel de la fenêtre). */
 const SCALE = 2;
 
-/** Texte au pas de la police vanilla, comme sur la toile de l’éditeur. */
-function drawText(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color: string) {
-  ctx.save();
-  ctx.fillStyle = color;
-  ctx.font = `${TEXT_HEIGHT * SCALE}px ui-monospace, Consolas, monospace`;
-  ctx.textBaseline = 'top';
-  let cursor = x;
-  for (const char of value) {
-    ctx.fillText(char, cursor, y, charAdvance(char) * SCALE);
-    cursor += charAdvance(char) * SCALE;
-  }
-  ctx.restore();
-}
-
-/** Coffre vanilla sous le menu : panneau, cases du coffre et de l’inventaire du joueur. */
-function drawChest(ctx: CanvasRenderingContext2D, rows: number) {
-  drawPanelStyle(ctx, 'panel', 0, 0, WINDOW_WIDTH, windowHeight(rows), '#c6c6c6');
-  for (let col = 0; col < GRID_COLUMNS; col++) {
-    for (let row = 0; row < rows; row++) {
-      const cell = chestCell(col, row);
-      drawPanelStyle(ctx, 'cell', cell.x, cell.y, SLOT_SIZE, SLOT_SIZE, '#8b8b8b');
-    }
-    for (let row = 0; row < 4; row++) {
-      const cell = playerCell(col, row, rows);
-      drawPanelStyle(ctx, 'cell', cell.x, cell.y, SLOT_SIZE, SLOT_SIZE, '#8b8b8b');
-    }
-  }
-}
-
 function covers(area: SlotArea, cell: { col: number; row: number }): boolean {
   return cell.col >= area.col && cell.col < area.col + (area.width ?? 1) && cell.row >= area.row && cell.row < area.row + (area.height ?? 1);
 }
@@ -88,8 +64,12 @@ function pageStateOf(menu: MenuDefinition, list: string): string | undefined {
  * Générateur d’interfaces : type, lignes, boutons, famille de styles et accent
  * donnent un menu complet, visible en direct, créé comme un gabarit (ses
  * textures sont cuites à la création) et retouchable ensuite dans l’éditeur.
+ * L’onglet « Exemples » propose des réglages tout faits : un clic les charge
+ * dans le formulaire, un double-clic crée le menu.
  */
-export function InterfaceGeneratorDialog({ existingIds, onCancel, onBack, onCreate }: InterfaceGeneratorDialogProps) {
+export function InterfaceGeneratorDialog({ existingIds, onCancel, onBack, onCreate, initialView = 'form' }: InterfaceGeneratorDialogProps) {
+  const [view, setView] = useState<GeneratorView>(initialView);
+  const [selectedExample, setSelectedExample] = useState<InterfaceExample | null>(null);
   const [kind, setKind] = useState<InterfaceKind>('shop');
   const [family, setFamily] = useState<StyleFamily>('mcrs');
   const [rows, setRows] = useState(INTERFACE_KINDS.shop.defaultRows);
@@ -108,7 +88,7 @@ export function InterfaceGeneratorDialog({ existingIds, onCancel, onBack, onCrea
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
-  const textures = useRef(new Map<string, HTMLCanvasElement>());
+  const textures = useRef<TextureCache>(new Map());
 
   const info = INTERFACE_KINDS[kind];
   let idError: string | null = null;
@@ -144,57 +124,29 @@ export function InterfaceGeneratorDialog({ existingIds, onCancel, onBack, onCrea
     if (accent === DEFAULT_ACCENTS[family]) setAccent(DEFAULT_ACCENTS[next]);
   };
 
+  /** Réglages d’un exemple dans le formulaire (nom, titre, identifiant libre compris). */
+  const applyExample = (entry: InterfaceExample) => {
+    setSelectedExample(entry);
+    setKind(entry.kind);
+    setFamily(entry.family);
+    setRows(entry.rows);
+    setButtons(entry.buttons);
+    setLayout(entry.layout);
+    setAccent(entry.accent);
+    setName(entry.name);
+    setNameTouched(true);
+    setTitle(entry.name);
+    setTitleTouched(true);
+    setId(exampleId(entry, existingIds));
+    setIdTouched(false);
+    setPreview(DEFAULT_PREVIEW);
+    setError(null);
+  };
+
   // Aperçu : coffre vanilla, couches visibles dans l’état d’aperçu, textes, zones de slots.
   useEffect(() => {
     const canvas = previewRef.current;
-    const out = canvas?.getContext('2d');
-    if (!canvas || !out) return;
-    const height = windowHeight(menu.container.rows);
-    const base = document.createElement('canvas');
-    base.width = WINDOW_WIDTH;
-    base.height = height;
-    const ctx = base.getContext('2d');
-    if (!ctx) return;
-    drawChest(ctx, menu.container.rows);
-    const view = buildPreviewContext(menu, preview);
-    const cache = textures.current;
-    if (cache.size > 300) cache.clear();
-    const textureOf = (layer: Layer & { generator: NonNullable<Layer['generator']> }) => {
-      const key = JSON.stringify([layer.generator, layer.x, layer.y]);
-      let texture = cache.get(key);
-      if (!texture) {
-        texture = imageToCanvas(renderGeneratorImage(layer.generator, layer));
-        cache.set(key, texture);
-      }
-      return texture;
-    };
-    for (const layer of menu.layers) {
-      if (!layer.generator || !evaluateCondition(layer.visibleWhen, view)) continue;
-      ctx.drawImage(textureOf({ ...layer, generator: layer.generator }), layer.x, layer.y);
-    }
-
-    canvas.width = WINDOW_WIDTH * SCALE;
-    canvas.height = height * SCALE;
-    out.imageSmoothingEnabled = false;
-    out.drawImage(base, 0, 0, canvas.width, canvas.height);
-    for (const text of menu.texts ?? []) {
-      if (!evaluateCondition(text.visibleWhen, view)) continue;
-      const value = interpolate(text.value, view.variables);
-      const box = textBox({ ...text, value });
-      drawText(out, value, box.x * SCALE, box.y * SCALE, text.color ?? '#404040');
-    }
-    if (showSlots) {
-      out.save();
-      out.lineWidth = 2;
-      out.setLineDash([4, 3]);
-      for (const slot of menu.slots ?? []) {
-        if (!evaluateCondition(slot.visibleWhen, view)) continue;
-        const rect = areaRect(slot.area);
-        out.strokeStyle = SLOT_COLORS[slot.kind];
-        out.strokeRect(rect.x * SCALE + 2, rect.y * SCALE + 2, rect.width * SCALE - 4, rect.height * SCALE - 4);
-      }
-      out.restore();
-    }
+    if (canvas) drawInterfacePreview(canvas, menu, preview, { scale: SCALE, showSlots, textures: textures.current });
   }, [menu, preview, showSlots]);
 
   /** Un clic sur un bouton de l’aperçu joue ses changements d’état et de page. */
@@ -225,19 +177,38 @@ export function InterfaceGeneratorDialog({ existingIds, onCancel, onBack, onCrea
     setPreview({ ...preview, state });
   };
 
-  const create = async () => {
-    if (idError) return;
+  const submit = async (input: NewMenuInput) => {
     setBusy(true);
     setError(null);
     try {
-      await onCreate({ id, name, rows: menu.container.rows, template: generateInterface({ ...options, id }), form: null });
+      await onCreate(input);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
       setBusy(false);
     }
   };
 
+  const create = () => {
+    if (idError || busy) return;
+    void submit({ id, name, rows: menu.container.rows, template: generateInterface({ ...options, id }), form: null });
+  };
+
+  /** Crée le menu d’un exemple tel quel, sous un identifiant libre tiré de son nom. */
+  const createFromExample = (entry: InterfaceExample) => {
+    if (busy) return;
+    const exampleMenuId = exampleId(entry, existingIds);
+    const template = generateInterface(exampleOptions(entry, exampleMenuId));
+    applyExample(entry);
+    void submit({ id: exampleMenuId, name: entry.name, rows: template.container.rows, template, form: null });
+  };
+
   const stateSummary = Object.entries(context.state).map(([key, value]) => `${key}${NBSP}=${NBSP}${String(value)}`);
+  const creating = (label: string) => (
+    <>
+      <Icon name={busy ? 'loader' : 'sparkles'} />
+      {busy ? 'Génération…' : label}
+    </>
+  );
 
   return (
     <Modal
@@ -256,127 +227,181 @@ export function InterfaceGeneratorDialog({ existingIds, onCancel, onBack, onCrea
           <button type="button" onClick={onCancel}>
             Annuler
           </button>
-          <button type="button" className="primary" disabled={busy || Boolean(idError)} onClick={() => void create()}>
-            <Icon name={busy ? 'loader' : 'sparkles'} />
-            {busy ? 'Génération…' : 'Créer le menu'}
-          </button>
+          {view === 'examples' ? (
+            <>
+              <button type="button" disabled={!selectedExample} onClick={() => setView('form')}>
+                <Icon name="sliders" />
+                Personnaliser
+              </button>
+              <button
+                type="button"
+                className="primary"
+                disabled={busy || !selectedExample}
+                onClick={() => selectedExample && createFromExample(selectedExample)}
+              >
+                {creating('Utiliser cet exemple')}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="primary" disabled={busy || Boolean(idError)} onClick={create}>
+              {creating('Créer le menu')}
+            </button>
+          )}
         </>
       }
     >
-      <div className="interface-generator">
-        <div className="interface-form">
-          <div className="interface-kinds" role="radiogroup" aria-label="Type d’interface">
-            {INTERFACE_KIND_ORDER.map((candidate) => (
-              <button
-                key={candidate}
-                type="button"
-                role="radio"
-                aria-checked={candidate === kind}
-                className={`interface-kind ${candidate === kind ? 'selected' : ''}`}
-                onClick={() => chooseKind(candidate)}
-              >
-                <Icon name={KIND_ICONS[candidate]} />
-                {INTERFACE_KINDS[candidate].label}
-              </button>
-            ))}
-          </div>
-          <p className="muted interface-kind-description">{info.description}</p>
-          <div className="field-row">
-            <Field label="Nom">
+      <div className="interface-root" data-view={view}>
+        <div className="interface-views" role="tablist" aria-label="Vue du générateur">
+          <button
+            type="button"
+            role="tab"
+            id="interface-tab-form"
+            aria-controls="interface-panel-form"
+            aria-selected={view === 'form'}
+            className={view === 'form' ? 'active' : ''}
+            onClick={() => setView('form')}
+          >
+            <Icon name="sliders" />
+            Réglages
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="interface-tab-examples"
+            aria-controls="interface-panel-examples"
+            aria-selected={view === 'examples'}
+            className={view === 'examples' ? 'active' : ''}
+            onClick={() => setView('examples')}
+          >
+            <Icon name="grid" />
+            Exemples
+            <span className="count">{INTERFACE_EXAMPLES.length}</span>
+          </button>
+        </div>
+        <div className="interface-generator" role="tabpanel" id="interface-panel-form" aria-labelledby="interface-tab-form" hidden={view !== 'form'}>
+          <div className="interface-form">
+            <div className="interface-kinds" role="radiogroup" aria-label="Type d’interface">
+              {INTERFACE_KIND_ORDER.map((candidate) => (
+                <button
+                  key={candidate}
+                  type="button"
+                  role="radio"
+                  aria-checked={candidate === kind}
+                  className={`interface-kind ${candidate === kind ? 'selected' : ''}`}
+                  onClick={() => chooseKind(candidate)}
+                >
+                  <Icon name={KIND_ICONS[candidate]} />
+                  {INTERFACE_KINDS[candidate].label}
+                </button>
+              ))}
+            </div>
+            <p className="muted interface-kind-description">{info.description}</p>
+            <div className="field-row">
+              <Field label="Nom">
+                <input
+                  value={name}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setNameTouched(true);
+                    if (!idTouched) setId(uniqueId(sanitizeId(event.target.value), existingIds));
+                    if (!titleTouched) setTitle(event.target.value);
+                  }}
+                />
+              </Field>
+              <Field label="Identifiant">
+                <input
+                  className="mono"
+                  value={id}
+                  onChange={(event) => {
+                    setIdTouched(true);
+                    setId(event.target.value);
+                  }}
+                />
+                {idError && <FieldError>{idError}</FieldError>}
+              </Field>
+            </div>
+            <Field label="Titre affiché" hint="En haut à gauche de la fenêtre">
               <input
-                value={name}
+                value={title}
                 onChange={(event) => {
-                  setName(event.target.value);
-                  setNameTouched(true);
-                  if (!idTouched) setId(uniqueId(sanitizeId(event.target.value), existingIds));
-                  if (!titleTouched) setTitle(event.target.value);
+                  setTitle(event.target.value);
+                  setTitleTouched(true);
                 }}
               />
             </Field>
-            <Field label="Identifiant">
-              <input
-                className="mono"
-                value={id}
-                onChange={(event) => {
-                  setIdTouched(true);
-                  setId(event.target.value);
-                }}
+            <div className="field-row">
+              <Field label="Famille de styles">
+                <select value={family} onChange={(event) => chooseFamily(event.target.value as StyleFamily)}>
+                  {Object.entries(FAMILY_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Accent">
+                <div className="color-input">
+                  <input type="color" value={options.accent} onChange={(event) => setAccent(event.target.value)} />
+                  <input value={accent} onChange={(event) => setAccent(event.target.value)} />
+                </div>
+              </Field>
+            </div>
+            <div className="field-row">
+              <NumberField
+                label="Lignes du coffre"
+                value={options.rows}
+                min={info.minRows}
+                max={6}
+                onChange={(value) => setRows(Math.min(6, Math.max(info.minRows, value)))}
               />
-              {idError && <FieldError>{idError}</FieldError>}
-            </Field>
-          </div>
-          <Field label="Titre affiché" hint="En haut à gauche de la fenêtre">
-            <input
-              value={title}
-              onChange={(event) => {
-                setTitle(event.target.value);
-                setTitleTouched(true);
-              }}
-            />
-          </Field>
-          <div className="field-row">
-            <Field label="Famille de styles">
-              <select value={family} onChange={(event) => chooseFamily(event.target.value as StyleFamily)}>
-                {Object.entries(FAMILY_LABELS).map(([value, label]) => (
+              <NumberField
+                label={info.buttonsLabel}
+                value={options.buttons}
+                min={info.minButtons}
+                max={info.maxButtons}
+                onChange={(value) => setButtons(Math.min(info.maxButtons, Math.max(info.minButtons, value)))}
+              />
+            </div>
+            <Field label="Disposition des boutons">
+              <select value={layout} onChange={(event) => setLayout(event.target.value as ButtonLayout)}>
+                {Object.entries(LAYOUT_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Accent">
-              <div className="color-input">
-                <input type="color" value={options.accent} onChange={(event) => setAccent(event.target.value)} />
-                <input value={accent} onChange={(event) => setAccent(event.target.value)} />
-              </div>
-            </Field>
           </div>
-          <div className="field-row">
-            <NumberField
-              label="Lignes du coffre"
-              value={options.rows}
-              min={info.minRows}
-              max={6}
-              onChange={(value) => setRows(Math.min(6, Math.max(info.minRows, value)))}
+          <div className="interface-preview">
+            <canvas
+              ref={previewRef}
+              role="img"
+              aria-label="Aperçu du menu généré"
+              title="Clic sur un onglet ou une flèche : change l’aperçu"
+              onClick={clickPreview}
             />
-            <NumberField
-              label={info.buttonsLabel}
-              value={options.buttons}
-              min={info.minButtons}
-              max={info.maxButtons}
-              onChange={(value) => setButtons(Math.min(info.maxButtons, Math.max(info.minButtons, value)))}
-            />
-          </div>
-          <Field label="Disposition des boutons">
-            <select value={layout} onChange={(event) => setLayout(event.target.value as ButtonLayout)}>
-              {Object.entries(LAYOUT_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
+            <label className="checkbox">
+              <input type="checkbox" checked={showSlots} onChange={(event) => setShowSlots(event.target.checked)} />
+              Zones de slots
+            </label>
+            <p className="interface-summary">
+              <span>{plural(menu.layers.length, 'couche')}</span>
+              <span>{plural((menu.slots ?? []).length, 'slot')}</span>
+              <span>{plural((menu.texts ?? []).length, 'texte')}</span>
+              {stateSummary.map((entry) => (
+                <span key={entry}>{entry}</span>
               ))}
-            </select>
-          </Field>
+            </p>
+          </div>
         </div>
-        <div className="interface-preview">
-          <canvas
-            ref={previewRef}
-            role="img"
-            aria-label="Aperçu du menu généré"
-            title="Clic sur un onglet ou une flèche : change l’aperçu"
-            onClick={clickPreview}
-          />
-          <label className="checkbox">
-            <input type="checkbox" checked={showSlots} onChange={(event) => setShowSlots(event.target.checked)} />
-            Zones de slots
-          </label>
-          <p className="interface-summary">
-            <span>{plural(menu.layers.length, 'couche')}</span>
-            <span>{plural((menu.slots ?? []).length, 'slot')}</span>
-            <span>{plural((menu.texts ?? []).length, 'texte')}</span>
-            {stateSummary.map((entry) => (
-              <span key={entry}>{entry}</span>
-            ))}
-          </p>
+        <div
+          className="interface-examples-panel"
+          role="tabpanel"
+          id="interface-panel-examples"
+          aria-labelledby="interface-tab-examples"
+          hidden={view !== 'examples'}
+        >
+          <InterfaceExamplesGallery selectedKey={selectedExample?.key ?? null} onSelect={applyExample} onUse={createFromExample} />
         </div>
       </div>
     </Modal>
