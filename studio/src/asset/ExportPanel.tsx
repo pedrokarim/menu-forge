@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { NumberField } from '../components/fields';
+import { NBSP } from '../lib/format';
 import type { PreviewFontSource } from '../lib/previewFont';
 import { Icon } from '../ui/Icon';
 import { Tooltip } from '../ui/Tooltip';
-import { drawScaled } from './canvasUtils';
+import { drawScaled, fitScale } from './canvasUtils';
 import type { AssetDefinition } from './model';
 import { glyphUsage, glyphYaml } from './presets';
 
@@ -20,17 +21,37 @@ interface ExportPanelProps {
   onAscentChange: (ascent: number) => void;
 }
 
-/** Colonne d’export : enregistrement, `ascent`, aperçus ×1 et ×2, extraits prêts à copier. */
+/**
+ * Colonne d’export : enregistrement, `ascent`, aperçus ×1 et ×2, extraits prêts à copier.
+ *
+ * Les aperçus tiennent dans la colonne à toutes ses largeurs : l’aperçu ×2
+ * n’apparaît que s’il tient (réduit, il ne serait qu’une copie du ×1) ;
+ * l’aperçu ×1 d’un asset plus large que la colonne est réduit, et le dit.
+ */
 export function ExportPanel(props: ExportPanelProps) {
   const { asset, exportCanvas, dirty, saving, missingTextures, fontSource } = props;
+  const previewRef = useRef<HTMLDivElement>(null);
   const scale1Ref = useRef<HTMLCanvasElement>(null);
   const scale2Ref = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  /** Largeur utile de l’aperçu (px CSS), suivie avec celle de la colonne ; `null` avant la première mesure. */
+  const [room, setRoom] = useState<number | null>(null);
+
+  useEffect(() => {
+    const node = previewRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => setRoom(entry.contentRect.width));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const realScale = room === null ? 1 : fitScale(1, exportCanvas.width, room);
+  const doubleFits = room !== null && fitScale(2, exportCanvas.width, room) === 2;
 
   useEffect(() => {
     if (scale1Ref.current) drawScaled(scale1Ref.current, exportCanvas, 1);
     if (scale2Ref.current) drawScaled(scale2Ref.current, exportCanvas, 2);
-  }, [exportCanvas]);
+  }, [exportCanvas, doubleFits]);
 
   useEffect(() => {
     if (!copied) return;
@@ -98,15 +119,23 @@ export function ExportPanel(props: ExportPanelProps) {
         </p>
       )}
 
-      <div className="asset-preview">
+      <div className="asset-preview" ref={previewRef}>
         <figure>
           <canvas ref={scale1Ref} />
-          <figcaption>Échelle 1 (taille réelle)</figcaption>
+          <figcaption>
+            {realScale === 1
+              ? 'Échelle 1 (taille réelle)'
+              : `Taille réelle réduite à ${Math.floor(realScale * 100)}${NBSP}% pour tenir dans la colonne`}
+          </figcaption>
         </figure>
-        <figure>
-          <canvas ref={scale2Ref} />
-          <figcaption>×2</figcaption>
-        </figure>
+        {doubleFits ? (
+          <figure>
+            <canvas ref={scale2Ref} />
+            <figcaption>×2</figcaption>
+          </figure>
+        ) : (
+          room !== null && <p className="asset-preview-note">Aperçu ×2{NBSP}: colonne trop étroite, élargissez-la pour l’afficher.</p>
+        )}
       </div>
 
       <div className="asset-snippet-block">

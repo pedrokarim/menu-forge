@@ -315,12 +315,13 @@
 
 /* Export */
 
+/* Aperçus de l’export : ils tiennent dans la colonne (`ExportPanel`), rien n’y défile de côté. */
 .asset-preview {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   justify-items: start;
   padding: 10px;
-  overflow-x: auto;
   background-color: var(--ds-stage);
   background-image:
     linear-gradient(var(--ds-stage-line) 1px, transparent 1px),
@@ -331,20 +332,33 @@
 }
 
 .asset-preview figure {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
 }
 
+/* Filet de sécurité avant la première mesure : jamais plus large que la colonne. */
 .asset-preview canvas {
   display: block;
+  max-width: 100%;
+  height: auto;
   image-rendering: pixelated;
   box-shadow: 0 0 0 1px var(--ds-edge);
 }
 
-.asset-preview figcaption {
+.asset-preview figcaption,
+.asset-preview-note {
   font: 11px var(--font-mono);
   color: var(--ds-muted);
+  overflow-wrap: anywhere;
+}
+
+.asset-preview-note {
+  margin: 0;
 }
 
 .asset-snippet-block {

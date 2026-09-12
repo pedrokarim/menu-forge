@@ -45,6 +45,17 @@ export function drawScaled(target: HTMLCanvasElement, source: HTMLCanvasElement,
   ctx.drawImage(source, 0, 0, source.width, source.height, 0, 0, target.width, target.height);
 }
 
+/**
+ * Échelle d’affichage d’un aperçu large de `width` px dans `room` px : l’échelle
+ * voulue si elle tient, sinon le plus grand entier qui tient (pixels nets),
+ * sinon la réduction juste nécessaire (moins de 1).
+ */
+export function fitScale(wanted: number, width: number, room: number): number {
+  if (width <= 0 || width * wanted <= room) return wanted;
+  const whole = Math.floor(room / width);
+  return whole >= 1 ? whole : Math.max(0, room) / width;
+}
+
 /** Vrai si la frappe a lieu dans un champ de saisie (les raccourcis de l’éditeur l’ignorent). */
 export function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]') !== null;
