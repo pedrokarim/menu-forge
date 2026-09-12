@@ -41,6 +41,8 @@ avant de les construire.
   clic = ouvrir dans l’éditeur ; clic droit ou bouton « … » : Ouvrir,
   Renommer…, Dupliquer, Mettre à la corbeille (le fichier va dans `.trash/`
   de l’espace, rien n’est supprimé).
+- **Voir les exemples** (en tête des actions rapides) : ouvre le générateur
+  d’interfaces directement sur sa galerie d’exemples.
 - **Générer une interface…** (en tête des actions rapides) : décrite à une
   IA, validée, ouverte dans l’éditeur sans être enregistrée (voir
   [`ai.md`](ai.md)).
@@ -129,6 +131,19 @@ actions (`setState` pour les onglets, `nextPage` / `prevPage` pour les pages,
 `back`, `close`, actions du serveur), textes et variables d’état. Il se
 retouche ensuite à la main comme n’importe quel menu ; « Modifier la texture
 générée… » rouvre chaque couche dans le générateur de textures.
+
+Le dialogue a deux onglets : **Réglages** (ci-dessus) et **Exemples**, que
+« Voir les exemples » de l’accueil ouvre directement. La galerie montre 22
+interfaces toutes faites (« Marché », « Forge », « Hôtel des ventes du
+royaume »…), filtrables par type et par famille. Chaque vignette est rendue en
+direct par le générateur, avec la fonction de l’aperçu à l’échelle 1 et
+pixelisée, et seulement une fois visible : aucune image n’est stockée. Sa
+légende donne le nom, puis le type, la famille et l’accent, puis les réglages
+(lignes, boutons, disposition). Un clic charge les réglages de l’exemple dans
+le formulaire, nom, titre et identifiant libre compris ; « Personnaliser »
+passe aux réglages pour les retoucher avant « Créer le menu ». Un double-clic,
+ou « Utiliser cet exemple », crée le menu tel quel, sous un identifiant libre
+tiré de son nom. Les réglages sont dans `studio/src/model/interfaceExamples.ts`.
 
 **Générateur de textures.** « Générer une texture… » dessine une couche au
 pixel près, dans un style Deepslate (biseauté façon vanilla), mc-rs

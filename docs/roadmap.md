@@ -234,6 +234,21 @@ Deuxième édition du jeu, par le serveur natif mc-rs. Contrat et détails :
   - **E6** : rendu « coffre surchargé », pour les slots `input` qu’un
     formulaire ne peut pas porter.
 
+## Galerie d’exemples du générateur (2026-09-12)
+
+- **Fait** : onglet « Exemples » du dialogue « Générer une interface », aussi
+  ouvert par « Voir les exemples » de l’accueil : 22 réglages tout faits,
+  filtrables par type et par famille ; vignettes rendues en direct par le
+  générateur (aucune image stockée), dessinées une fois visibles ; un clic
+  charge l’exemple dans le formulaire, un double-clic crée le menu.
+- **Vérifié** : `npm test` (chaque exemple donne un menu valide pour le
+  schéma) ; scénario `07-interface-generator` (filtres, réglages chargés,
+  création, débordements à 1024 × 600, 1280 × 800 et 1600 × 900) et
+  `09-layout`.
+- **Reste** : les défauts du générateur relevés sur la galerie (boutons
+  d’une case sans libellé, fond mc-rs translucide…) attendent une décision ;
+  les exemples les reproduisent tels quels.
+
 ## Prochaines étapes
 
 1. **Calibration en jeu** : ouvrir le menu de calibration de la lib et
