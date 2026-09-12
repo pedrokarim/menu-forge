@@ -86,6 +86,7 @@ export const tests = [
         'Navigation',
         'Sélection et presse-papiers',
         'Éditeur de menus',
+        'Éditeur de formulaires Bedrock',
         'Éditeur d’assets',
         'Éditeur de pixels',
         'Toile',

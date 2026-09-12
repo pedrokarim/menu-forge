@@ -19,25 +19,6 @@
   padding: 8px 12px 0;
 }
 
-/* Onglets de la colonne de gauche : si picto et libellé ne tiennent pas côte à
-   côte, le libellé passe sous le picto, entier ; un mot n’est coupé que s’il
-   ne tient pas seul sur sa ligne. Jamais de débordement sur l’onglet voisin. */
-.form-editor .sidebar-tabs button {
-  flex-wrap: wrap;
-  justify-content: center;
-  min-width: 0;
-  height: auto;
-  white-space: normal;
-}
-
-.form-editor .sidebar-tabs .tab-label {
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: break-word;
-}
-
 /* Aides, messages et textes secondaires des colonnes : identifiants et chemins
    sans espace passent à la ligne. */
 .form-editor .field-hint,
@@ -45,19 +26,31 @@
   overflow-wrap: anywhere;
 }
 
-/* Résumé de la barre de l’aperçu : il se replie avec la colonne centrale. */
-.form-editor .stage-toolbar-end {
-  flex: 1 1 auto;
+/* Fin de la barre de l’aperçu : résumé puis zoom, collés à droite. Le bloc
+   passe à la ligne entier ; seul sur sa ligne et trop large, il se rétrécit et
+   le résumé se replie au-dessus du zoom. */
+.stage-toolbar > .form-toolbar-end {
+  display: flex;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
+  gap: 4px 10px;
   min-width: 0;
-  overflow-wrap: anywhere;
+  margin-left: auto;
+}
+
+.form-toolbar-end > .stage-toolbar-end {
+  margin-left: 0;
+}
+
+.form-summary {
+  justify-content: flex-end;
   text-align: right;
 }
 
-/* Textes tronqués en jeu : compteur de la barre de l’aperçu (visible même
-   quand la colonne étroite masque les autres outils) et repère de la liste. */
-.form-editor .stage-toolbar-end > .form-fit-count {
+/* Textes tronqués en jeu : compteur de la barre de l’aperçu et repère de la liste. */
+.form-summary > .form-fit-count {
   display: inline-flex;
   gap: 4px;
   align-items: center;
@@ -117,10 +110,25 @@
   image-rendering: pixelated;
 }
 
+/* Le texte garde au moins 12 caractères de large ; sinon les repères passent
+   sous lui, collés à droite, en un seul bloc. */
+.form-button-row {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
 .form-button-text {
   display: grid;
-  flex: 1;
+  flex: 1 1 12ch;
   min-width: 0;
+}
+
+.form-button-flags {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
 }
 
 /* Texte et identifiant longs : à la ligne, sans coupe. */
@@ -152,6 +160,12 @@
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* Origine de l’icône : libellés courts sans picto, les trois choix tiennent sur
+   une rangée dès la colonne la plus étroite. */
+.icon-picker .segmented-mini {
+  --option-min: 8ch;
 }
 
 .icon-current {

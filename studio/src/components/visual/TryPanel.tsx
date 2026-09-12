@@ -22,10 +22,28 @@ interface TrySessionPanelProps {
   onReopen: () => void;
   onRestart: () => void;
   onExit: () => void;
+  /** Document essayé : menu coffre (toile) ou formulaire Bedrock (aperçu). */
+  subject?: TrySubject;
 }
 
+type TrySubject = 'menu' | 'form';
+
+/** Consigne du mode « Essayer », selon le document essayé. */
+const TRY_HINTS: Record<TrySubject, { panel: string; journal: string; closed: string }> = {
+  menu: {
+    panel: 'Clique les slots de la toile : leurs actions s’exécutent sur l’état d’aperçu. Le menu édité n’est jamais modifié.',
+    journal: 'Clique un bouton sur la toile : chaque action déclenchée s’inscrit ici (état changé, menu ouvert, commande, son…).',
+    closed: 'Inventaire fermé (action « close » ou retour sur le premier menu).',
+  },
+  form: {
+    panel: 'Clique les boutons de l’aperçu : leurs actions s’exécutent sur l’état d’aperçu. Le formulaire édité n’est jamais modifié.',
+    journal: 'Clique un bouton de l’aperçu : chaque action déclenchée s’inscrit ici (état changé, menu ouvert, commande, son…).',
+    closed: 'Formulaire fermé (action « close » ou retour sur le premier formulaire).',
+  },
+};
+
 /** Mode « Essayer », colonne de droite : pile des menus ouverts, retour, fermeture, sortie. */
-export function TrySessionPanel({ session, lookup, onBack, onReopen, onRestart, onExit }: TrySessionPanelProps) {
+export function TrySessionPanel({ session, lookup, onBack, onReopen, onRestart, onExit, subject = 'menu' }: TrySessionPanelProps) {
   const name = (id: string) => lookup(id)?.name ?? id;
   // La colonne gardait le défilement de l’inspecteur : le panneau d’essai s’affiche en haut.
   const reveal = useCallback((node: HTMLElement | null) => node?.closest('.sidebar')?.scrollTo({ top: 0 }), []);
@@ -38,9 +56,7 @@ export function TrySessionPanel({ session, lookup, onBack, onReopen, onRestart, 
           en jeu, simulé
         </span>
       </header>
-      <p className="field-hint">
-        Clique les slots de la toile : leurs actions s’exécutent sur l’état d’aperçu. Le menu édité n’est jamais modifié.
-      </p>
+      <p className="field-hint">{TRY_HINTS[subject].panel}</p>
       <ol className="try-stack" aria-label="Pile des menus ouverts">
         {session.stack.map((frame, index) => (
           <li key={`${frame.menuId}-${index}`} className={index === session.stack.length - 1 ? 'is-current' : undefined}>
@@ -53,7 +69,7 @@ export function TrySessionPanel({ session, lookup, onBack, onReopen, onRestart, 
       {session.closed && (
         <p className="warning" role="status">
           <Icon name="close" />
-          <span>Inventaire fermé (action « close » ou retour sur le premier menu).</span>
+          <span>{TRY_HINTS[subject].closed}</span>
         </p>
       )}
       <div className="button-row wrap">
@@ -88,7 +104,7 @@ export function TrySessionPanel({ session, lookup, onBack, onReopen, onRestart, 
 }
 
 /** Mode « Essayer », colonne de gauche : journal des actions déclenchées, le plus récent en haut. */
-export function TryJournal({ session, onClear }: { session: TrySession; onClear: () => void }) {
+export function TryJournal({ session, onClear, subject = 'menu' }: { session: TrySession; onClear: () => void; subject?: TrySubject }) {
   const entries = [...session.log].reverse();
   return (
     <section className="panel-section try-journal">
@@ -100,7 +116,7 @@ export function TryJournal({ session, onClear }: { session: TrySession; onClear:
       {entries.length === 0 ? (
         <p className="empty-hint">
           <Icon name="cursor" />
-          <span>Clique un bouton sur la toile : chaque action déclenchée s’inscrit ici (état changé, menu ouvert, commande, son…).</span>
+          <span>{TRY_HINTS[subject].journal}</span>
         </p>
       ) : (
         <ol className="try-log" aria-live="polite">

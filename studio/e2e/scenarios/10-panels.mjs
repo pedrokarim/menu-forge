@@ -1,11 +1,12 @@
 /**
- * Colonnes redimensionnables des trois éditeurs : glisser la poignée change la
- * largeur (la toile suit), la largeur survit à un rechargement, double-clic la
+ * Colonnes redimensionnables des quatre éditeurs (menus, assets, pixels,
+ * formulaires Bedrock) : glisser la poignée change la largeur (la toile ou
+ * l’aperçu suit), la largeur survit à un rechargement, double-clic la
  * rétablit ; au clavier, flèches, Maj, Début et Fin. Aux bornes, rien ne bave
  * (audit de mise en page).
  */
 import { auditLayout } from '../lib/audit.mjs';
-import { menuCanvas, nextFrames, open } from '../lib/studio.mjs';
+import { api, menuCanvas, nextFrames, open } from '../lib/studio.mjs';
 
 export const title = 'Colonnes redimensionnables';
 
@@ -19,7 +20,23 @@ const EDITORS = [
   { name: 'menus', hash: '#/editeur/menus/shop', root: '.workspace', left: 280, right: 330, leftMin: 220, rightMin: 280 },
   { name: 'assets', hash: '#/editeur/assets/help_banner', root: '.asset-editor', left: 280, right: 340, leftMin: 220, rightMin: 280 },
   { name: 'pixels', hash: '#/editeur/pixels/shop_tab_icon', root: '.pixel-editor', left: 264, right: 300, leftMin: 220, rightMin: 240 },
+  { name: 'formulaires', hash: '#/editeur/menus/e2e_panels_form', root: '.form-editor', left: 280, right: 330, leftMin: 220, rightMin: 280, form: 'e2e_panels_form' },
 ];
+
+/** Formulaire Bedrock écrit dans l’espace temporaire, pour l’éditeur de formulaires. */
+const putForm = (t, id) =>
+  api(t, `/menus/${id}`, {
+    method: 'PUT',
+    body: {
+      formatVersion: 1,
+      id,
+      name: id,
+      container: { type: 'chest', rows: 6 },
+      state: {},
+      layers: [],
+      form: { layout: 'grid', title: 'Colonnes', content: 'Formulaire des tests de colonnes.', buttons: [{ id: 'first', text: 'Premier' }, { id: 'second', text: 'Second' }] },
+    },
+  });
 
 const sidebarWidth = (page, root, side) =>
   page.evaluate(
@@ -50,6 +67,7 @@ export const tests = EDITORS.map((editor) => ({
   async run(t) {
     const { page } = t;
     await page.setViewportSize({ width: 1440, height: 900 });
+    if (editor.form) await putForm(t, editor.form);
     await open(t, editor.hash);
     await clearWidths(page);
     await open(t, editor.hash);

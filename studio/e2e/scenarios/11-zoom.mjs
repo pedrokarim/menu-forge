@@ -3,8 +3,10 @@
  * Maj+0 (taille réelle), Maj+1 (ajuster), Maj+2 (cadrer la sélection), outil
  * Zoom (Z : appui bref, il reste ; maintenu, il revient à l’outil précédent ;
  * clic, Alt+clic, rectangle), disposition AZERTY, touche tapée dans un champ.
+ * L’aperçu des formulaires Bedrock prend les mêmes touches (sans outil Zoom :
+ * pas de toile à cliquer, mais un écran simulé dont les boutons s’essaient).
  */
-import { dispatchKey, drag, menuCanvas, modal, nextFrames, open, outlineRow, setMenuZoom, statusText } from '../lib/studio.mjs';
+import { api, dispatchKey, drag, inspectorField, menuCanvas, modal, nextFrames, open, outlineRow, setMenuZoom, statusText } from '../lib/studio.mjs';
 
 export const title = 'Raccourcis de zoom';
 
@@ -178,6 +180,67 @@ export const tests = [
       await dialog.waitFor();
       t.check(await dialog.getByText('Outil Zoom (maintenu', { exact: false }).isVisible(), 'aide-mémoire : outil Zoom');
       t.check(await dialog.getByText('Zoomer sur la sélection', { exact: true }).isVisible(), 'aide-mémoire : Maj+2');
+    },
+  },
+  {
+    name: 'éditeur de formulaires',
+    async run(t) {
+      const { page } = t;
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await api(t, '/menus/e2e_zoom_form', {
+        method: 'PUT',
+        body: {
+          formatVersion: 1,
+          id: 'e2e_zoom_form',
+          name: 'e2e_zoom_form',
+          container: { type: 'chest', rows: 6 },
+          state: {},
+          layers: [],
+          form: { layout: 'grid', title: 'Zoom', content: '', buttons: [{ id: 'first', text: 'Premier' }, { id: 'second', text: 'Second' }, { id: 'third', text: 'Troisième' }] },
+        },
+      });
+      await open(t, '#/editeur/menus/e2e_zoom_form');
+      await page.getByLabel('Niveau de zoom').first().selectOption('2');
+      await expectStep(t, () => page.keyboard.press('+'), 1, '« + » : palier suivant');
+      await expectStep(t, () => page.keyboard.press('-'), -1, '« - » : palier précédent');
+      await expectStep(t, () => dispatchKey(page, { key: '+', code: 'Equal', shiftKey: true }), 1, 'AZERTY « + »');
+      await expectStep(t, () => dispatchKey(page, { key: '-', code: 'Digit6' }), -1, 'AZERTY « - »');
+      await page.keyboard.press('Shift+Digit0');
+      await t.waitEqual(() => zoomValue(page), '1', 'Maj+0 : taille réelle (×1)');
+      await page.keyboard.press('Shift+Digit1');
+      await t.waitEqual(() => zoomValue(page), 'fit', 'Maj+1 : ajuster');
+      const fitLabel = (await page.getByLabel('Niveau de zoom').first().locator('option[value="fit"]').textContent()) ?? '';
+      const fitted = Number((/×([\d,]+)/.exec(fitLabel)?.[1] ?? '0').replace(',', '.'));
+      t.check(fitted > 0, `zoom « Ajuster » affiché (${fitLabel})`);
+      // Maj+2 : sans bouton sélectionné, un message ; avec, le bouton cadré plus grand et visible.
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Shift+Digit2');
+      await t.waitFor(async () => /Rien de sélectionné/.test(((await page.locator('.form-editor').textContent()) ?? '').replaceAll(String.fromCharCode(160), ' ')), 'Maj+2 sans sélection : message');
+      await page.locator('.form-editor .form-button-row').first().click();
+      await page.mouse.move(1, 1);
+      await page.keyboard.press('Shift+Digit2');
+      await t.waitFor(async () => Number(await zoomValue(page)) > fitted, 'Maj+2 : le bouton sélectionné est cadré plus grand');
+      await nextFrames(page);
+      const inView = await page.evaluate(() => {
+        const stage = document.querySelector('.form-editor .form-stage').getBoundingClientRect();
+        const button = document.querySelector('.form-editor .bf-press[data-selected]').getBoundingClientRect();
+        return button.left >= stage.left - 1 && button.right <= stage.right + 1 && button.top >= stage.top - 1 && button.bottom <= stage.bottom + 1;
+      });
+      t.check(inView, 'Maj+2 : le bouton cadré est entier dans la zone');
+      // Une touche tapée dans un champ reste dans le champ.
+      await page.getByLabel('Niveau de zoom').first().selectOption('2');
+      const id = inspectorField(page, 'Identifiant', '.form-editor .inspector');
+      await id.click();
+      await page.keyboard.press('+');
+      await t.wait(200);
+      t.equal(await zoomValue(page), '2', '« + » dans un champ ne zoome pas');
+      await id.press('Escape');
+      // Aide-mémoire : la section des formulaires.
+      await page.mouse.click(1, 1);
+      await page.keyboard.press('?');
+      const dialog = modal(page, 'Raccourcis clavier');
+      await dialog.waitFor();
+      t.check(await dialog.getByText('Aperçu : zoomer sur le bouton sélectionné', { exact: true }).isVisible(), 'aide-mémoire : zoom de l’aperçu des formulaires');
     },
   },
 ];

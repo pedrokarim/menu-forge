@@ -24,7 +24,8 @@ export async function open(t, hash) {
   await page.goto(`${env.uiOrigin}/${hash}`, { waitUntil: 'load' });
   await page.locator('.rail').first().waitFor({ timeout: 60_000 });
   await page.evaluate(() => document.fonts.ready);
-  if (hash.startsWith('#/editeur/menus')) await page.locator('canvas.menu-canvas').first().waitFor({ timeout: 30_000 });
+  // Un menu coffre a sa toile ; un formulaire Bedrock, son écran simulé.
+  if (hash.startsWith('#/editeur/menus')) await page.locator('canvas.menu-canvas, .form-editor .bf-screen').first().waitFor({ timeout: 30_000 });
   if (hash.startsWith('#/editeur/assets')) await page.locator('canvas.asset-canvas').first().waitFor({ timeout: 30_000 });
   if (hash.startsWith('#/editeur/pixels')) await page.locator('canvas.pixel-canvas').first().waitFor({ timeout: 30_000 });
   await wait(300);

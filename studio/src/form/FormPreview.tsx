@@ -623,7 +623,9 @@ export function FormPreview({ layout, title, content, entries, screen, zoom, sel
     };
   });
   return (
-    <div ref={root} className="bf-screen" style={{ width: screen.width, height: screen.height, zoom }}>
+    // Hors de l’audit de mise en page : l’écran simulé reproduit le jeu, qui coupe et superpose
+    // (ombre des titres, textes trop longs) ; ces coupes sont signalées dans les colonnes.
+    <div ref={root} className="bf-screen" data-audit-exempt style={{ width: screen.width, height: screen.height, zoom }}>
       <Layout title={title} content={content} entries={entries} screen={screen} ctx={{ selectedId, onPress, resolveIcon }} />
     </div>
   );

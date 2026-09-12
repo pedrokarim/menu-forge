@@ -102,6 +102,12 @@ Bloc « Icône » de l’inspecteur, trois origines :
 « Essayer » (`E`) rejoue les clics sur l’aperçu, comme le serveur ; les
 drapeaux et le pseudo de l’aperçu se règlent dans la colonne de droite.
 
+L’aperçu se zoome comme les toiles des autres éditeurs : `+` et `-`,
+`Maj+0` (taille réelle), `Maj+1` (ajuster à la zone), `Maj+2` (zoomer sur le
+bouton sélectionné), ou le sélecteur de la barre de l’aperçu. Les deux
+colonnes se règlent à la souris par leur bord (double-clic pour rétablir) ;
+la largeur choisie est gardée d’une session à l’autre.
+
 ### 3.6 Exporter
 
 1. **Paramètres › Export pour Bedrock** : le dossier du serveur Bedrock ; pour

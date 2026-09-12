@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { isEditableTarget } from '../canvas/viewport';
+import { isEditableTarget, zoomCommand } from '../canvas/viewport';
+import type { ZoomCommand } from '../canvas/viewport';
 import { Field, FieldError } from '../components/fields';
 import { PreviewPanel } from '../components/PreviewPanel';
 import { ActionListEditor } from '../components/visual/ActionListEditor';
@@ -9,7 +10,7 @@ import { moveItem, useDragReorder } from '../components/visual/reorder';
 import { StateEditor } from '../components/visual/StateEditor';
 import { TryJournal, TrySessionPanel } from '../components/visual/TryPanel';
 import { textureUrl } from '../lib/api';
-import { plural } from '../lib/format';
+import { NBSP, plural } from '../lib/format';
 import { stripLegacy } from '../lib/legacyText';
 import type { ActionContext } from '../model/actions';
 import { FORM_LAYOUTS, formButtonText, formLayout, formWireTitle, isFormLayout, visibleFormButtons } from '../model/bedrockForm';
@@ -21,7 +22,11 @@ import { clearLog, clickFormButton, goBack, reopen, setFrameValues, startSession
 import type { TrySession } from '../model/simulate';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
+import { DotList } from '../ui/DotList';
+import { GrowingTextInput } from '../ui/GrowingTextInput';
+import { ResizeHandle } from '../ui/ResizeHandle';
 import { Tooltip } from '../ui/Tooltip';
+import { useEditorColumns } from '../ui/useResizablePanel';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 import { overlayOpen } from '../ui/overlay';
@@ -71,6 +76,11 @@ const NO_TEXT_OVERFLOW: TextOverflow = { title: false, buttons: [] };
 /** Zoom affiché à la française (« ×0,5 »). */
 const zoomLabel = (zoom: number) => `×${String(zoom).replace('.', ',')}`;
 
+/** Paliers de zoom de l’aperçu (« + », « - », sélecteur) ; « Ajuster » prend le plus grand demi-pas qui tient. */
+const ZOOM_LEVELS = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6];
+/** Marge laissée autour de l’écran simulé (zoom « Ajuster », cadrage d’un bouton). */
+const STAGE_MARGIN = 48;
+
 const ROLE_LABELS: Record<FormButtonRole | 'button', string> = { button: 'Bouton', banner: 'Bannière', special: 'Spécial' };
 const BUTTON_ID = /^[A-Za-z0-9_.-]+$/u;
 
@@ -95,7 +105,7 @@ function LiveText({
       {multiline ? (
         <textarea rows={3} value={value} spellCheck={false} onFocus={onFocus} onChange={(event) => onChange(event.target.value)} />
       ) : (
-        <input value={value} spellCheck={false} onFocus={onFocus} onChange={(event) => onChange(event.target.value)} />
+        <GrowingTextInput value={value} spellCheck={false} onFocus={onFocus} onChange={onChange} />
       )}
     </Field>
   );
@@ -146,6 +156,13 @@ export function FormEditor(props: FormEditorProps) {
   const [trySession, setTrySession] = useState<TrySession | null>(null);
   const [screenId, setScreenId] = useState(SCREENS[0].id);
   const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
+  // Zoom choisi (clavier, sélecteur) ; `null` : « Ajuster », recalculé avec la zone.
+  const [manualZoom, setManualZoom] = useState<number | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  // Maj+2 : le bouton sélectionné est ramené au centre une fois le nouveau zoom rendu.
+  const scrollToSelected = useRef(false);
+  // Colonnes réglables à la souris, largeurs mémorisées comme dans les autres éditeurs.
+  const { observe: observeColumns, style: columnStyle, left: leftColumn, right: rightColumn } = useEditorColumns('forms');
   const [notice, setNotice] = useState('');
   // Textes que l’écran simulé coupe ou qui dépassent de leur case (mesurés par l’aperçu).
   const [textOverflow, setTextOverflow] = useState<TextOverflow>(NO_TEXT_OVERFLOW);
@@ -239,6 +256,7 @@ export function FormEditor(props: FormEditorProps) {
 
   // Plus grand zoom (par demi-pas) où l’écran simulé tient dans la zone.
   const observeStage = useCallback((node: HTMLDivElement | null) => {
+    stageRef.current = node;
     if (!node) return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
@@ -247,9 +265,41 @@ export function FormEditor(props: FormEditorProps) {
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  const fit = stageSize ? Math.min((stageSize.width - 48) / screen.width, (stageSize.height - 48) / screen.height) : 2;
+  const fit = stageSize ? Math.min((stageSize.width - STAGE_MARGIN) / screen.width, (stageSize.height - STAGE_MARGIN) / screen.height) : 2;
   // Plancher ×0,5 : un grand écran simulé tient encore dans une zone étroite (1180 px, colonnes pleines).
-  const zoom = Math.max(0.5, Math.min(6, Math.floor(fit * 2) / 2));
+  const fittedZoom = Math.max(ZOOM_LEVELS[0], Math.min(ZOOM_LEVELS.at(-1) ?? 6, Math.floor(fit * 2) / 2));
+  const zoom = manualZoom ?? fittedZoom;
+
+  /* Zoom de l’aperçu : mêmes touches que les toiles des autres éditeurs */
+
+  const stepZoom = (direction: 1 | -1) => {
+    const next = direction > 0 ? ZOOM_LEVELS.find((level) => level > zoom) : ZOOM_LEVELS.findLast((level) => level < zoom);
+    if (next !== undefined) setManualZoom(next);
+  };
+  const runZoom = (command: ZoomCommand) => {
+    if (command === 'in' || command === 'out') stepZoom(command === 'in' ? 1 : -1);
+    else if (command === 'actual') setManualZoom(1);
+    else if (command === 'fit') setManualZoom(null);
+    else {
+      // Maj+2 : le plus grand palier où le bouton sélectionné tient dans la zone, puis centré.
+      const target = stageRef.current?.querySelector<HTMLElement>('.bf-press[data-selected]');
+      if (!target || !stageSize) {
+        setNotice(`Rien de sélectionné${NBSP}: Maj+2 cadre le bouton sélectionné.`);
+        return;
+      }
+      const box = target.getBoundingClientRect();
+      const width = box.width / zoom;
+      const height = box.height / zoom;
+      const best = ZOOM_LEVELS.findLast((level) => width * level <= stageSize.width - STAGE_MARGIN && height * level <= stageSize.height - STAGE_MARGIN);
+      scrollToSelected.current = true;
+      setManualZoom(best ?? ZOOM_LEVELS[0]);
+    }
+  };
+  useEffect(() => {
+    if (!scrollToSelected.current) return;
+    scrollToSelected.current = false;
+    stageRef.current?.querySelector('.bf-press[data-selected]')?.scrollIntoView({ block: 'center', inline: 'center' });
+  }, [zoom]);
 
   /* Bibliothèque : la texture choisie devient l’icône du bouton sélectionné */
 
@@ -274,6 +324,13 @@ export function FormEditor(props: FormEditorProps) {
   const handleKey = useEffectEvent((event: KeyboardEvent) => {
     if (!active || event.defaultPrevented || overlayOpen() || isEditableTarget(event.target) || event.ctrlKey || event.metaKey) return;
     const key = event.key.toLowerCase();
+    // Zoom à une touche (+, -, Maj+0, Maj+1, Maj+2), en essai aussi : rien ne modifie le formulaire.
+    const zoomKey = zoomCommand(event);
+    if (zoomKey) {
+      event.preventDefault();
+      runZoom(zoomKey);
+      return;
+    }
     if (trySession) {
       if (!event.altKey && (key === 'escape' || key === 'e')) {
         event.preventDefault();
@@ -328,7 +385,7 @@ export function FormEditor(props: FormEditorProps) {
   const overflowCount = (textOverflow.title ? 1 : 0) + textOverflow.buttons.length;
 
   return (
-    <main className="workspace form-editor">
+    <main className="workspace form-editor" ref={observeColumns} style={columnStyle}>
       <aside className="sidebar">
         <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche" hidden={trySession !== null}>
           <button type="button" role="tab" aria-selected={leftTab === 'buttons'} className={leftTab === 'buttons' ? 'active' : ''} onClick={() => setLeftTab('buttons')}>
@@ -346,7 +403,7 @@ export function FormEditor(props: FormEditorProps) {
           </p>
           {props.librarySlot}
         </div>
-        {trySession && <TryJournal session={trySession} onClear={() => setTrySession((session) => session && clearLog(session))} />}
+        {trySession && <TryJournal subject="form" session={trySession} onClear={() => setTrySession((session) => session && clearLog(session))} />}
         {leftTab === 'buttons' && !trySession && (
           <>
             <section className="panel-section">
@@ -357,7 +414,8 @@ export function FormEditor(props: FormEditorProps) {
                   {info.flag}
                 </span>
               </header>
-              <Field label="Disposition" hint={info.description}>
+              {/* Libellé seul dans la liste (un sélecteur ne passe pas à la ligne) ; l’identifiant du pack suit dans l’aide. */}
+              <Field label="Disposition" hint={`${form.layout} – ${info.description}`}>
                 <select
                   value={form.layout}
                   onChange={(event) => {
@@ -367,7 +425,7 @@ export function FormEditor(props: FormEditorProps) {
                 >
                   {FORM_LAYOUTS.map((candidate) => (
                     <option key={candidate.layout} value={candidate.layout}>
-                      {candidate.label} ({candidate.layout})
+                      {candidate.label}
                     </option>
                   ))}
                 </select>
@@ -438,14 +496,19 @@ export function FormEditor(props: FormEditorProps) {
                           <span>{stripLegacy(button.text).trim() || button.id}</span>
                           <span className="muted small mono">{button.id}</span>
                         </span>
-                        {button.role && <span className={`pill form-role role-${button.role}`}>{ROLE_LABELS[button.role]}</span>}
-                        {textOverflow.buttons.includes(button.id) && (
-                          <span className="form-fit-icon" title="Texte tronqué en jeu">
-                            <Icon name="warning" />
+                        {/* Repères (rôle, texte tronqué, condition, actions) : un bloc qui passe sous le texte plutôt que de l’écraser. */}
+                        {(button.role || textOverflow.buttons.includes(button.id) || button.visibleWhen || (button.onClick ?? []).length > 0) && (
+                          <span className="form-button-flags">
+                            {button.role && <span className={`pill form-role role-${button.role}`}>{ROLE_LABELS[button.role]}</span>}
+                            {textOverflow.buttons.includes(button.id) && (
+                              <span className="form-fit-icon" title="Texte tronqué en jeu">
+                                <Icon name="warning" />
+                              </span>
+                            )}
+                            {button.visibleWhen && <Icon name="eye" />}
+                            {(button.onClick ?? []).length > 0 && <span className="count">{(button.onClick ?? []).length}</span>}
                           </span>
                         )}
-                        {button.visibleWhen && <Icon name="eye" />}
-                        {(button.onClick ?? []).length > 0 && <span className="count">{(button.onClick ?? []).length}</span>}
                       </li>
                     );
                   })}
@@ -474,27 +537,58 @@ export function FormEditor(props: FormEditorProps) {
               </button>
             </Tooltip>
           </div>
+          {/* Historique et écran simulé dans un même groupe : dans une zone étroite, le sélecteur ne passe jamais seul à la ligne. */}
           <div className="toolbar-group">
             <IconButton icon="undo" label="Annuler" shortcut="Ctrl+Z" size={24} disabled={!props.canUndo} onClick={props.onUndo} />
             <IconButton icon="redo" label="Rétablir" shortcut="Ctrl+Y" size={24} disabled={!props.canRedo} onClick={props.onRedo} />
+            <span className="tb-sep" aria-hidden="true" />
+            <select className="background-picker" value={screenId} onChange={(event) => setScreenId(event.target.value)} aria-label="Taille de l’écran simulé">
+              {SCREENS.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.label}
+                </option>
+              ))}
+            </select>
           </div>
-          <span className="tb-sep" aria-hidden="true" />
-          <select className="background-picker" value={screenId} onChange={(event) => setScreenId(event.target.value)} aria-label="Taille de l’écran simulé">
-            {SCREENS.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.label}
-              </option>
-            ))}
-          </select>
-          <span className="stage-toolbar-end muted small">
-            {info.label} · {plural(visibleCount, 'bouton envoyé', 'boutons envoyés')} · {zoomLabel(zoom)}
-            {overflowCount > 0 && (
-              <span className="form-fit-count">
-                <Icon name="warning" />
-                {plural(overflowCount, 'texte tronqué', 'textes tronqués')} en jeu
-              </span>
-            )}
-          </span>
+          {/* Résumé et zoom : un bloc qui passe à la ligne entier ; seul sur sa ligne, le résumé se replie au-dessus du zoom. */}
+          <div className="form-toolbar-end">
+            <DotList className="form-summary muted small">
+              <span>{info.label}</span>
+              <span>{plural(visibleCount, 'bouton envoyé', 'boutons envoyés')}</span>
+              {overflowCount > 0 && (
+                <span className="form-fit-count">
+                  <Icon name="warning" />
+                  {plural(overflowCount, 'texte tronqué', 'textes tronqués')} en jeu
+                </span>
+              )}
+            </DotList>
+            <div className="stage-toolbar-end" role="group" aria-label="Zoom">
+              <IconButton icon="minus" label="Zoom arrière" shortcut="-" size={24} disabled={zoom <= ZOOM_LEVELS[0]} onClick={() => stepZoom(-1)} />
+              <Tooltip label="Niveau de zoom" shortcut="Maj+1" hint="Maj+1 : ajuster ; Maj+0 : taille réelle ; Maj+2 : cadrer le bouton sélectionné">
+                <select
+                  className="zoom-picker"
+                  value={manualZoom === null ? 'fit' : String(manualZoom)}
+                  onChange={(event) => setManualZoom(event.target.value === 'fit' ? null : Number(event.target.value))}
+                  aria-label="Niveau de zoom"
+                >
+                  <option value="fit">Ajuster ({zoomLabel(fittedZoom)})</option>
+                  {ZOOM_LEVELS.map((level) => (
+                    <option key={level} value={String(level)}>
+                      {zoomLabel(level)}
+                    </option>
+                  ))}
+                </select>
+              </Tooltip>
+              <IconButton
+                icon="plus"
+                label="Zoom avant"
+                shortcut="+"
+                size={24}
+                disabled={zoom >= (ZOOM_LEVELS.at(-1) ?? 6)}
+                onClick={() => stepZoom(1)}
+              />
+            </div>
+          </div>
         </div>
         <div className="stage form-stage" ref={observeStage} onClick={() => !trySession && setSelectedId(null)}>
           {preview ? (
@@ -548,6 +642,7 @@ export function FormEditor(props: FormEditorProps) {
       <aside className="sidebar">
         {trySession && (
           <TrySessionPanel
+            subject="form"
             session={trySession}
             lookup={lookup}
             onBack={() => setTrySession((session) => session && goBack(session, lookup))}
@@ -694,6 +789,9 @@ export function FormEditor(props: FormEditorProps) {
           {notice && <p className="muted small">{notice}</p>}
         </section>
       </aside>
+      {/* Poignées des deux colonnes : largeur réglée à la souris ou au clavier, mémorisée. */}
+      <ResizeHandle side="left" label="Largeur de la colonne de gauche" handle={leftColumn} />
+      <ResizeHandle side="right" label="Largeur de la colonne de droite" handle={rightColumn} />
     </main>
   );
 }

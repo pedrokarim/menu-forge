@@ -51,6 +51,19 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
     ],
   },
   {
+    title: 'Éditeur de formulaires Bedrock',
+    entries: [
+      { keys: 'E', label: 'Essayer le formulaire (Échap pour revenir à l’édition)' },
+      { keys: 'Retour arrière', label: 'En essai : revenir au formulaire précédent' },
+      { keys: 'Alt+↑', label: 'Monter le bouton sélectionné (Alt+↓ : descendre)' },
+      { keys: 'Suppr', label: 'Supprimer le bouton sélectionné' },
+      { keys: '+', label: 'Aperçu : zoom avant (- : arrière)' },
+      { keys: 'Maj+0', label: 'Aperçu : taille réelle (×1)' },
+      { keys: 'Maj+1', label: 'Aperçu : ajuster à la zone' },
+      { keys: 'Maj+2', label: 'Aperçu : zoomer sur le bouton sélectionné' },
+    ],
+  },
+  {
     title: 'Éditeur d’assets',
     entries: [
       { keys: 'V', label: 'Outil Sélection' },

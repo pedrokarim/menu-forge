@@ -2,7 +2,8 @@ import { useCallback, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 /**
- * Colonnes latérales redimensionnables des éditeurs (menus, assets, pixels) :
+ * Colonnes latérales redimensionnables des éditeurs (menus, assets, pixels,
+ * formulaires Bedrock) :
  * largeur par défaut, bornes, place minimale laissée à la toile, et largeur
  * choisie mémorisée d’une session à l’autre.
  *
@@ -38,7 +39,7 @@ export interface ColumnHandle {
 }
 
 /**
- * Colonnes des trois éditeurs. Largeurs par défaut identiques aux valeurs de
+ * Colonnes des quatre éditeurs. Largeurs par défaut identiques aux valeurs de
  * repli des feuilles de style (`var(--left-width, 280px)`…) ; minimums choisis
  * pour que rien ne se tasse ni ne bave (vérifié par les tests de bout en bout).
  */
@@ -46,6 +47,8 @@ export const EDITOR_COLUMNS = {
   menus: { left: { size: 280, narrowSize: 248, min: 220, max: 460 }, right: { size: 330, narrowSize: 296, min: 280, max: 560 } },
   assets: { left: { size: 280, narrowSize: 248, min: 220, max: 460 }, right: { size: 340, narrowSize: 300, min: 280, max: 560 } },
   pixels: { left: { size: 264, narrowSize: 232, min: 220, max: 420 }, right: { size: 300, narrowSize: 268, min: 240, max: 520 } },
+  // Formulaires Bedrock : même grille que l’éditeur de menus (`.workspace`).
+  forms: { left: { size: 280, narrowSize: 248, min: 220, max: 460 }, right: { size: 330, narrowSize: 296, min: 280, max: 560 } },
 } as const satisfies Record<string, Record<Side, ColumnSpec>>;
 
 export type EditorKind = keyof typeof EDITOR_COLUMNS;

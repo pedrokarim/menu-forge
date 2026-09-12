@@ -167,8 +167,10 @@ pour réordonner, clic droit pour dupliquer, monter, descendre ou supprimer,
 « Ajouter » pour un bouton, une bannière ou un bouton spécial selon la
 disposition ; l’onglet « Bibliothèque » fait d’une texture l’icône du bouton
 sélectionné. Au centre, l’aperçu reprend la géométrie des JSON du pack, sur un
-écran simulé (PC, grand ou petit écran) ; « Essayer » (`E`) exécute les
-actions d’un clic comme le serveur. À droite, l’inspecteur du bouton :
+écran simulé (PC, grand ou petit écran), zoomé comme les toiles (`+`, `-`,
+`Maj+0`, `Maj+1`, `Maj+2` pour le bouton sélectionné, ou le sélecteur de la
+barre) ; « Essayer » (`E`) exécute les actions d’un clic comme le serveur.
+Les deux colonnes se règlent à la souris, comme dans les autres éditeurs. À droite, l’inspecteur du bouton :
 identifiant, texte, sous-titre, rôle, icône (texture de l’espace, PNG importé,
 icône de 32 × 32 dessinée dans l’éditeur de pixels, texture du jeu citée par son
 chemin, adresse web), « Envoyé si » (`visibleWhen`) et actions au clic ; puis
