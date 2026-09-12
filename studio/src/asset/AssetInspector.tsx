@@ -348,6 +348,7 @@ function AssetSettings({ asset, onChange }: { asset: AssetDefinition; onChange: 
       </header>
       <CommitField
         label="Nom"
+        grow
         value={asset.name}
         validate={(value) => (value.trim() ? null : 'Nom requis')}
         onCommit={(value) => onChange((draft) => void (draft.name = value.trim()))}

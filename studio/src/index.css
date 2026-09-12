@@ -528,6 +528,18 @@ textarea {
   resize: vertical;
 }
 
+/* Nom ou libellé qui peut être long (`GrowingTextInput`) : zone de texte d’une
+   rangée, de la hauteur d’un champ, qui grandit avec son texte au lieu d’en
+   cacher la fin. Même ligne de base que les autres champs (18 px). */
+textarea.growing-text {
+  width: 100%;
+  line-height: 18px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  resize: none;
+  field-sizing: content;
+}
+
 /* Flèches natives des nombres : discrètes, visibles seulement quand on s’en sert. */
 input[type='number']::-webkit-inner-spin-button {
   opacity: 0;

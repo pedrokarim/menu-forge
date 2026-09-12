@@ -6,6 +6,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { errorMessage, isTypingTarget } from '../asset/canvasUtils';
 import { NBSP } from '../lib/format';
 import { fetchPixel } from '../lib/pixelApi';
+import { GrowingTextInput } from '../ui/GrowingTextInput';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
@@ -1061,7 +1062,7 @@ function DocumentPanel(props: DocumentPanelProps) {
       </header>
       <label className="field">
         <span className="field-label">Nom</span>
-        <input value={meta.name} onChange={(event) => props.onRename(event.target.value)} />
+        <GrowingTextInput value={meta.name} onChange={props.onRename} />
       </label>
       <div className="pixel-document-size">
         <span>

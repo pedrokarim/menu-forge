@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
+import { GrowingTextInput } from '../ui/GrowingTextInput';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 
@@ -54,17 +55,23 @@ export function NumberField({
   );
 }
 
-/** Champ texte validé à la sortie du champ (ou sur Entrée), pour les renommages. */
+/**
+ * Champ texte validé à la sortie du champ (ou sur Entrée), pour les renommages.
+ * `grow` : nom ou libellé qui peut être long, affiché en entier sur plusieurs
+ * lignes (`GrowingTextInput`) ; sans lui, un champ d’une ligne (identifiants).
+ */
 export function CommitField({
   label,
   value,
   onCommit,
   validate,
+  grow = false,
 }: {
   label: string;
   value: string;
   onCommit: (value: string) => void;
   validate?: (value: string) => string | null;
+  grow?: boolean;
 }) {
   const [text, setText] = useState(value);
   const [error, setError] = useState<string | null>(null);
@@ -83,17 +90,18 @@ export function CommitField({
     if (!problem) onCommit(text);
   };
 
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Enter') commit();
+    if (event.key === 'Escape') setText(value);
+  };
+
   return (
     <Field label={label}>
-      <input
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') commit();
-          if (event.key === 'Escape') setText(value);
-        }}
-      />
+      {grow ? (
+        <GrowingTextInput value={text} onChange={setText} onBlur={commit} onKeyDown={onKeyDown} />
+      ) : (
+        <input value={text} onChange={(event) => setText(event.target.value)} onBlur={commit} onKeyDown={onKeyDown} />
+      )}
       {error && <FieldError>{error}</FieldError>}
     </Field>
   );

@@ -78,7 +78,7 @@ export const tests = [
       // Une touche tapée dans un champ reste dans le champ.
       await page.keyboard.press('Escape');
       await setMenuZoom(page, 3);
-      const name = page.locator('.inspector .field').filter({ has: page.locator('.field-label', { hasText: /^Nom$/ }) }).locator('input').first();
+      const name = page.locator('.inspector .field').filter({ has: page.locator('.field-label', { hasText: /^Nom$/ }) }).locator('input, textarea').first();
       await name.click();
       await page.keyboard.press('+');
       await t.wait(200);

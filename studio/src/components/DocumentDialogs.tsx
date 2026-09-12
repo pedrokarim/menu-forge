@@ -4,6 +4,7 @@ import type { DocumentType } from '../lib/appApi';
 import { ID_PATTERN } from '../model/menu';
 import { describeReference } from '../model/references';
 import type { MenuReference } from '../model/references';
+import { GrowingTextInput } from '../ui/GrowingTextInput';
 import { Icon } from '../ui/Icon';
 import { Field, FieldError, Modal } from './fields';
 
@@ -83,7 +84,7 @@ export function RenameDocumentDialog(props: RenameDocumentDialogProps) {
           {idError && <FieldError>{idError}</FieldError>}
         </Field>
         <Field label="Nom">
-          <input value={name} onChange={(event) => setName(event.target.value)} onKeyDown={onEnter} />
+          <GrowingTextInput value={name} onChange={setName} onKeyDown={onEnter} />
           {nameError && <FieldError>{nameError}</FieldError>}
         </Field>
       </div>

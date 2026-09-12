@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { StateDefinition, StateValue } from '../../model/menu';
+import { GrowingTextInput } from '../../ui/GrowingTextInput';
 import { Field, FieldError } from '../fields';
 
 /** Petits champs des éditeurs visuels (valeurs d’état, nombres facultatifs, saisie validée). */
@@ -12,6 +14,7 @@ export function InlineCommitInput({
   className,
   placeholder,
   label,
+  grow = false,
 }: {
   value: string;
   onCommit: (value: string) => void;
@@ -20,6 +23,8 @@ export function InlineCommitInput({
   placeholder?: string;
   /** Nom accessible du champ. */
   label: string;
+  /** Valeur qui peut être longue : affichée en entier, sur plusieurs lignes (`GrowingTextInput`). */
+  grow?: boolean;
 }) {
   const [text, setText] = useState(value);
   const [error, setError] = useState<string | null>(null);
@@ -38,25 +43,18 @@ export function InlineCommitInput({
     setError(problem);
     if (!problem) onCommit(text);
   };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Enter') commit();
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      setText(value);
+      setError(null);
+    }
+  };
+  const shared = { className, placeholder, 'aria-label': label, 'aria-invalid': error ? true : undefined, onBlur: commit, onKeyDown };
   return (
     <span className="inline-commit">
-      <input
-        className={className}
-        value={text}
-        placeholder={placeholder}
-        aria-label={label}
-        aria-invalid={error ? true : undefined}
-        onChange={(event) => setText(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') commit();
-          if (event.key === 'Escape') {
-            event.stopPropagation();
-            setText(value);
-            setError(null);
-          }
-        }}
-      />
+      {grow ? <GrowingTextInput {...shared} value={text} onChange={setText} /> : <input {...shared} value={text} onChange={(event) => setText(event.target.value)} />}
       {error && <FieldError>{error}</FieldError>}
     </span>
   );

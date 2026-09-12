@@ -194,6 +194,7 @@ function StateCard({
             {definition.values.map((value, index) => (
               <li key={index} className="chip">
                 <InlineCommitInput
+                  grow
                   label={`Valeur ${index + 1} de ${name}`}
                   value={value}
                   validate={(next) =>

@@ -24,6 +24,7 @@ import { Tooltip } from '../ui/Tooltip';
 import type { ActionContext } from '../model/actions';
 import { AlignBar } from './AlignBar';
 import { CommitField, Field, NumberField } from './fields';
+import { GrowingTextInput } from '../ui/GrowingTextInput';
 import { SLOT_COLORS } from './slotColors';
 import './visual/visual.css';
 
@@ -559,7 +560,7 @@ function MenuProperties(props: InspectorProps) {
         menu · {menu.id}
       </InspectorHeader>
       <Field label="Nom">
-        <input value={menu.name} onChange={(event) => onChange((draft) => (draft.name = event.target.value))} />
+        <GrowingTextInput value={menu.name} onChange={(value) => onChange((draft) => (draft.name = value))} />
       </Field>
       <NumberField
         label="Lignes du coffre"
