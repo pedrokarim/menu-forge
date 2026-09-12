@@ -2,11 +2,14 @@
  * Données extrêmes pour l’audit de mise en page : noms très longs (avec et sans
  * espaces), longs chemins de texture, longs textes d’interface en français,
  * 50 couches, 30 zones de slots, 40 documents récents, palette pleine,
- * bibliothèques et espace de travail aux noms longs, espace vide.
+ * bibliothèques et espace de travail aux noms longs, espace vide, formulaires
+ * Bedrock dans les huit dispositions (30 boutons, textes de 80 caractères avec
+ * et sans espaces, longs chemins d’icône), dossier d’export Bedrock profond.
  *
  * Tout est créé par l’API et par le code du studio dans le dossier temporaire
- * de la suite ; `cleanupStress` retire les bibliothèques et l’espace ajoutés et
- * rend l’espace de départ actif (les documents partent avec le dossier temporaire).
+ * de la suite ; `cleanupStress` retire les bibliothèques et l’espace ajoutés,
+ * rétablit le dossier d’export Bedrock et rend l’espace de départ actif (les
+ * documents partent avec le dossier temporaire).
  */
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -27,7 +30,16 @@ export const STRESS = {
   layer: (index) => `couche_${index}_au_nom_particulierement_long_pour_la_liste_des_elements`,
   slot: (index) => `zone_${index}_identifiant_de_slot_vraiment_tres_long`,
   text: (index) => `texte_${index}_identifiant_de_texte_tres_long`,
+  /** Formulaire Bedrock de données extrêmes, un par disposition. */
+  form: (layout) => `stress_form_${layout}`,
 };
+
+/** Les huit dispositions des formulaires Bedrock (pack mcrs_ui). */
+export const FORM_LAYOUTS = ['grid', 'left_button', 'bottom_button', 'image_grid', 'square_image', 'motd', 'store', 'wrapped'];
+/** Textes de bouton de 80 caractères : avec des espaces, et sans aucune (aucun point de coupure). */
+export const FORM_WORDS = 'Un texte de bouton volontairement long, avec des espaces, pour tester la coupure';
+export const FORM_TOKEN = 'W'.repeat(80);
+const FORM_BUTTONS = 30;
 
 const LAYERS = 50;
 const SLOTS = 30;
@@ -125,6 +137,32 @@ function stressPixel() {
   };
 }
 
+/** 30 boutons : textes longs avec et sans espaces, icônes de l’espace et du jeu à chemins longs, rôles, actions. */
+function stressForm(layout) {
+  const buttons = Array.from({ length: FORM_BUTTONS }, (_, index) => {
+    const button = {
+      id: index % 2 ? `bouton_${index}_au_nom_particulierement_long_pour_la_liste` : `bouton_${index}`,
+      text: index % 2 === 0 ? FORM_TOKEN : FORM_WORDS,
+      subtitle: index % 2 === 0 ? FORM_WORDS : FORM_TOKEN,
+    };
+    if (index % 3 === 0) button.icon = { texture: `${TEXTURE_DIR}/${STRESS.layer(index % LAYERS)}.png` };
+    else if (index % 3 === 1) button.icon = { path: `textures/items/${'dossier_de_textures_tres_profond/'.repeat(4)}diamant` };
+    if (index === 1) button.role = 'banner';
+    if (index === 2) button.role = 'special';
+    if (index % 5 === 0) button.onClick = [{ type: 'command', command: `say ${FORM_TOKEN}`, as: 'player' }, { type: 'close' }];
+    return button;
+  });
+  return {
+    formatVersion: 1,
+    id: STRESS.form(layout),
+    name: `${FORM_WORDS} (${layout})`,
+    container: { type: 'chest', rows: 6 },
+    state: {},
+    layers: [],
+    form: { layout, title: FORM_WORDS, content: `${FORM_TOKEN} ${FORM_WORDS}`, buttons },
+  };
+}
+
 /** Écrit les données extrêmes ; renvoie ce qu’il faut pour les états vides et le nettoyage. */
 export async function seedStress(t) {
   const { page, env } = t;
@@ -157,22 +195,30 @@ export async function seedStress(t) {
     });
     libraries.push(id);
   }
+  // Formulaires Bedrock après le menu : leurs icônes reprennent ses textures aux chemins longs.
+  for (const layout of FORM_LAYOUTS) await api(t, `/menus/${STRESS.form(layout)}`, { method: 'PUT', body: stressForm(layout) });
+  // Dossier d’export Bedrock profond (dans le dossier temporaire) ; l’ancien réglage est rétabli par `cleanupStress`.
+  const bedrockBefore = (await api(t, '/settings')).export.bedrockDirectory ?? null;
+  const bedrockDir = path.join(env.root, 'dossier_de_serveur_bedrock_au_nom_particulierement_long', 'sous_dossier_encore_plus_profond_pour_le_test', 'menu_forge', 'export');
+  mkdirSync(bedrockDir, { recursive: true });
+  await api(t, '/settings', { method: 'PUT', body: { export: { bedrockDirectory: bedrockDir } } });
   // Espace vide au nom long : connu (espaces récents), et ouvert le temps des états vides.
   const emptyWorkspace = path.join(env.root, `espace_${LONG_WORD}`);
   mkdirSync(emptyWorkspace, { recursive: true });
   await api(t, '/workspaces/open', { method: 'POST', body: { path: emptyWorkspace, name: LONG_TEXT } });
   await api(t, '/workspaces/open', { method: 'POST', body: { path: env.workspaceDir, name: 'e2e' } });
-  return { libraries, emptyWorkspace };
+  return { libraries, emptyWorkspace, bedrockBefore };
 }
 
 /** Ouvre l’espace vide (états vides) ; `restore` rend l’espace de départ actif. */
 export const openEmptyWorkspace = (t, seeded) => api(t, '/workspaces/open', { method: 'POST', body: { path: seeded.emptyWorkspace } });
 export const restoreWorkspace = (t) => api(t, '/workspaces/open', { method: 'POST', body: { path: t.env.workspaceDir, name: 'e2e' } });
 
-/** Retire ce que `seedStress` a ajouté aux réglages (bibliothèques, espace vide) et rend l’espace de départ actif. */
+/** Retire ce que `seedStress` a ajouté aux réglages (bibliothèques, espace vide, dossier Bedrock) et rend l’espace de départ actif. */
 export async function cleanupStress(t, seeded) {
   await restoreWorkspace(t).catch(() => undefined);
   if (!seeded) return;
+  await api(t, '/settings', { method: 'PUT', body: { export: { bedrockDirectory: seeded.bedrockBefore } } }).catch(() => undefined);
   for (const id of seeded.libraries) await api(t, `/libraries/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => undefined);
   await api(t, '/workspaces', { method: 'DELETE', body: { path: seeded.emptyWorkspace } }).catch(() => undefined);
 }

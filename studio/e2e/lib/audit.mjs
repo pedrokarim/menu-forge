@@ -19,7 +19,9 @@
  * - rien ne recouvre le dialogue du dessus ;
  * - dans une barre d’outils, les contrôles d’une même rangée ont la même
  *   hauteur et le même centre vertical (à 1 px près), et aucun contrôle isolé
- *   ne passe seul à la ligne (un groupe entier, oui).
+ *   ne passe seul à la ligne (un groupe entier, oui) ;
+ * - dans une barre d’onglets (`role="tablist"`), les onglets frères ont la
+ *   même hauteur et, sur une même rangée, le même haut (à 1 px près).
  *
  * Exemptions : `[data-audit-exempt]` et ses descendants, les toiles
  * (`canvas`), l’intérieur des SVG ; les éléments à points de suspension et
@@ -355,6 +357,29 @@ export async function auditLayout(page, options = {}) {
           if (row.members.length === 1 && !isGroup(row.members[0].child)) {
             push(`${describe(bar)}${NBSP}: ${describe(row.members[0].child)} passe seul à la ligne`);
           }
+        }
+      }
+    }
+
+    /* ---------- Barres d’onglets : même hauteur, même alignement ---------- */
+
+    // Un libellé qui passe à la ligne dans un onglet (« Bibliothèque » sous son picto) ne doit pas
+    // le rendre plus haut que ses voisins : tous les onglets d’une barre ont la même hauteur et le même haut.
+    for (const bar of document.querySelectorAll('[role="tablist"]')) {
+      if (problems.length >= limit) break;
+      if (exempt(bar) || !shown(bar)) continue;
+      const tabs = [...bar.querySelectorAll('[role="tab"]')].filter((tab) => tab.closest('[role="tablist"]') === bar && shown(tab));
+      if (tabs.length < 2) continue;
+      const boxes = tabs.map((tab) => ({ tab, rect: tab.getBoundingClientRect() }));
+      const reference = boxes[0];
+      for (const { tab, rect } of boxes.slice(1)) {
+        const sameRow = Math.abs(rect.top - reference.rect.top) < reference.rect.height / 2;
+        if (Math.abs(rect.height - reference.rect.height) > TOLERANCE || (sameRow && Math.abs(rect.top - reference.rect.top) > TOLERANCE)) {
+          push(
+            `${describe(bar)}${NBSP}: onglet ${describe(tab)} (${Math.round(rect.height)} px de haut, haut ${Math.round(rect.top)}) ` +
+              `différent de ${describe(reference.tab)} (${Math.round(reference.rect.height)} px, haut ${Math.round(reference.rect.top)})`,
+          );
+          break;
         }
       }
     }

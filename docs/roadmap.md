@@ -225,7 +225,7 @@ Deuxième édition du jeu, par le serveur natif mc-rs. Contrat et détails :
     ([`bedrock.md`](bedrock.md) § 8).
 - **Vérifié** : en jeu sur un client Bedrock, avec mc-rs (`/mf open <id>`,
   `/mf list`, `/mf reload`) ; `npm test` (export et formulaires) ; scénario de
-  bout en bout `09-bedrock-forms` (création, disposition, icône, aperçu,
+  bout en bout `12-bedrock-forms` (création, disposition, icône, aperçu,
   export, débordements à 1024 × 600, 1280 × 800 et 1600 × 900).
 - **À venir** :
   - **E4** : passer par Geyser et Floodgate, pour les joueurs Bedrock d’un

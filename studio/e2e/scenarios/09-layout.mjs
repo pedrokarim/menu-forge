@@ -1,12 +1,15 @@
 /**
  * Mise en page à plusieurs tailles de fenêtre, hauteurs basses comprises :
- * chaque écran, les onglets et panneaux des trois éditeurs, tous les
+ * chaque écran (réglages d’export Bedrock compris), les onglets et panneaux des
+ * quatre éditeurs (menus, assets, pixels, formulaires Bedrock), tous les
  * dialogues, un menu contextuel, une infobulle, puis les mêmes lieux remplis de
- * données extrêmes (noms très longs, 50 couches, 30 zones, 40 documents…) et
- * les états vides. Tout passe l’audit de `lib/audit.mjs` (débordements, textes
- * coupés, chevauchements, dialogue recouvert, alignement des barres d’outils,
- * titres cassés, cartes creuses, page qui défile en entier). Tous les défauts
- * d’un test sont listés d’un coup, avec la taille et l’état où ils apparaissent.
+ * données extrêmes (noms très longs, 50 couches, 30 zones, 40 documents,
+ * formulaires des huit dispositions à 30 boutons et textes de 80 caractères…)
+ * et les états vides. Tout passe l’audit de `lib/audit.mjs` (débordements,
+ * textes coupés, chevauchements, dialogue recouvert, alignement des barres
+ * d’outils, onglets de même hauteur, titres cassés, cartes creuses, page qui
+ * défile en entier). Tous les défauts d’un test sont listés d’un coup, avec la
+ * taille et l’état où ils apparaissent.
  *
  * `MF_LAYOUT_SHOTS=<dossier>` : capture de chaque état à chaque taille (hors
  * du dépôt), pour une relecture à l’œil de ce que l’audit ne voit pas.
@@ -17,7 +20,7 @@ import { auditLayout } from '../lib/audit.mjs';
 import { NBSP } from '../lib/harness.mjs';
 import { encodePng, paintImage } from '../lib/png.mjs';
 import { api, contextItem, modal, nextFrames, open, outlineRow, rightClick } from '../lib/studio.mjs';
-import { STRESS, cleanupStress, openEmptyWorkspace, restoreWorkspace, seedStress } from '../lib/stress.mjs';
+import { FORM_LAYOUTS, STRESS, cleanupStress, openEmptyWorkspace, restoreWorkspace, seedStress } from '../lib/stress.mjs';
 
 export const title = 'Mise en page à toutes les tailles';
 
@@ -110,9 +113,42 @@ const MENU = '#/editeur/menus/shop';
 const ASSET = '#/editeur/assets/help_banner';
 const PIXEL = '#/editeur/pixels/shop_tab_icon';
 const STRESS_MENU = `#/editeur/menus/${STRESS.menu}`;
+const FORM_ID = 'e2e_layout_form';
+const FORM = `#/editeur/menus/${FORM_ID}`;
+const STRESS_FORM = `#/editeur/menus/${STRESS.form('grid')}`;
 
 const clickButton = (page, name) => page.getByRole('button', { name, exact: true }).first().click();
 const tool = (label) => (page) => clickButton(page, label);
+const libraryTab = (page) => page.getByRole('tab', { name: 'Bibliothèque', exact: true }).click();
+/** Paramètres défilés jusqu’à la section « Export pour Bedrock ». */
+const bedrockSettings = (page) => page.locator('section[aria-labelledby="settings-bedrock"]').evaluate((node) => node.scrollIntoView({ block: 'start' }));
+const tryForm = async (page) => {
+  await clickButton(page, 'Essayer');
+  await page.locator('.form-editor .try-journal').waitFor();
+};
+
+/** Formulaire ordinaire : textes courts, une icône du jeu, un bouton spécial, une action. */
+function layoutForm() {
+  return {
+    formatVersion: 1,
+    id: FORM_ID,
+    name: 'Téléportation',
+    container: { type: 'chest', rows: 6 },
+    state: {},
+    layers: [],
+    form: {
+      layout: 'grid',
+      title: 'Téléportation',
+      content: 'Choisis une destination.',
+      buttons: [
+        { id: 'spawn', text: 'Spawn', icon: { path: 'textures/items/compass' }, onClick: [{ type: 'close' }] },
+        { id: 'shop', text: 'Boutique', subtitle: 'Marché' },
+        { id: 'arena', text: 'Arène', role: 'special' },
+        { id: 'nether', text: 'Nether' },
+      ],
+    },
+  };
+}
 
 /** Infobulle d’un bouton de la barre (le pointeur reste dessus jusqu’à l’audit). */
 const hoverTooltip = (name) => async (page) => {
@@ -130,6 +166,7 @@ export const tests = [
           { name: 'accueil', hash: '#/accueil' },
           { name: 'bibliothèques', hash: '#/bibliotheques' },
           { name: 'paramètres', hash: '#/parametres' },
+          { name: 'paramètres · export Bedrock', hash: '#/parametres', prepare: bedrockSettings },
           { name: 'à propos', hash: '#/a-propos' },
           { name: 'espaces de travail', hash: '#/espaces' },
         ]),
@@ -334,6 +371,34 @@ export const tests = [
     },
   },
   {
+    name: 'éditeur de formulaires',
+    async run(t) {
+      await api(t, `/menus/${FORM_ID}`, { method: 'PUT', body: layoutForm() });
+      expectClean(
+        t,
+        await sweep(t, [
+          { name: 'formulaire, bouton sélectionné', hash: FORM },
+          { name: 'formulaire, aucun bouton sélectionné', hash: FORM, prepare: (page) => page.keyboard.press('Escape') },
+          { name: 'formulaire, onglet Bibliothèque', hash: FORM, prepare: libraryTab },
+          { name: 'formulaire, mode « Essayer »', hash: FORM, prepare: tryForm },
+          { name: 'formulaire, grand écran simulé', hash: FORM, prepare: (page) => page.getByLabel('Taille de l’écran simulé').selectOption('large') },
+          { name: 'formulaire, zoom ×3', hash: FORM, prepare: (page) => page.getByLabel('Niveau de zoom').first().selectOption('3') },
+          {
+            name: 'formulaire, menu contextuel d’un bouton',
+            hash: FORM,
+            perSize: true,
+            keepPointer: true,
+            prepare: async (page) => {
+              await rightClick(page.locator('.form-editor .form-button-row').first());
+              await page.locator('.context-menu').waitFor();
+            },
+          },
+          { name: 'formulaire, infobulle de la barre', hash: FORM, perSize: true, keepPointer: true, settle: 50, prepare: hoverTooltip('Essayer') },
+        ]),
+      );
+    },
+  },
+  {
     name: 'données extrêmes et états vides',
     async run(t) {
       let seeded = null;
@@ -395,6 +460,16 @@ export const tests = [
               await modal(page, /^Renommer le menu/).waitFor();
             },
           },
+          // Formulaires Bedrock : huit dispositions, 30 boutons, textes de 80 caractères, chemins d’icône longs.
+          ...FORM_LAYOUTS.map((layout) => ({ name: `extrême · formulaire ${layout}`, hash: `#/editeur/menus/${STRESS.form(layout)}` })),
+          {
+            name: 'extrême · formulaire, icône du jeu au chemin long',
+            hash: STRESS_FORM,
+            prepare: (page) => page.locator('.form-editor .form-button-row').nth(1).click(),
+          },
+          { name: 'extrême · formulaire, onglet Bibliothèque', hash: STRESS_FORM, prepare: libraryTab },
+          { name: 'extrême · formulaire, mode « Essayer »', hash: STRESS_FORM, prepare: tryForm },
+          { name: 'extrême · paramètres, export Bedrock', hash: '#/parametres', prepare: bedrockSettings },
           { name: 'extrême · asset', hash: `#/editeur/assets/${STRESS.asset}` },
           {
             name: 'extrême · élément d’asset',
