@@ -3,8 +3,9 @@
 
 /* Colonnes réglables à la souris, comme en mode Menus (voir .workspace). */
 .pixel-editor {
+  position: relative;
   display: grid;
-  grid-template-columns: 264px minmax(0, 1fr) 300px;
+  grid-template-columns: var(--left-width, 264px) minmax(0, 1fr) var(--right-width, 300px);
   min-height: 0;
   height: 100%;
 }
@@ -12,7 +13,7 @@
 /* Sous 1280 px : colonnes plus étroites pour laisser la place à la toile. */
 @media (max-width: 1279px) {
   .pixel-editor {
-    grid-template-columns: 232px minmax(0, 1fr) 268px;
+    grid-template-columns: var(--left-width, 232px) minmax(0, 1fr) var(--right-width, 268px);
   }
 }
 

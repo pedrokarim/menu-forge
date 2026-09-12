@@ -1022,9 +1022,13 @@ input[type='color']::-webkit-color-swatch {
   color: var(--ds-danger);
 }
 
+/* Largeurs des colonnes réglées à la souris (`useEditorColumns`, qui pose
+   `--left-width` et `--right-width`) ; les valeurs de repli sont les largeurs
+   par défaut. Position relative : les poignées se placent sur les bords. */
 .workspace {
+  position: relative;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 330px;
+  grid-template-columns: var(--left-width, 280px) minmax(0, 1fr) var(--right-width, 330px);
   min-height: 0;
 }
 
@@ -1032,11 +1036,7 @@ input[type='color']::-webkit-color-swatch {
    laisser de la place à la toile. */
 @media (max-width: 1279px) {
   .workspace {
-    grid-template-columns: 248px minmax(0, 1fr) 296px;
-  }
-
-  .brand-sub {
-    display: none;
+    grid-template-columns: var(--left-width, 248px) minmax(0, 1fr) var(--right-width, 296px);
   }
 }
 
@@ -1117,12 +1117,71 @@ input[type='color']::-webkit-color-swatch {
   background-size: 12px 12px;
 }
 
-.sidebar:first-child {
+/* « of-type » : les poignées de redimensionnement sont des sœurs des colonnes. */
+.sidebar:first-of-type {
   border-right: 2px solid var(--ds-edge-soft);
 }
 
-.sidebar:last-child {
+.sidebar:last-of-type {
   border-left: 2px solid var(--ds-edge-soft);
+}
+
+/* Poignée de redimensionnement d’une colonne (ResizeHandle) : 6 px de prise sur
+   la bordure, côté toile (la barre de défilement de la colonne reste libre) ;
+   un trait or au survol, au focus et pendant le glisser. */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resize-handle-left {
+  left: calc(var(--left-width, 280px) - 2px);
+}
+
+.resize-handle-right {
+  right: calc(var(--right-width, 330px) - 4px);
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+}
+
+.resize-handle-left::after {
+  left: 0;
+}
+
+.resize-handle-right::after {
+  right: 0;
+}
+
+.resize-handle:hover::after,
+.resize-handle.is-active::after {
+  background: var(--ds-gold);
+}
+
+.resize-handle:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: -2px;
+}
+
+.resize-handle:focus-visible::after {
+  background: var(--ds-gold);
+}
+
+body.is-resizing-columns,
+body.is-resizing-columns * {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 /* Flex + margin: auto : centré s’il reste de la place, aligné en haut à gauche
@@ -1263,6 +1322,11 @@ input[type='color']::-webkit-color-swatch {
   padding: 6px 8px 0;
   background: var(--ds-panel-sunken);
   border-bottom: 2px solid var(--ds-edge);
+  /* Conteneur de requêtes : les onglets se tassent selon la largeur de la colonne
+     (réglable à la souris), pas de la fenêtre. Posé ici et non sur la colonne :
+     l’endiguement de mise en page ferait de toute la colonne le bloc conteneur
+     des éléments fixes qu’elle contient (menus contextuels). */
+  container: sidebar-tabs / inline-size;
 }
 
 .sidebar-tabs button {
@@ -1298,9 +1362,24 @@ input[type='color']::-webkit-color-swatch {
   outline-offset: -4px;
 }
 
-/* Colonne réduite (sous 1280 px) : les onglets perdent leur picto et leur marge
-   intérieure pour que « Bibliothèque » tienne en entier. */
-@media (max-width: 1279px) {
+/* Libellé d’onglet sur deux lignes plutôt que de baver sur la barre voisine
+   (colonne étroite, police de repli plus large) : jamais coupé. */
+.sidebar-tabs button {
+  min-width: 0;
+  white-space: normal;
+}
+
+.sidebar-tabs .tab-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* Onglets trop étroits pour le picto et le libellé côte à côte (« Bibliothèque »
+   demande environ 134 px, la colonne par défaut en laisse 129) : le picto passe
+   au-dessus du libellé. Les deux restent, rien n’est coupé ; au-delà d’environ
+   290 px de colonne, ils reviennent sur une ligne. */
+@container sidebar-tabs (max-width: 271px) {
   .sidebar-tabs button {
     flex-direction: column;
     gap: 2px;

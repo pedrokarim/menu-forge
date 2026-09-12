@@ -205,6 +205,7 @@ export function PixelCanvas(props: PixelCanvasProps) {
 
   const applyView = (next: View) => {
     const previous = viewRef.current;
+    fitted.current = false;
     viewRef.current = clampView(next);
     if (viewRef.current.zoom !== previous.zoom) props.onZoomChange(viewRef.current.zoom);
     setViewEpoch((epoch) => epoch + 1);
@@ -229,7 +230,10 @@ export function PixelCanvas(props: PixelCanvasProps) {
   const stageCenter = (): Point => ({ x: (stage?.width ?? 0) / 2, y: (stage?.height ?? 0) / 2 });
 
   useImperativeHandle(ref, () => ({
-    fit: () => applyView(fitView()),
+    fit: () => {
+      applyView(fitView());
+      fitted.current = true;
+    },
     zoomStep: (direction) => {
       const current = viewRef.current.zoom;
       const next = direction > 0 ? ZOOM_LEVELS.find((level) => level > current) : ZOOM_LEVELS.findLast((level) => level < current);
@@ -264,8 +268,9 @@ export function PixelCanvas(props: PixelCanvasProps) {
   useLayoutEffect(() => {
     if (!stage) return;
     const key = `${width}x${height}`;
-    if (fittedFor.current !== key) {
+    if (fittedFor.current !== key || fitted.current) {
       fittedFor.current = key;
+      fitted.current = true;
       viewRef.current = fitView();
       props.onZoomChange(viewRef.current.zoom);
     } else {

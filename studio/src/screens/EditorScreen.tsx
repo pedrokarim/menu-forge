@@ -90,7 +90,9 @@ import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
+import { ResizeHandle } from '../ui/ResizeHandle';
 import { Tooltip } from '../ui/Tooltip';
+import { useEditorColumns } from '../ui/useResizablePanel';
 
 type DialogState =
   | { kind: 'new-menu'; generate?: boolean }
@@ -214,6 +216,8 @@ export function EditorScreen({
   const [textureVersions, setTextureVersions] = useState<Record<string, number>>({});
   const [preview, setPreview] = useState<PreviewValues>(DEFAULT_PREVIEW);
   const [zoom, setZoom] = useState(() => preferences.defaultZoom || 3);
+  // Variables séparées : la fonction de mesure part en `ref`, le reste sert au rendu.
+  const { observe: observeColumns, style: columnStyle, left: leftColumn, right: rightColumn } = useEditorColumns('menus');
   // Zoom « Ajuster » par défaut : le plus grand palier où tout le coffre tient dans la zone.
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(() => (preferences.defaultZoom === 0 ? 'fit' : 'manual'));
   // Espace lu et premier document ouvert : l’adresse peut dès lors piloter l’éditeur.
@@ -1894,7 +1898,7 @@ export function EditorScreen({
       )}
 
       {mode === 'menus' ? (
-      <main className="workspace">
+      <main className="workspace" ref={observeColumns} style={columnStyle}>
         <aside className="sidebar">
           <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche" hidden={trySession !== null}>
             <button
@@ -2187,6 +2191,9 @@ export function EditorScreen({
             />
           )}
         </aside>
+        {/* Poignées des deux colonnes : largeur réglée à la souris ou au clavier, mémorisée. */}
+        <ResizeHandle side="left" label="Largeur de la colonne de gauche" handle={leftColumn} />
+        <ResizeHandle side="right" label="Largeur de la colonne de droite" handle={rightColumn} />
       </main>
       ) : mode === 'assets' ? (
         <main className="asset-host">

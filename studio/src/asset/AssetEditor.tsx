@@ -55,6 +55,9 @@ import {
 import type { AssetTool } from './presets';
 import { assetTexturePaths, elementBounds, loadAssetTexture, renderAsset, renderAssetSync } from './render';
 import { useAssetResources } from './useAssetResources';
+import { ResizeHandle } from '../ui/ResizeHandle';
+import { Tooltip } from '../ui/Tooltip';
+import { useEditorColumns } from '../ui/useResizablePanel';
 import './asset.css';
 
 export interface AssetEditorProps {
@@ -659,7 +662,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   };
 
   return (
-    <div className="asset-editor">
+    <div className="asset-editor" ref={observeColumns} style={columnStyle}>
       <aside className="sidebar">
         <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche">
           <button
@@ -968,6 +971,9 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
           onAscentChange={(ascent) => change((draft) => void (draft.export.ascent = ascent), 'export.ascent')}
         />
       </aside>
+      {/* Poignées des deux colonnes : largeur réglée à la souris ou au clavier, mémorisée. */}
+      <ResizeHandle side="left" label="Largeur de la colonne de gauche" handle={leftColumn} />
+      <ResizeHandle side="right" label="Largeur de la colonne de droite" handle={rightColumn} />
     </div>
   );
 }

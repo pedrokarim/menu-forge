@@ -53,6 +53,8 @@ import {
 import type { Bitmap, Point, Rect, Rgba, Transform } from './raster';
 import { BRUSH_TOOLS, DEFAULT_OPTIONS, GRID_MIN_ZOOM, SELECTION_TOOLS, TOOLS, TOOL_CODES, TOOL_INFO, ZOOM_LEVELS } from './tools';
 import type { BrushSize, PixelTool, ToolOptions } from './tools';
+import { ResizeHandle } from '../ui/ResizeHandle';
+import { useEditorColumns } from '../ui/useResizablePanel';
 import './pixel.css';
 
 export interface PixelEditorProps {
@@ -737,7 +739,7 @@ function PixelWorkbench(props: WorkbenchProps) {
   const info = TOOL_INFO[tool];
 
   return (
-    <div className="pixel-editor">
+    <div className="pixel-editor" ref={observeColumns} style={columnStyle}>
       <aside className="sidebar">
         <ColorPanel
           primary={primary}
@@ -997,6 +999,9 @@ function PixelWorkbench(props: WorkbenchProps) {
           </details>
         </section>
       </aside>
+      {/* Poignées des deux colonnes : largeur réglée à la souris ou au clavier, mémorisée. */}
+      <ResizeHandle side="left" label="Largeur de la colonne de gauche" handle={leftColumn} />
+      <ResizeHandle side="right" label="Largeur de la colonne de droite" handle={rightColumn} />
 
       {dialog === 'resize' && <ResizeDialog width={width} height={height} onCancel={() => setDialog(null)} onApply={resize} />}
     </div>
