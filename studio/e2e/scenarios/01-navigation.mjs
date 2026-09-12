@@ -1,7 +1,7 @@
 /**
  * Navigation : rail d’écrans, adresse, raccourcis (Ctrl+1…5, Ctrl+O, « ? »),
  * disposition AZERTY (lettres lues sur la touche produite, chiffres sur la
- * touche physique), taille minimale de la fenêtre (1180 × 700).
+ * touche physique), taille minimale de la fenêtre (1024 × 600).
  */
 import { auditLayout } from '../lib/audit.mjs';
 import { dispatchKey, inspectorNumber, inspectorPill, menuCanvas, modal, open, outlineRow, setMenuZoom, textOf } from '../lib/studio.mjs';
@@ -19,7 +19,7 @@ const RAIL = [
 ];
 
 /** Taille minimale de la fenêtre de l’appli (`src-tauri/src/main.rs`). */
-const MINIMUM = { width: 1180, height: 700 };
+const MINIMUM = { width: 1024, height: 600 };
 
 async function expectHash(t, pattern, message) {
   await t.waitFor(async () => pattern.test(await hashOf(t.page)), message);
@@ -27,7 +27,7 @@ async function expectHash(t, pattern, message) {
 
 async function expectCleanLayout(t, label) {
   const problems = await auditLayout(t.page);
-  t.equal(problems, [], `mise en page à 1180 × 700 (${label})`);
+  t.equal(problems, [], `mise en page à ${MINIMUM.width} × ${MINIMUM.height} (${label})`);
 }
 
 export const tests = [

@@ -195,7 +195,7 @@ dans un dossier **hors du dépôt**, puis, par exemple sous PowerShell,
 
 | Scénario | Ce qui est vérifié |
 |---|---|
-| `01-navigation` | rail d’écrans et adresse, Ctrl+1…5, Ctrl+O, « ? », aussi en AZERTY (lettres sur la touche produite, chiffres sur la touche physique) ; à 1180 × 700, audit des écrans, des éditeurs et des dialogues : rien ne dépasse de son conteneur visible, pas de défilement horizontal |
+| `01-navigation` | rail d’écrans et adresse, Ctrl+1…5, Ctrl+O, « ? », aussi en AZERTY (lettres sur la touche produite, chiffres sur la touche physique) ; à la taille minimale (1024 × 600), audit des écrans, des éditeurs et des dialogues : rien ne dépasse de son conteneur visible, pas de défilement horizontal |
 | `02-menu-editor` | nouveau menu depuis un gabarit ou vierge, zones de slots (tracer, glisser, poignée, Échap pendant un glisser, annuler / rétablir), aimantation et Alt, Ctrl+molette, défilement, clic répété (élément du dessous), menus contextuels, rognage d’atlas (grille, sprite, extraction) relu octet pour octet |
 | `03-editing` | sélection multiple (liste, plage, toile, rectangle, Ctrl+A), copier / couper / coller / dupliquer, aligner / répartir, verrou et masquage, renommer / dupliquer / corbeille depuis l’accueil et l’éditeur, glisser-déposer d’un PNG |
 | `04-asset-editor` | nouvel asset, boîte, texte, image, groupes, clavier, presse-papiers, PNG exporté relu (un élément masqué n’y est pas) |
@@ -203,6 +203,9 @@ dans un dossier **hors du dépôt**, puis, par exemple sous PowerShell,
 | `06-visual-editors` | actions au clic (ajout, Alt+↑, suppression, menu visé), conditions, item et aperçu MiniMessage, variables d’état renommées avec leurs références, mode « Essayer », composants (instance, détacher, créer depuis une sélection) |
 | `07-interface-generator` | les cinq types et les trois familles en aperçu, aperçu cliquable, un menu créé par type (textures cuites sur le disque) |
 | `08-exports` | dossier d’export réglé par les Paramètres sur l’espace temporaire (jamais un vrai projet), « Exporter vers le plugin » (menus résolus, textures, manifeste), « Pack ZIP » (`pack.mcmeta`, polices, textures), Ctrl+E, Ctrl+Maj+E, fichiers d’un menu disparu retirés |
+| `09-layout` | mise en page à huit tailles (1024 à 1600 px de large, 600 à 900 px de haut) : écrans, trois éditeurs, dialogues, menu contextuel, infobulle, puis données extrêmes (noms de 80 caractères avec et sans espaces, 50 couches, 30 zones de slots, 40 documents, palette pleine, bibliothèques et espace aux noms longs) et états vides ; audit : débordements, textes coupés, chevauchements, dialogue recouvert, alignement des barres d’outils, titres cassés, cartes creuses, page qui défile en entier ; `MF_LAYOUT_SHOTS=<dossier>` garde une capture de chaque état |
+| `10-panels` | colonnes redimensionnables des trois éditeurs : glisser la poignée, largeur retrouvée après rechargement, double-clic pour rétablir, clavier (flèches, Maj, Début, Fin, Entrée), audit aux largeurs minimale et maximale, zoom « Ajuster » recalculé |
+| `11-zoom` | raccourcis de zoom des trois éditeurs : « + », « - », Maj+0, Maj+1, Maj+2 (avec ou sans sélection), outil Zoom (Z bref ou maintenu, clic, Alt+clic, rectangle), AZERTY, touche tapée dans un champ, Ctrl+molette de l’éditeur d’assets |
 
 Les vérifications portent sur des valeurs (inspecteur, fichiers écrits, JSON,
 pixels des PNG), jamais sur des captures comparées pixel à pixel. Chaque test
