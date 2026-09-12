@@ -39,7 +39,7 @@ Détail des appels (un fournisseur = un module de `studio/backend/src/ai/provide
 | ComfyUI | flux « texte vers image » envoyé à `POST /prompt`, `GET /history/<id>`, `GET /view` | – | `GET /system_stats` |
 | Automatic1111 | `POST /sdapi/v1/txt2img` (WebUI lancé avec `--api`) | – | `GET /sdapi/v1/sd-models` |
 | Ollama | – | `POST /api/chat`, `format: json`, `stream: false` | `GET /api/tags` (modèle installé ?) |
-| Codex CLI | `codex exec` : l’image est prise dans `~/.codex/generated_images` | `codex exec -o <fichier>` | `codex --version` |
+| Codex CLI | `codex exec --json` : l’image est prise dans `~/.codex/generated_images` | `codex exec --json -o <fichier>` (évènements JSONL lus pour la progression) | `codex --version` |
 
 **Vérifié** : la forme de chaque requête et la lecture de chaque réponse, par
 des fournisseurs factices (serveur HTTP local, `backend/tests/ai.rs`).
@@ -154,17 +154,79 @@ menu contextuel de la toile des menus, dialogue « Nouveau menu », état vide
    `textures/generated/<menu>/`, le menu s’ouvre **non enregistré** ; on le
    relit, on le retouche, puis `Ctrl+S`.
 
-## Annulation, délais, erreurs
+## Tâches de fond, progression et annulation
 
-- **Arrêter** annule la génération : l’interface abandonne sa requête et le
-  backend rend la main aussitôt (`POST /api/ai/cancel`) ; un programme Codex
-  en cours est tué.
+Une génération est une **tâche de fond** (`src/ai/jobs.ts`), tenue au niveau
+de l’application, pas par son dialogue :
+
+- **Fermer le dialogue** (croix, Échap ou « Continuer en arrière-plan ») ne
+  l’arrête pas, changer d’écran non plus. Plusieurs tâches tournent à la fois
+  (une texture et une interface, ou une seconde interface par « Nouvelle
+  demande ») : le backend les sert en parallèle.
+- **Rouvrir le dialogue** la montre en direct : la phase en clair (« Codex lit
+  la demande… », « Codex réfléchit… », « Vérification du menu par le
+  schéma… », « Essai 2 sur 3 : correction de 4 erreurs… »), un chronomètre,
+  une barre par étapes (Demande, Envoi, Réponse, Schéma, Rendu) dont l’étape
+  en cours défile au pixel, et le journal des essais : les erreurs du schéma
+  de chaque essai, repliables, puis l’essai en cours. Le formulaire est figé
+  pendant ce temps.
+- Finie, la tâche garde son **résultat** (ou son échec et son journal) jusqu’à
+  ce qu’on l’ouvre dans l’éditeur ou qu’on le **rejette** : le dialogue rouvert
+  le remontre. Les générations restent aussi dans l’historique de la session.
+- **Annuler la génération** est le seul moyen de l’arrêter : l’interface
+  abandonne sa requête et prévient le backend (`POST /api/ai/cancel`), qui
+  rend la main aussitôt ; un programme Codex en cours est tué. Rien n’est créé.
+
+**Progression réelle** : pendant l’attente, l’interface lit chaque seconde
+`GET /api/ai/progress/<requestId>` (`backend/src/ai/progress.rs`) : une phase
+(`queued`, `starting`, `waiting`, `thinking`, `tool`, `writing`, `image`,
+`receiving`), le nombre d’évènements reçus et le temps écoulé. Pour un service
+HTTP : requête partie, puis réponse en cours de réception. Pour Codex CLI,
+lancé avec `--json`, chaque évènement JSONL (`turn.started`, `reasoning`,
+`command_execution`, `agent_message`…) fait avancer la phase. Rien de la
+demande ni de la réponse n’y passe. La dernière erreur signalée par Codex
+devient le message d’échec, et son dernier message sert de repli si `-o` n’a
+rien écrit.
+
+Sans animation (`prefers-reduced-motion`) : mêmes informations, picto et
+barre immobiles.
+
+## Notifications
+
+Une pile en bas à droite, au-dessus de la barre d’état, pour tout le studio
+(`src/ui/toasts.ts`, `src/ui/ToastStack.tsx`) : info, progression, succès et
+erreur, chacune avec son picto, un bouton d’action facultatif et « Fermer ».
+L’info et le succès disparaissent seuls (6 s de visibilité, en pause au
+survol) ; l’erreur et la progression restent. Quatre au plus : les plus
+anciennes se replient derrière un bouton. La pile est masquée tant qu’un
+dialogue est ouvert : elle ne recouvre jamais ses boutons.
+
+Une génération en produit :
+
+- au départ, une **progression** « Génération lancée avec Codex CLI… » qui
+  suit la phase, avec son chronomètre et « Voir » ;
+- à chaque essai refusé, « Essai 1 sur 3 refusé : 5 erreurs, correction en
+  cours… » ;
+- à la fin, « Interface prête » ou « Texture prête » avec **Ouvrir** (le
+  dialogue, sur le résultat), ou un échec en une phrase, sans jargon, avec
+  **Voir le détail** ;
+- à l’annulation, « Génération annulée ».
+
+Les notifications d’essai et de fin sont omises quand le dialogue de la tâche
+est ouvert : il les montre déjà.
+
+**Indicateur** : tant qu’une tâche tourne, le bas du rail montre un picto
+animé et le nombre de tâches (« 1 génération en cours » au survol). Un clic
+rouvre le dialogue de la tâche, ou propose de choisir s’il y en a plusieurs.
+
+## Délais et erreurs
+
 - Délais : 5 min pour une image, 4 min pour un texte, 10 min pour Codex, 25 s
   pour un test. Aucune nouvelle tentative automatique (un seul repli : sans
   fond transparent si le modèle d’OpenAI le refuse).
-- Erreurs en français, avec le statut et un extrait de la réponse : clé
-  refusée, crédit épuisé, limite de débit, modèle introuvable, service
-  injoignable…
+- Erreurs en français, avec le statut et un extrait de la réponse, en entier
+  dans le dialogue : clé refusée, crédit épuisé, limite de débit, modèle
+  introuvable, service injoignable… La notification n’en garde qu’une phrase.
 
 ## API locale
 
@@ -172,16 +234,24 @@ Routes du backend (en-tête `X-Menu-Forge: 1` exigé pour tout ce qui n’est pa
 une lecture), détaillées en tête de `backend/src/ai/mod.rs` :
 `GET /api/ai/providers`, `PUT /api/ai/providers/:id`, `PUT|DELETE /api/ai/keys/:id`,
 `POST /api/ai/test/:id`, `POST /api/ai/image`, `POST /api/ai/text`,
-`POST /api/ai/cancel`.
+`POST /api/ai/cancel`, `GET /api/ai/progress/:requestId`.
 
 ## Tests
 
 - `cd studio/backend && cargo test` : fournisseurs factices (un serveur HTTP
   local joue chaque API), clés en mémoire, refus sans envoi, erreurs,
-  annulation, persistance des réglages.
+  annulation, progression pendant une génération, lecture des évènements
+  JSONL de Codex, persistance des réglages.
 - `npm test` : chaîne de contrainte (`tests/ai-constrain.test.ts`),
   validation et boucle de correction bornée (`tests/ai-correction.test.ts`),
-  avec un modèle factice.
+  avec un modèle factice ; tâches de fond et notifications
+  (`tests/ai-jobs.test.ts`) : phases, essais refusés, fin, annulation, échec.
+- `npm run e2e` : scénario `13-ai-jobs.mjs`, avec des fournisseurs simulés
+  lents (`e2e/lib/fakeAi.mjs` : un faux Ollama et un faux Automatic1111 dont
+  le test libère chaque réponse) : phases, dialogue fermé en cours de route,
+  indicateur, notifications, « Ouvrir », « Annuler », deux tâches à la fois,
+  et l’audit de mise en page de chaque état à 1024 × 600, 1280 × 800 et
+  1600 × 900.
 
 Aucun test n’appelle un vrai fournisseur ni n’utilise une vraie clé.
 
@@ -194,3 +264,7 @@ Aucun test n’appelle un vrai fournisseur ni n’utilise une vraie clé.
   variantes à la fois.
 - Une interface générée ne peut ni hériter d’un gabarit ni inclure un
   composant : ajoute-les ensuite dans l’éditeur.
+- Les tâches de fond vivent en mémoire : recharger la page ou fermer le
+  studio les perd. Le backend, lui, ne voit pas que l’interface est partie :
+  une génération en cours (un programme Codex compris) va jusqu’à sa réponse
+  ou son échéance.
