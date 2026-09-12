@@ -1,5 +1,6 @@
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
 
 // L’API locale est servie par le backend Rust (`studio-api` lancé par
 // `npm run dev`, ou l’appli Tauri en développement) sur 127.0.0.1:5174 :
@@ -16,5 +17,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: { '/api': { target: apiBackendUrl } },
+    // Le schéma du format (`docs/menu.schema.json`) est importé par le dialogue
+    // d’IA : `docs/` est hors du dossier du studio, Vite le refuse sans ceci (403).
+    fs: {
+      allow: [searchForWorkspaceRoot(process.cwd()), fileURLToPath(new URL('../docs', import.meta.url))],
+    },
   },
 })
