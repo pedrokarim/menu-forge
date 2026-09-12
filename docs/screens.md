@@ -1,238 +1,250 @@
-# Écrans de l’application
+# Écrans du studio
 
-Le studio devient un logiciel à plusieurs écrans (appli Tauri, style
-« Deepslate »). Ce document fixe la navigation et le contenu de chaque écran,
-avant de les construire.
+Le studio est une application de bureau (Tauri 2) ou une page servie en
+local, au style « Deepslate » : ardoise, biseaux de 2 px, or pour la
+sélection, infobulles violettes façon objet du jeu. Cette page décrit chaque
+écran ; les raccourcis sont dans [`shortcuts.md`](shortcuts.md), la prise en
+main pas à pas dans le [guide](guide.md).
 
 ## Navigation
 
-- **Rail d’écrans** vertical à gauche, étroit (icônes Pixelarticons +
-  infobulle Deepslate avec le raccourci) : Accueil, Éditeur, Bibliothèques,
-  Paramètres, À propos. L’écran actif est marqué en or.
-- **Pastille de l’espace de travail** en haut de chaque écran : nom de
-  l’espace actif ; un clic ouvre l’écran Sélection.
-- **Adresse** : l’écran courant est reflété dans l’URL (`#/accueil`,
-  `#/editeur/menus/<id>`, `#/editeur/assets/<id>`, `#/editeur/pixels/<id>`,
-  `#/bibliotheques`,
-  `#/parametres`, `#/a-propos`, `#/espaces`) pour pouvoir y revenir
-  directement ; pas de dépendance de routage, un petit routeur maison suffit.
-- **Quitter l’éditeur** avec des changements non enregistrés : confirmation
-  (règle déjà en place, étendue au changement d’écran).
-- **Raccourcis globaux** : `Ctrl+1…5` pour les écrans, `Ctrl+O` pour la
-  sélection d’espace, `?` pour l’aide-mémoire des raccourcis.
+- **Rail** vertical à gauche : Accueil, Éditeur, Bibliothèques, Paramètres,
+  À propos (`Ctrl+1` à `Ctrl+5`), chacun avec une infobulle qui rappelle son
+  raccourci ; l’écran actif est marqué en or. Tant qu’une génération par IA
+  tourne, le bas du rail montre un picto animé et leur nombre (voir
+  [Notifications](#fenêtre-colonnes-et-notifications)).
+- **Pastille de l’espace de travail**, en haut de chaque écran : un clic
+  ouvre l’écran Espaces de travail (`Ctrl+O`).
+- **Adresse** : l’écran courant est reflété dans l’URL, pour y revenir
+  directement.
 
-## Premier lancement
+| Écran | Adresse |
+|---|---|
+| Accueil | `#/accueil` |
+| Espaces de travail | `#/espaces` |
+| Éditeur de menus (formulaires Bedrock compris) | `#/editeur/menus/<id>` |
+| Éditeur d’assets | `#/editeur/assets/<id>` |
+| Éditeur de pixels | `#/editeur/pixels/<id>` |
+| Bibliothèques | `#/bibliotheques` |
+| Paramètres | `#/parametres` |
+| À propos | `#/a-propos` |
 
-1. Pas d’espace de travail connu → écran **Sélection**, avec un espace par
-   défaut proposé (`Documents/menu-forge`, créé si besoin).
-2. Espace choisi → **Accueil**.
+Quitter l’éditeur, ou changer d’écran, avec des changements non enregistrés
+demande une confirmation. Au premier lancement, sans espace de travail connu,
+le studio ouvre l’écran Espaces de travail avec un espace proposé,
+`Documents/menu-forge` (créé s’il manque), puis l’accueil.
 
-## Écrans
+## Fenêtre, colonnes et notifications
 
-### Accueil (`#/accueil`)
+- **Fenêtre** : 1024 × 600 au minimum, et jamais plus grande que la zone utile
+  de l’écran au lancement (barre des tâches ôtée, échelle d’affichage
+  comprise).
+- **Passage à la ligne** : noms, chemins et messages passent à la ligne au
+  lieu d’être coupés ; les barres d’outils passent à la ligne par groupes. Seuls
+  la barre de titre et les listes déroulantes gardent des points de suspension.
+- **Colonnes latérales** : dans les quatre éditeurs (menus, assets, pixels,
+  formulaires Bedrock), les colonnes de gauche et de droite se règlent par la
+  poignée de leur bord, à la souris ou au clavier, entre une largeur minimale
+  et une largeur maximale ; la toile suit en direct et le zoom « Ajuster » est
+  recalculé. La largeur est gardée d’une session à l’autre, sur ce poste ;
+  double-clic pour la rétablir ([touches](shortcuts.md#colonnes-latérales)).
+- **Notifications** : une pile en bas à droite, au-dessus de la barre d’état,
+  pour tout le studio : information, progression, succès et erreur, chacune
+  avec son picto, un bouton d’action facultatif et « Fermer ». L’information
+  et le succès disparaissent seuls (6 s de visibilité, en pause au survol),
+  l’erreur et la progression restent. Quatre au plus : les plus anciennes se
+  replient derrière un bouton. La pile est masquée tant qu’un dialogue est
+  ouvert, pour ne jamais recouvrir ses boutons. Ce qu’une génération par IA y
+  affiche : [`ai.md`](ai.md#notifications).
 
-- En-tête : logo pixel de Menu Forge, nom de l’espace actif.
-- **Actions rapides** (grandes cases façon inventaire) : Nouveau menu, Générer une
-  interface, Nouvel
-  asset, Nouvelle image, Importer un écran depuis une police, Ouvrir un espace
-  de travail.
-- **Documents récents** de l’espace actif : menus, assets et images de pixels triés par date,
-  avec vignette (rendu du fond ou de l’asset), type, nom, date relative ;
-  clic = ouvrir dans l’éditeur ; clic droit ou bouton « … » : Ouvrir,
-  Renommer…, Dupliquer, Mettre à la corbeille (le fichier va dans `.trash/`
-  de l’espace, rien n’est supprimé).
-- **Voir les exemples** (en tête des actions rapides) : ouvre le générateur
-  d’interfaces directement sur sa galerie d’exemples.
-- **Générer une interface…** (en tête des actions rapides) : décrite à une
-  IA, validée, ouverte dans l’éditeur sans être enregistrée (voir
-  [`ai.md`](ai.md)).
-- **Espaces récents** (3 à 5), clic = basculer.
-- États vides utiles : « Aucun document : commence par un gabarit ».
-- Données : `GET /documents/recent`, `GET /workspaces`.
+## Accueil
 
-### Sélection de l’espace de travail (`#/espaces`)
+- En-tête : logo de Menu Forge et nom de l’espace actif.
+- **Actions rapides**, en grandes cases façon inventaire : Nouveau menu,
+  Générer une interface (le [générateur](generator.md)), Nouvel asset,
+  Nouvelle image, Importer un écran (un menu reconstruit depuis une police
+  d’un pack branché), Ouvrir un espace.
+- En tête de la section : **Voir les exemples**, qui ouvre le générateur sur
+  sa galerie, et **Générer une interface par IA…** ([`ai.md`](ai.md)).
+- **Documents récents** de l’espace (douze au plus) : menus, assets et images
+  de pixels, avec leur vignette (rendu du menu, de l’asset ou de l’image ; un
+  formulaire Bedrock montre une icône de grille), leur type, leur nom et leur
+  date. Un clic ouvre le document ; un clic droit ou le bouton « … » propose
+  Ouvrir, Renommer…, Dupliquer et Mettre à la corbeille (le fichier va dans
+  `.trash/` de l’espace, rien n’est supprimé).
+- **Espaces récents** (cinq au plus) : un clic bascule.
 
-- Liste des espaces connus : nom, chemin, nombre de menus / assets / textures,
-  dernier accès, alerte si le dossier n’existe plus.
-- **Ouvrir un dossier…** (sélecteur natif Tauri ; en mode navigateur, saisie
-  du chemin), **Retirer de la liste** (ne supprime jamais de fichiers),
-  **Afficher dans l’explorateur**.
-- Données : `GET /workspaces`, `POST /workspaces/open`, `DELETE /workspaces`.
+## Espaces de travail
 
-### Éditeur (`#/editeur/...`)
+Liste des espaces connus (nom, chemin, nombre de menus, d’assets et de
+textures, dernier accès, alerte si le dossier n’existe plus) ; **Ouvrir un
+dossier…** (sélecteur natif dans l’appli, saisie du chemin dans le
+navigateur), **Retirer de la liste** (ne supprime jamais de fichier),
+**Afficher dans l’explorateur**.
 
-L’existant : bascule Menus / Assets, toile, bibliothèque, inspecteur, aperçu
-d’état, titre composé. S’y ajoutent la manipulation directe (slots déplaçables
-et redimensionnables, aimantation) et les infobulles.
+## Éditeur
 
-**Rognage (sprites d’atlas).** Beaucoup de textures des packs sont des atlas :
-une grande image, plusieurs sprites. « Rogner… » (bibliothèque, ou couche
-sélectionnée dans l’inspecteur) ouvre un sélecteur à trois modes : tracer une
-zone, cliquer une case d’une grille (8, 16, 18, 32, 64 ou taille libre, avec
-décalage), cliquer un sprite (zone détectée sur les pixels opaques reliés).
-« Ajouter et continuer » pose plusieurs sprites à la suite.
+Trois modes : **Menus**, **Assets** et **Pixels** ; un menu qui porte la clé
+`form` s’ouvre dans l’éditeur de formulaires Bedrock. Le bouton « … » à côté
+du sélecteur de document renomme, duplique ou met à la corbeille le document
+ouvert. Les éditeurs secondaires sont chargés à la demande.
 
-- Menus : la découpe devient sa propre texture (`textures/cropped/`), car
-  chaque couche finit en glyphe de police ; rogner une couche la décale pour
-  que la partie gardée reste en place, « Extraire en nouvelle couche » garde
-  l’originale.
-- Assets : l’image garde la texture entière et n’en affiche que la zone source.
-- `Ctrl+D` duplique la sélection (couches, textes, zones, éléments d’asset).
+### Éditeur de menus
 
-**Gestes d’édition.** Maj ou Ctrl + clic ajoute ou retire un élément de la
-sélection, un rectangle tracé sur une zone vide sélectionne ce qu’il touche,
-`Ctrl+A` prend tout ce qui n’est ni verrouillé ni masqué. Copier, couper,
-coller (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`) passent par le presse-papiers système
-(JSON marqué) ; une image PNG collée ou glissée depuis l’explorateur devient
-une texture puis une couche (menus) ou une image (assets). L’inspecteur d’une
-sélection multiple résume ce qui est commun et porte la barre « Aligner et
-répartir » (par rapport à la sélection ou à la toile). Verrouiller retire un
-élément de la toile (il reste dans la liste) ; masquer le cache de la toile
-seulement pour un menu, de l’export pour un asset. Les assets ont des groupes
-(`Ctrl+G`, `Ctrl+Maj+G`). Le bouton « … » à côté du sélecteur de document
-renomme, duplique ou met à la corbeille le document ouvert.
+- **À gauche** : les couches, les textes et les zones de slots du menu
+  (chaque section a ses actions, dont « Générer une texture… »), et la
+  bibliothèque des textures des packs branchés.
+- **Au centre** : la barre d’outils (Nouveau menu, outils Sélection `V`,
+  Slots `S` et Zoom `Z`, Essayer `E`, niveau de zoom, Exporter, Pack ZIP,
+  Bedrock, Générer une interface par IA…) et la toile, calée sur la grille
+  du coffre, fond « cases seules » ou coffre vanilla, avec aimantation.
+- **À droite** : l’inspecteur de la sélection ; sans sélection, les
+  propriétés du menu (lignes, variables d’état, composants inclus) ; dessous,
+  l’aperçu d’un état et le **titre composé**, jeton par jeton, avec le même
+  algorithme que la lib.
 
-**Éditer sans JSON.** L’inspecteur d’un slot édite ses actions au clic
-(liste réordonnable au glisser, aux flèches ou à Alt+↑ / Alt+↓, ajout par
-type, champs propres à chaque type avec listes des menus, des variables et des
-listes paginées, validation en direct), son item (invisible, matériau, tête,
-référence du serveur, nom et description en MiniMessage avec aperçu coloré et
-palette de balises) et ses conditions (arbre « toutes », « au moins une »,
-« pas », feuilles « état égal à », « état parmi », « drapeau », résumé en une
-ligne, accès « Avancé (JSON) » pour les cas exotiques). Sans sélection,
-l’inspecteur du menu édite ses variables d’état (renommer une variable met à
-jour ses références) et ses composants inclus.
+**Nouveau menu.** Le dialogue propose **Générer une interface…** (le
+générateur, [`generator.md`](generator.md)), un point de départ (Vierge, ou
+un gabarit : Coffre classique, Modale, Barre d’onglets, Liste paginée), les
+huit dispositions des **formulaires Bedrock**, puis le nom, l’identifiant et
+le nombre de lignes du coffre ; « Générer par IA… » passe à la génération par
+IA.
 
-**Essayer** (`E`, `Échap` pour revenir). Un clic sur un slot de la toile
-exécute ses actions sur l’état d’aperçu, comme en jeu : `setState`,
-pagination, `open` (le menu ouvert s’affiche, une pile garde le chemin pour
-`back`), `close` (message, puis « Rouvrir ») ; commandes, sons et actions
-serveur sont écrits au journal (colonne de gauche). Le titre composé suit en
-direct. Rien n’est modifié dans le document.
+**Rognage (sprites d’atlas).** « Rogner… » (bibliothèque, ou couche
+sélectionnée) ouvre un sélecteur à trois modes : tracer une zone, cliquer une
+case d’une grille (8, 16, 18, 32, 64 ou taille libre, avec décalage), cliquer
+un sprite (zone détectée sur les pixels opaques reliés). « Ajouter et
+continuer » pose plusieurs sprites à la suite. Dans un menu, la découpe
+devient sa propre texture (`textures/cropped/`), car chaque couche finit en
+glyphe ; « Extraire en nouvelle couche » garde l’originale.
+
+**Gestes d’édition.** Sélection multiple (Maj ou Ctrl + clic, rectangle
+tracé sur une zone vide, `Ctrl+A`), copier, couper et coller par le
+presse-papiers du système (d’un menu à l’autre), duplication (`Ctrl+D`). Une
+image PNG collée ou glissée depuis l’explorateur devient une texture puis une
+couche. L’inspecteur d’une sélection multiple résume ce qui est commun et
+porte la barre **Aligner et répartir** (par rapport à la sélection ou à la
+toile). Verrouiller retire un élément de la toile (il reste dans la liste) ;
+masquer le cache de la toile seulement (clé `editor` du format).
+
+![Quatre onglets sélectionnés ; l’inspecteur résume la sélection et propose d’aligner et de répartir](../site/assets/screens/multi-select.png)
+
+**Éditer sans JSON.** L’inspecteur d’un slot édite ses **actions au clic**
+(liste réordonnable au glisser, aux flèches ou à `Alt+↑` / `Alt+↓`, champs
+propres à chaque type, listes des menus, des variables et des listes
+paginées, validation en direct), son **item** (invisible, matériau, tête,
+référence du serveur, nom et description en MiniMessage avec aperçu coloré)
+et ses **conditions** (arbre « toutes », « au moins une », « pas », feuilles
+« état égal à », « état parmi », « drapeau », résumé en une ligne, accès
+« Avancé (JSON) »). Sans sélection, l’inspecteur édite les variables d’état
+du menu : renommer une variable met à jour ses références.
+
+![L’inspecteur du bouton « Acheter » : deux actions au clic et une condition d’activation en arbre](../site/assets/screens/visual-editors.png)
+
+**Essayer** (`E`, `Échap` pour revenir). Un clic sur un slot exécute ses
+actions sur l’état d’aperçu, comme en jeu : `setState`, pagination, `open`
+(le menu ouvert s’affiche, une pile garde le chemin pour `back`), `close`
+(message, puis « Rouvrir ») ; commandes, sons et actions du serveur sont
+écrits au journal. Le titre composé suit ; le document n’est jamais modifié.
 
 **Composants.** « Créer un composant… » (menu contextuel d’une sélection)
 déplace les éléments dans un nouveau fichier `component: true` et laisse une
 instance à leur place. Dans les propriétés du menu, « Composants inclus »
 pose, décale, préfixe ou conditionne des instances, ouvre le composant ou
-détache une instance. Les éléments d’instance sont listés avec la pastille
-« composant » et ne se modifient que dans leur composant (format :
-[`format.md`](format.md) § Composants).
+détache une instance. Les éléments d’instance portent la pastille
+« composant » et ne se modifient que dans leur composant
+([format](format.md#composants)).
 
-**Générer une interface.** « Nouveau menu » propose « Générer une
-interface… », aussi action rapide de l’accueil. On choisit un type – boutique
-(grille d’articles paginée et barre d’actions), grille simple, modale de
-confirmation, liste paginée, barre d’onglets –, le nombre de lignes du coffre,
-le nombre et la disposition des boutons (à gauche, centrés, à droite,
-répartis), la famille de styles (Deepslate, mc-rs ou sombre à accent) et une couleur d’accent ;
-l’aperçu suit en direct, et un clic sur un onglet ou une flèche y change
-l’état. Le menu créé est complet : couches aux textures générées (fond et
-cases, boutons, variantes allumées ou actives), zones de slots et leurs
-actions (`setState` pour les onglets, `nextPage` / `prevPage` pour les pages,
-`back`, `close`, actions du serveur), textes et variables d’état. Il se
-retouche ensuite à la main comme n’importe quel menu ; « Modifier la texture
-générée… » rouvre chaque couche dans le générateur de textures.
+![Le profil et son instance du composant « Barre de retour » : éléments marqués « composant », préfixe et décalage](../site/assets/screens/components.png)
 
-Le dialogue a deux onglets : **Réglages** (ci-dessus) et **Exemples**, que
-« Voir les exemples » de l’accueil ouvre directement. La galerie montre 22
-interfaces toutes faites (« Marché », « Forge », « Hôtel des ventes du
-royaume »…), filtrables par type et par famille. Chaque vignette est rendue en
-direct par le générateur, avec la fonction de l’aperçu à l’échelle 1 et
-pixelisée, et seulement une fois visible : aucune image n’est stockée. Sa
-légende donne le nom, puis le type, la famille et l’accent, puis les réglages
-(lignes, boutons, disposition). Un clic charge les réglages de l’exemple dans
-le formulaire, nom, titre et identifiant libre compris ; « Personnaliser »
-passe aux réglages pour les retoucher avant « Créer le menu ». Un double-clic,
-ou « Utiliser cet exemple », crée le menu tel quel, sous un identifiant libre
-tiré de son nom. Les réglages sont dans `studio/src/model/interfaceExamples.ts`.
+**Menus contextuels.** Un clic droit sur un élément propose ses actions
+(dupliquer, rogner, ouvrir dans l’éditeur de pixels, créer un composant,
+aligner…) ; sur une zone vide, les exports, « Générer une texture… » et
+« Générer une interface par IA… ».
 
-**Générateur de textures.** « Générer une texture… » dessine une couche au
-pixel près, dans un style Deepslate (biseauté façon vanilla), mc-rs
-(panneaux sombres et arrondis, boutons plats à trois états, boutons en relief,
-bandes, cases, grille de chargement) ou sombre à accent (fenêtre plate à cadre
-fin, cases creusées, onglets et boutons plats, bouton fermer, store rayé,
-lignes de liste, cartouches, barres de progression), avec aperçu et paramètres propres à la
-famille (rayon, bordure, accent, état, ombre, progression). Format : [`format.md`](format.md)
-§ Couches.
+### Éditeur de formulaires Bedrock
 
-**Éditeur de pixels** (`#/editeur/pixels/<id>`, troisième mode après Menus et
-Assets). Pour dessiner une texture au pixel près : couleurs à gauche (principale
-et secondaire, palette, récentes, couleurs du document), outils et toile au
-centre, calques et propriétés de l’image à droite. Chaque enregistrement écrit
-le document `pixels/<id>.pixel.json` (calques) et un PNG aplati dans
-`textures/`, utilisable tel quel dans les menus et les assets. « Ouvrir dans
-l’éditeur de pixels » (menu contextuel d’une vignette de bibliothèque ou d’une
-couche) crée une image depuis une texture ; celle d’un pack n’est jamais
-modifiée (copie). Format, outils et raccourcis : [`pixels.md`](pixels.md).
+À gauche, la **disposition** (les huit du pack `mcrs_ui`), le titre, le
+contenu et la liste des boutons – glisser pour réordonner, clic droit pour
+dupliquer, monter, descendre ou supprimer, « Ajouter » pour un bouton, une
+bannière ou un bouton spécial selon la disposition ; l’onglet
+« Bibliothèque » fait d’une texture l’icône du bouton sélectionné. Au centre,
+l’**aperçu** reprend la géométrie des JSON du pack, sur un écran simulé (PC,
+grand ou petit écran), zoomé comme les toiles ; un texte trop long pour la
+disposition est signalé « tronqué en jeu ». À droite, l’**inspecteur** du
+bouton (identifiant, texte, sous-titre, rôle, icône, « Envoyé si », actions
+au clic), puis les variables d’état et les drapeaux de l’aperçu. « Essayer »
+(`E`) exécute les clics comme le serveur. Pas à pas :
+[guide](guide.md#4-un-premier-formulaire-bedrock) ; format :
+[`format.md`](format.md#formulaire-bedrock-form).
 
-**Génération par IA.** « Générer une interface… » (bouton à côté de
-« Nouveau », menu contextuel de la toile, dialogue « Nouveau menu ») :
-description, fournisseur de texte, taille du coffre ; la réponse est validée
-par le schéma et les règles de la lib, corrigée en quelques essais au plus,
-puis le menu s’ouvre **non enregistré**. « Générer une texture… » (barre de
-l’éditeur de pixels, bibliothèque) : description, fournisseur d’images,
-taille, palette ; l’image est ramenée sur la grille des pixels, en palette
-imposée, avec une vraie transparence, puis ouverte dans l’éditeur de pixels.
-Fournisseurs, confidentialité et contraintes : [`ai.md`](ai.md).
+### Éditeur d’assets
 
-**Formulaire Bedrock.** Un menu créé avec une disposition Bedrock
-(« Nouveau menu », section « Formulaire Bedrock ») s’ouvre dans son propre
-éditeur, chargé à la demande. Colonne de gauche : la disposition (huit, celles
-du pack `mcrs_ui`), le titre et le contenu, puis la liste des boutons – glisser
-pour réordonner, clic droit pour dupliquer, monter, descendre ou supprimer,
-« Ajouter » pour un bouton, une bannière ou un bouton spécial selon la
-disposition ; l’onglet « Bibliothèque » fait d’une texture l’icône du bouton
-sélectionné. Au centre, l’aperçu reprend la géométrie des JSON du pack, sur un
-écran simulé (PC, grand ou petit écran), zoomé comme les toiles (`+`, `-`,
-`Maj+0`, `Maj+1`, `Maj+2` pour le bouton sélectionné, ou le sélecteur de la
-barre) ; « Essayer » (`E`) exécute les actions d’un clic comme le serveur.
-Les deux colonnes se règlent à la souris, comme dans les autres éditeurs. À droite, l’inspecteur du bouton :
-identifiant, texte, sous-titre, rôle, icône (texture de l’espace, PNG importé,
-icône de 32 × 32 dessinée dans l’éditeur de pixels, texture du jeu citée par son
-chemin, adresse web), « Envoyé si » (`visibleWhen`) et actions au clic ; puis
-les variables d’état et l’aperçu des drapeaux. Les textes et chemins longs
-passent à la ligne : rien ne déborde de la colonne. Format :
-[`format.md`](format.md) § Formulaire Bedrock ; export : [`bedrock.md`](bedrock.md) § 9.
+Le **mode libre** : une composition figée (encart d’aide, bulle de touche,
+badge…) faite de boîtes, d’images et de textes, groupables, exportée en un
+PNG et proposée en glyphe à coller dans un texte. Format et export :
+[`assets.md`](assets.md).
 
-La fenêtre descend à 1024 × 600, et jamais au-delà de la zone utile de l’écran
-(barre des tâches ôtée, échelle d’affichage comprise) : les barres d’outils
-passent à la ligne par groupes et les colonnes latérales se règlent à la souris.
+![L’éditeur d’assets : un encart d’aide composé d’un logo, de deux cadres et de trois lignes de texte](../site/assets/screens/asset-editor.png)
 
-### Bibliothèques (`#/bibliotheques`)
+### Éditeur de pixels
 
-- Liste des packs branchés : nom, chemin, badge « maison » / « tiers · local »,
-  nombre de textures et de polices, date d’indexation.
-- **Ajouter un pack** (dossier d’un resource pack extrait ; plus tard : zip
-  lu directement), modifier le nom et la propriété, **Réindexer**, **Retirer**.
-- Rappel visible : les assets tiers restent sur ce poste, jamais publiés.
-- Données : `GET /libraries`, `POST /libraries`, `DELETE /libraries/:id`,
-  `POST /libraries/:id/reindex`.
+Pour dessiner une texture au pixel près : couleurs à gauche, outils et toile
+au centre, calques et propriétés de l’image à droite. Chaque enregistrement
+écrit le document `pixels/<id>.pixel.json` et un PNG aplati dans `textures/`,
+utilisable tel quel dans les menus et les assets. « Ouvrir dans l’éditeur de
+pixels » (vignette de bibliothèque, couche) crée une image depuis une
+texture ; celle d’un pack n’est jamais modifiée. Outils et format :
+[`pixels.md`](pixels.md).
 
-### Paramètres (`#/parametres`)
+![L’éditeur de pixels : un onglet de boutique en trois calques, la palette à gauche, la symétrie active](../site/assets/screens/pixel-editor.png)
 
-- **Espace de travail** : espace ouvert au démarrage.
-- **Éditeur** : zoom par défaut, grille, aimantation, confirmations.
-- **Export vers le plugin** : dossier des ressources d’enderium-core,
-  namespace, `pack_format` (32 = 1.20.5/1.20.6, 34 = 1.21, 46 = 1.21.4).
-- **Export pour Bedrock** : dossier du serveur Bedrock, qui reçoit le pack
-  (`pack/`) et `runtime.json` ; pour mc-rs, `menu_forge/export`.
-- **IA** : une fiche par fournisseur (OpenAI, Google Gemini, Anthropic,
-  Mistral, Stability AI, fal, Replicate, ComfyUI, Automatic1111, Ollama,
-  Codex CLI) : activer, clé d’API rangée dans le trousseau du système
-  (l’écran n’affiche que « configurée »), modèles, adresse locale, test de
-  connexion. Chargée à la demande. Voir [`ai.md`](ai.md).
-- **Avancé** : chemin du fichier de réglages, vider les caches d’index.
-- Données : `GET /settings`, `PUT /settings`, `GET /app`.
+### Générateur d’interfaces et génération par IA
 
-### À propos (`#/a-propos`)
+- **Générer une interface** (carte de l’accueil, dialogue « Nouveau menu »)
+  et **Générer une texture…** : procéduraux, sans IA
+  ([`generator.md`](generator.md)).
+- **Générer une interface par IA…** (accueil, barre d’outils et menu
+  contextuel de l’éditeur de menus, dialogue « Nouveau menu ») et **Générer
+  une texture par IA…** (éditeur de pixels, bibliothèque) : description,
+  fournisseur, réglages, puis une génération en tâche de fond, suivie en
+  direct ([`ai.md`](ai.md)).
 
-- Logo, version, mode (appli ou navigateur), chemin des réglages.
-- **Licences** : Pixelarticons (MIT), Pixelify Sans, Atkinson Hyperlegible,
-  JetBrains Mono (OFL 1.1), React, Tauri.
-- Mention : « Menu Forge n’est ni affilié à Mojang ni approuvé par Mojang ;
-  Minecraft est une marque de Mojang AB. Les assets de packs tiers affichés dans
-  la bibliothèque restent la propriété de leurs auteurs. »
+## Bibliothèques
 
-### Aide-mémoire des raccourcis (`?`)
+Les packs de ressources branchés, lus en place et jamais publiés : nom,
+chemin, propriété (« maison » ou « tiers · local »), nombre de textures et de
+polices, date d’indexation. **Ajouter un pack** (dossier d’un resource pack
+extrait, avec son nom affiché, son identifiant et sa propriété), **Modifier
+le nom et la propriété**, **Réindexer**, **Afficher dans l’explorateur**,
+**Débrancher** (rien n’est supprimé sur le disque). Un rappel reste visible :
+les assets tiers restent sur ce poste.
 
-Fenêtre modale au style infobulle Deepslate, regroupée par contexte :
-navigation, éditeur de menus, éditeur d’assets, éditeur de pixels, toile.
+## Paramètres
+
+![L’écran des paramètres : espace de travail, éditeur, export vers le plugin](../site/assets/screens/settings.png)
+
+| Section | Réglages |
+|---|---|
+| Espace de travail | espace ouvert au démarrage |
+| Éditeur | zoom à l’ouverture (« Ajuster » par défaut), grille de pixels, confirmations |
+| Export vers le plugin | dossier cible (« Ressources d’enderium-core »), espace de noms, `pack_format` ([`export.md`](export.md)) |
+| Export pour Bedrock | dossier du serveur Bedrock, qui reçoit `pack/` et `runtime.json` |
+| Discord | Rich Presence, identifiant d’application, nom du document affiché ou non ([`discord.md`](discord.md)) |
+| IA | une fiche par fournisseur : activer, clé d’API rangée dans le trousseau du système, modèles, adresse, test de connexion ; chargée à la demande ([`ai.md`](ai.md)) |
+| Avancé | fichier de réglages (affiché dans l’explorateur), caches d’index |
+
+Réglages et forme du fichier : [API locale](../studio/README.md#api-locale).
+
+## À propos
+
+Logo, version, mode (appli ou navigateur), chemin des réglages, licences des
+composants tiers et mention : « Menu Forge n’est ni affilié à Mojang ni
+approuvé par Mojang ; Minecraft est une marque de Mojang AB. »
+
+## Aide-mémoire des raccourcis
+
+La touche `?` ouvre une fenêtre au style infobulle, en sept groupes :
+navigation, sélection et presse-papiers, éditeur de menus, éditeur de
+formulaires Bedrock, éditeur d’assets, éditeur de pixels, toile. Le même
+contenu : [`shortcuts.md`](shortcuts.md).

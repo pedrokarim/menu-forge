@@ -109,8 +109,8 @@ lents sans carte graphique. Codex CLI consomme le quota de ton compte.
 
 ## Contraintes : textures
 
-« Générer une texture… » : barre d’outils de l’éditeur de pixels, état vide
-du mode Pixels, bibliothèque (bouton de l’en-tête ; menu d’une vignette pour
+« Générer une texture par IA… » : barre d’outils de l’éditeur de pixels, état
+vide du mode Pixels, bibliothèque (bouton de l’en-tête ; menu d’une vignette pour
 reprendre sa taille et sa palette).
 
 1. Le modèle reçoit le style imposé (`src/ai/prompts.ts`) et la palette.
@@ -132,8 +132,10 @@ reprendre sa taille et sa palette).
 
 ## Contraintes : interfaces
 
-« Générer une interface… » : accueil (Actions rapides), barre d’outils et
-menu contextuel de la toile des menus, dialogue « Nouveau menu », état vide.
+« Générer une interface par IA… » : accueil (en tête des actions rapides),
+barre d’outils et menu contextuel de la toile des menus, dialogue « Nouveau
+menu » (« Générer par IA… »), état vide. À ne pas confondre avec le
+[générateur d’interfaces](generator.md), procédural.
 
 1. Le modèle reçoit le schéma exact, la géométrie, les textures et les menus
    de l’espace. Il peut demander des textures **dessinées par le studio**
@@ -193,13 +195,8 @@ barre immobiles.
 
 ## Notifications
 
-Une pile en bas à droite, au-dessus de la barre d’état, pour tout le studio
-(`src/ui/toasts.ts`, `src/ui/ToastStack.tsx`) : info, progression, succès et
-erreur, chacune avec son picto, un bouton d’action facultatif et « Fermer ».
-L’info et le succès disparaissent seuls (6 s de visibilité, en pause au
-survol) ; l’erreur et la progression restent. Quatre au plus : les plus
-anciennes se replient derrière un bouton. La pile est masquée tant qu’un
-dialogue est ouvert : elle ne recouvre jamais ses boutons.
+Les notifications sont celles de tout le studio (pile en bas à droite,
+durées, repli : [Écrans du studio](screens.md#fenêtre-colonnes-et-notifications)).
 
 Une génération en produit :
 

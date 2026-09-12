@@ -1,11 +1,11 @@
 # Studio Menu Forge
 
-Éditeur local des menus : interface React (`src/`), backend Rust
+Éditeur local des menus : interface React (`src/`), backend Rust
 (`backend/`, crate `studio-backend`) et coquille de bureau Tauri 2
 (`src-tauri/`, crate `menu-forge`). Le backend Rust a remplacé l’ancien
 serveur TypeScript (plugin Vite), retiré après validation de la parité.
 
-Prérequis : Node 24, Rust stable (1.95 ou plus) et, sous Windows, WebView2
+Prérequis : Node 24, Rust stable (1.95 ou plus) et, sous Windows, WebView2
 (présent sur Windows 11).
 
 ```sh
@@ -16,18 +16,18 @@ npm install
 
 | Commande | Ce qui tourne |
 |---|---|
-| `npm run dev` | `studio-api` (backend Rust) sur `127.0.0.1:5174` **et** Vite sur `http://localhost:5173`, qui « proxifie » `/api` vers lui |
-| `npm run dev:vite` | Vite seul (le proxy `/api` attend un backend sur 5174 : `npm run api`, ou l’appli Tauri) |
-| `npm run api` | `studio-api` seul (options : `npm run api -- --help`) |
+| `npm run dev` | `studio-api` (backend Rust) sur `127.0.0.1:5174` **et** Vite sur `http://localhost:5173`, qui « proxifie » `/api` vers lui |
+| `npm run dev:vite` | Vite seul (le proxy `/api` attend un backend sur 5174 : `npm run api`, ou l’appli Tauri) |
+| `npm run api` | `studio-api` seul (options : `npm run api -- --help`) |
 
-`vite.config.ts` « proxifie » toujours `/api` vers `http://127.0.0.1:5174`.
+`vite.config.ts` « proxifie » toujours `/api` vers `http://127.0.0.1:5174`.
 
 En mode navigateur, les réglages sont dans `studio/.cache/settings.json`. Au
 premier lancement, l’espace de travail actif est `../examples` et les
 bibliothèques sont importées de `../libraries.local.json`. Les options
 `--workspace` et `--libraries` de `studio-api` (ou `MENU_FORGE_WORKSPACE`,
 `MENU_FORGE_LIBRARIES`) imposent un espace ou des bibliothèques **pour la
-session seulement**, sans toucher au fichier de réglages : c’est ce qu’il faut
+session seulement**, sans toucher au fichier de réglages : c’est ce qu’il faut
 pour les tests automatiques. `--settings <fichier>` choisit un autre fichier.
 
 ## Mode Tauri (appli de bureau)
@@ -38,7 +38,7 @@ npm run tauri:dev
 
 Tauri lance Vite seul (`npm run dev:vite`), compile la
 coquille et ouvre la fenêtre sur `http://localhost:5173`. Le backend tourne
-**dans le processus de l’appli**, sur le port 5174 : arrêtez d’abord tout
+**dans le processus de l’appli**, sur le port 5174 : arrêtez d’abord tout
 `studio-api` ou `npm run dev` qui occuperait 5173 ou 5174.
 
 Au démarrage, un écran d’accueil (`public/splash.html`) s’affiche au moins
@@ -66,41 +66,43 @@ réel dans `%LOCALAPPDATA%\eu.enderium.menuforge\server.json`.
 | Gabarits | embarqués avec l’appli (`templates/`) |
 
 Au premier lancement, les bibliothèques sont importées du premier
-`libraries.local.json` trouvé : variable `MENU_FORGE_LIBRARIES`, dossier des
+`libraries.local.json` trouvé : variable `MENU_FORGE_LIBRARIES`, dossier des
 réglages, puis celui du dépôt.
 
 ## API locale
 
-Routes historiques (identiques à l’ancien serveur TypeScript) : `GET /api/workspace`,
+Routes historiques (identiques à l’ancien serveur TypeScript) : `GET /api/workspace`,
 `PUT /api/menus/:id`, `PUT /api/assets/:id`, `GET|PUT /api/textures/…`,
 `GET /api/libraries`, `GET /api/libraries/:id/index`,
 `GET /api/libraries/:id/raw/…`, `POST /api/libraries/:id/import`.
 
-Routes de l’application :
+Routes de l’application :
 
 | Route | Rôle |
 |---|---|
-| `GET /api/app` | `{ name, version, mode: "browser" \| "tauri", settingsPath, platform, overrides, firstLaunch }` ; `firstLaunch` : le fichier de réglages n’existait pas au démarrage du backend |
+| `GET /api/app` | `{ name, version, mode: "browser" \| "tauri", settingsPath, platform, overrides, firstLaunch }` ; `firstLaunch` : le fichier de réglages n’existait pas au démarrage du backend |
 | `GET /api/settings` | réglages (voir ci-dessous) |
-| `PUT /api/settings` | document partiel, validé strictement, appliqué aussitôt ; renvoie les réglages |
+| `PUT /api/settings` | document partiel, validé strictement, appliqué aussitôt ; renvoie les réglages |
 | `GET /api/workspaces` | `{ active, workspaces: [{ path, name, lastOpened, active, exists, menus, assets, textures }] }` |
-| `POST /api/workspaces/open` | `{ path, name? }` : dossier absolu existant ; crée `menus/`, `assets/`, `textures/` s’ils manquent ; devient l’espace actif |
-| `DELETE /api/workspaces` | `{ path }` : retire de la liste (409 pour l’espace actif), **ne supprime aucun fichier** |
-| `GET /api/documents/recent` | `[{ type: "menu" \| "asset" \| "pixel", id, name, modified, texture? }]`, du plus récent au plus ancien ; `texture`  PNG exporté d’une image de pixels |
+| `POST /api/workspaces/open` | `{ path, name? }` : dossier absolu existant ; crée `menus/`, `assets/`, `textures/` s’ils manquent ; devient l’espace actif |
+| `DELETE /api/workspaces` | `{ path }` : retire de la liste (409 pour l’espace actif), **ne supprime aucun fichier** |
+| `GET /api/documents/recent` | `[{ type: "menu" \| "asset" \| "pixel", id, name, modified, texture? }]`, du plus récent au plus ancien ; `texture` : PNG exporté d’une image de pixels |
 | `GET /api/pixels` | images de l’éditeur de pixels : `[{ id, name, width, height, layers, texture, modified }]` (sans les calques) |
 | `GET /api/pixels/:id` | le document `pixels/<id>.pixel.json` complet (format dans [`../docs/pixels.md`](../docs/pixels.md)) |
 | `PUT /api/pixels/:id` | enregistre le document après validation (taille, calques PNG, texture d’export sous `textures/`) ; écriture atomique |
-| `POST /api/documents/rename` | `{ type, from, to, name? }` : change l’identifiant d’un menu ou d’un asset (fichier et champ `id`) ; 404 si `from` manque, 409 si `to` existe ; textures copiées sous le nouveau nom, jamais déplacées |
-| `POST /api/documents/duplicate` | même corps : copie sous `to`, l’original reste |
-| `POST /api/documents/trash` | `{ type, id }` : déplace le document dans `<espace>/.trash/<date>/`, **ne supprime jamais rien** ; renvoie `{ type, id, trashed }` |
+| `POST /api/documents/rename` | `{ type, from, to, name? }` : change l’identifiant d’un menu ou d’un asset (fichier et champ `id`) ; 404 si `from` manque, 409 si `to` existe ; textures copiées sous le nouveau nom, jamais déplacées |
+| `POST /api/documents/duplicate` | même corps : copie sous `to`, l’original reste |
+| `POST /api/documents/trash` | `{ type, id }` : déplace le document dans `<espace>/.trash/<date>/`, **ne supprime jamais rien** ; renvoie `{ type, id, trashed }` |
+| `POST /api/export/plugin` | écrit les menus résolus et leurs textures dans `<dossier « Export vers le plugin »>/menuforge/`, avec le manifeste ; voir l’en-tête de `backend/src/app.rs` |
+| `PUT /api/exports/<nom>.zip` | écrit le pack ZIP de test dans `<espace>/exports/` |
 | `GET /api/export/bedrock` | `{ directory, version }` : dossier d’export Bedrock et version du pack déjà exporté (`null` s’il n’y en a pas) ; 409 si le dossier n’est pas réglé |
 | `POST /api/export/bedrock` | `{ files: [{ path, data }] }` (base64) : écrit `pack/…` et `runtime.json` dans le dossier d’export Bedrock ; 409 si la version du pack n’augmente pas ; voir l’en-tête de `backend/src/app.rs` |
-| `POST /api/libraries` | `{ id, name, root, ownership }` : `root` absolu, contenant `assets/` |
+| `POST /api/libraries` | `{ id, name, root, ownership }` : `root` absolu, contenant `assets/` |
 | `DELETE /api/libraries/:id` | débranche le pack (rien n’est supprimé sur le disque) |
-| `POST /api/libraries/:id/reindex` | reconstruit l’index sans cache ; renvoie `{ id, textures, fonts }` |
-| `GET /api/ai/providers`, `PUT /api/ai/providers/:id`, `PUT\|DELETE /api/ai/keys/:id`, `POST /api/ai/test/:id`, `POST /api/ai/image`, `POST /api/ai/text`, `POST /api/ai/cancel` | génération par IA (fournisseurs, clés dans le trousseau du système, textures, interfaces, annulation) : voir [`../docs/ai.md`](../docs/ai.md) ; `studio-api --ephemeral-secrets` garde les clés en mémoire (tests) |
+| `POST /api/libraries/:id/reindex` | reconstruit l’index sans cache ; renvoie `{ id, textures, fonts }` |
+| `GET /api/ai/providers`, `PUT /api/ai/providers/:id`, `PUT\|DELETE /api/ai/keys/:id`, `POST /api/ai/test/:id`, `POST /api/ai/image`, `POST /api/ai/text`, `POST /api/ai/cancel`, `GET /api/ai/progress/:requestId` | génération par IA (fournisseurs, clés dans le trousseau du système, textures, interfaces, annulation, progression) : voir [`../docs/ai.md`](../docs/ai.md) ; `studio-api --ephemeral-secrets` garde les clés en mémoire (tests) |
 
-Forme des réglages :
+Forme des réglages :
 
 ```json
 {
@@ -113,48 +115,23 @@ Forme des réglages :
 }
 ```
 
-`ui.defaultZoom` va de 0 à 12 : 0 (par défaut) signifie « Ajuster », le plus
+`ui.defaultZoom` va de 0 à 12 : 0 (par défaut) signifie « Ajuster », le plus
 grand palier qui tient dans la toile.
 
-`PUT /api/settings` fusionne `ui`, `ui.confirmations` et `export` clé par clé ;
+`PUT /api/settings` fusionne `ui`, `ui.confirmations` et `export` clé par clé ;
 `workspaces` et `libraries` sont remplacés en entier. Toute clé inconnue est
 refusée (400, message en français). Les chemins nouveaux ou modifiés doivent
-être absolus et exister ; renvoyer tel quel ce qu’on a lu ne change rien.
+être absolus et exister ; renvoyer tel quel ce qu’on a lu ne change rien.
 
 Le serveur n’écoute que sur 127.0.0.1 et refuse tout en-tête `Host` ou
-`Origin` non local (protection contre le « DNS rebinding » et les requêtes
+`Origin` non local (protection contre le « DNS rebinding » et les requêtes
 intersites).
 
 ## Export
 
-Trois exports, depuis l’éditeur de menus : boutons **Exporter**, **Pack ZIP**
-et **Bedrock** de la barre d’outils, menu contextuel de la toile, Ctrl+E et
-Ctrl+Maj+E (les deux premiers). Le
-menu ouvert est d’abord enregistré s’il a changé ; tous les menus de l’espace
-sont exportés, **gabarits appliqués** (les gabarits eux-mêmes ne le sont pas).
-
-| Export | Ce qui est écrit | Où |
-|---|---|---|
-| Vers le plugin | Menus résolus (sans `extends`, `template` ni métadonnées `generator`) et PNG qu’ils utilisent | `<dossier des paramètres « Export vers le plugin »>/menuforge/` (`menus/`, `textures/`) et le manifeste `.menu-forge-export.json` |
-| Pack ZIP de test | Polices et textures générées (même algorithme que la lib), `pack.mcmeta` (`pack_format` des paramètres) | `<espace>/exports/<namespace>-pack.zip` |
-| Pour Bedrock (bouton **Bedrock**) | Pack de ressources Bedrock (dispositions JSON UI, textures recadrées, manifest dont la version s’incrémente seule, icônes des formulaires Bedrock) et descripteur d’exécution `runtime.json` (menus coffre et formulaires Bedrock), voir [`../docs/bedrock.md`](../docs/bedrock.md) | `<dossier des paramètres « Export pour Bedrock »>/` (`pack/`, `runtime.json`) et le manifeste `.menu-forge-bedrock-export.json` |
-
-Un export vers le plugin ne supprime que les fichiers listés par le manifeste
-du précédent et absents du nouveau : un fichier déposé à la main n’est jamais
-touché.
-
-**Où vit la génération.** En TypeScript (`src/export/`), à côté de
-`compose.ts` et `resolve.ts` : l’export produit exactement ce que montre
-l’éditeur, et un seul code TypeScript suit la lib. Lecture et écriture des PNG
-sans canvas (les pixels semi-transparents restent exacts) et archive zip, par
-les flux de compression standard. Le backend Rust ne fait qu’écrire, dans ces
-deux dossiers seulement (`POST /api/export/plugin`,
-`PUT /api/exports/<nom>.zip`, voir l’en-tête de `backend/src/app.rs`). La
-parité avec la lib est vérifiée par une fixture partagée (`npm test`).
-
-Le pack ZIP ne contient pas le `generic_54.png` « cases seules » (visuel de
-coffre fourni par le pack du serveur) : dans un coffre vanilla, le cadre reste
-visible sous les couches.
+Les trois exports (vers le plugin, pack ZIP de test, Bedrock), ce qu’ils écrivent
+et où : [`../docs/export.md`](../docs/export.md). La génération est en TypeScript
+(`src/export/`) ; le backend ne fait qu’écrire, par les routes ci-dessus.
 
 ## Tests de bout en bout
 
@@ -177,8 +154,8 @@ npm run e2e -- pixels exports   # les scénarios ou tests dont le nom contient c
    d’échec ou d’interruption (Ctrl+C).
 
 Le code de sortie est non nul si un test échoue ; la page au moment de l’échec
-est capturée dans `e2e/results/` (ignoré par git). Une suite complète dure
-de deux à quatre minutes selon la machine.
+est capturée dans `e2e/results/` (ignoré par git). La suite compte 13 scénarios et 61 tests ;
+une suite complète dure de deux à quatre minutes selon la machine.
 
 Playwright n’est pas une dépendance du studio : il est cherché dans
 `PLAYWRIGHT_DIR`, puis dans les dépendances du studio et du site. Le navigateur
@@ -207,10 +184,11 @@ dans un dossier **hors du dépôt**, puis, par exemple sous PowerShell,
 | `06-visual-editors` | actions au clic (ajout, Alt+↑, suppression, menu visé), conditions, item et aperçu MiniMessage, variables d’état renommées avec leurs références, mode « Essayer », composants (instance, détacher, créer depuis une sélection) |
 | `07-interface-generator` | les cinq types et les trois familles en aperçu, aperçu cliquable, un menu créé par type (textures cuites sur le disque) |
 | `08-exports` | dossier d’export réglé par les Paramètres sur l’espace temporaire (jamais un vrai projet), « Exporter vers le plugin » (menus résolus, textures, manifeste), « Pack ZIP » (`pack.mcmeta`, polices, textures), Ctrl+E, Ctrl+Maj+E, fichiers d’un menu disparu retirés |
-| `09-layout` | mise en page à huit tailles (1024 à 1600 px de large, 600 à 900 px de haut) : écrans (réglages d’export Bedrock compris), quatre éditeurs (menus, assets, pixels, formulaires Bedrock), dialogues, menu contextuel, infobulle, puis données extrêmes (noms de 80 caractères avec et sans espaces, 50 couches, 30 zones de slots, 40 documents, palette pleine, bibliothèques et espace aux noms longs, formulaires des huit dispositions à 30 boutons et longs chemins d’icône, dossier Bedrock profond) et états vides ; audit : débordements, textes coupés, chevauchements, dialogue recouvert, alignement des barres d’outils, onglets de même hauteur, titres cassés, cartes creuses, page qui défile en entier ; `MF_LAYOUT_SHOTS=<dossier>` garde une capture de chaque état |
-| `10-panels` | colonnes redimensionnables des quatre éditeurs (formulaires Bedrock compris) : glisser la poignée, largeur retrouvée après rechargement, double-clic pour rétablir, clavier (flèches, Maj, Début, Fin, Entrée), audit aux largeurs minimale et maximale, zoom « Ajuster » recalculé |
-| `11-zoom` | raccourcis de zoom des trois toiles et de l’aperçu des formulaires Bedrock : « + », « - », Maj+0, Maj+1, Maj+2 (avec ou sans sélection), outil Zoom (Z bref ou maintenu, clic, Alt+clic, rectangle), AZERTY, touche tapée dans un champ, Ctrl+molette de l’éditeur d’assets |
-| `12-bedrock-forms` | formulaires Bedrock : création depuis « Nouveau menu », disposition, bouton avec icône, aperçu, inspecteur et colonnes sans débordement (huit dispositions, trois tailles, trois écrans simulés), réglages Bedrock, export vers un dossier temporaire (`runtime.json`, pack, icône copiée octet pour octet) |
+| `09-layout` | mise en page à huit tailles (1024 à 1600 px de large, 600 à 900 px de haut) : écrans (réglages d’export Bedrock compris), quatre éditeurs (menus, assets, pixels, formulaires Bedrock), dialogues, menu contextuel, infobulle, puis données extrêmes (noms de 80 caractères avec et sans espaces, 50 couches, 30 zones de slots, 40 documents, palette pleine, bibliothèques et espace aux noms longs, formulaires des huit dispositions à 30 boutons et longs chemins d’icône, dossier Bedrock profond) et états vides ; audit : débordements, textes coupés, chevauchements, dialogue recouvert, alignement des barres d’outils, onglets de même hauteur, titres cassés, cartes creuses, page qui défile en entier ; `MF_LAYOUT_SHOTS=<dossier>` garde une capture de chaque état |
+| `10-panels` | colonnes redimensionnables des quatre éditeurs (formulaires Bedrock compris) : glisser la poignée, largeur retrouvée après rechargement, double-clic pour rétablir, clavier (flèches, Maj, Début, Fin, Entrée), audit aux largeurs minimale et maximale, zoom « Ajuster » recalculé |
+| `11-zoom` | raccourcis de zoom des trois toiles et de l’aperçu des formulaires Bedrock : « + », « - », Maj+0, Maj+1, Maj+2 (avec ou sans sélection), outil Zoom (Z bref ou maintenu, clic, Alt+clic, rectangle), AZERTY, touche tapée dans un champ, Ctrl+molette de l’éditeur d’assets |
+| `12-bedrock-forms` | formulaires Bedrock : création depuis « Nouveau menu », disposition, bouton avec icône, aperçu, inspecteur et colonnes sans débordement (huit dispositions, trois tailles, trois écrans simulés), réglages Bedrock, export vers un dossier temporaire (`runtime.json`, pack, icône copiée octet pour octet) |
+| `13-ai-jobs` | générations par IA en tâches de fond, avec des fournisseurs simulés lents (`e2e/lib/fakeAi.mjs`, réponses libérées par le test) : phases lues au backend, chronomètre, dialogue fermé sans arrêter la tâche, indicateur du rail, notifications d’essai refusé et de succès, « Ouvrir », « Annuler », deux tâches à la fois, audit de mise en page à 1024 × 600, 1280 × 800 et 1600 × 900 |
 
 Les vérifications portent sur des valeurs (inspecteur, fichiers écrits, JSON,
 pixels des PNG), jamais sur des captures comparées pixel à pixel. Chaque test
@@ -219,14 +197,10 @@ pixels des PNG), jamais sur des captures comparées pixel à pixel. Chaque test
 
 ## Police des aperçus
 
-Les textes du jeu (toile des menus, vignettes de l’accueil, éditeur et export
-des assets) sont dessinés avec la police du jeu quand la bibliothèque
-`vanilla` est branchée, sinon avec la **police pixel de Menu Forge** : des
-glyphes dessinés pour le projet (licence MIT du dépôt), aux avances du jeu.
-Données : `src/lib/pixelFontGlyphs.ts` (une chaîne par glyphe, `#` = pixel),
-chargé à la demande hors du paquet principal ; planche et rendu :
-`src/lib/pixelFont.ts` ; choix de la police : `src/lib/previewFont.ts`.
-Détails et couverture dans [`../docs/rendering.md`](../docs/rendering.md).
+Sans pack vanilla branché, les textes du jeu sont dessinés avec la police pixel
+de Menu Forge ([`../docs/rendering.md`](../docs/rendering.md#aperçu-dans-le-studio)).
+Données : `src/lib/pixelFontGlyphs.ts` ; planche et rendu : `src/lib/pixelFont.ts` ;
+choix de la police : `src/lib/previewFont.ts`.
 
 ## Tests
 

@@ -127,21 +127,17 @@ Les images apparaissent dans les documents récents (`GET /api/documents/recent`
 | Déplacement | `V` | La sélection (ou tout le calque) ; `Ctrl` : en copie ; flèches : 1 px (`Maj` : 8 px) |
 | Zoom | `Z` | Clic : zoom avant ; `Alt`+clic : arrière ; glisser : cadrer la zone ; `Z` maintenu : le temps d’un geste |
 
-Et aussi : couleurs principale et secondaire (`X` pour échanger), saisie
+Et aussi : couleurs principale et secondaire (échangeables), saisie
 `#rrggbb` ou `#rrggbbaa`, palette par défaut (tons de l’interface de Minecraft,
 du thème Deepslate, 16 couleurs du chat), couleurs récentes et couleurs du
-document ; symétrie horizontale et verticale ; grille des pixels (`Maj+G`) ;
-zoom de ×1 à ×64 (`Ctrl`+molette sur le pointeur, `+` et `-`, `Ctrl+0` ou
-`Maj+1` pour ajuster, `Maj+0` pour la taille réelle, `Maj+2` pour cadrer la
-sélection, outil Zoom `Z`) ;
-défilement (`Espace`+glisser, clic molette, molette) ; calques (ajouter,
-dupliquer `Ctrl+J`, supprimer, réordonner, visibilité, opacité, fusionner vers
-le bas `Ctrl+E`) ; copier, couper, coller (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`, image
-du presse-papiers du système comprise), retourner (`Maj+H`, `Maj+V`), pivoter
-(`Maj+R`), vider la sélection (`Suppr`) ; taille de l’image (agrandir ou
-recadrer la toile avec un ancrage, ou mise à l’échelle au plus proche voisin),
-recadrer à la sélection, rogner les bords transparents ; annuler, rétablir
-(`Ctrl+Z`, `Ctrl+Y`) ; enregistrer (`Ctrl+S`).
+document ; symétrie horizontale et verticale ; grille des pixels ; zoom de ×1
+à ×64 ; défilement ; calques (ajouter, dupliquer, supprimer, réordonner,
+visibilité, opacité, fusionner vers le bas) ; copier, couper, coller (image
+du presse-papiers du système comprise), retourner, pivoter, vider la
+sélection ; taille de l’image (agrandir ou recadrer la toile avec un ancrage,
+ou mise à l’échelle au plus proche voisin), recadrer à la sélection, rogner
+les bords transparents ; annuler, rétablir. Tous les raccourcis :
+[`shortcuts.md`](shortcuts.md#éditeur-de-pixels).
 
 Limites : 1024 px de côté, 64 calques ; l’historique garde environ 256 Mo de
 calques modifiés (de 16 à 100 pas selon la taille de l’image).

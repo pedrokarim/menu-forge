@@ -1,10 +1,10 @@
 # Format `*.menu.json` (version 1)
 
 Le contrat entre le studio (qui l’écrit) et la lib (qui le lit). Un fichier par
-menu. Toutes les clés sont en anglais ; les textes affichés sont libres.
+menu. Toutes les clés sont en anglais ; les textes affichés sont libres.
 
-Coordonnées : **pixels fenêtre** (voir [`rendering.md`](rendering.md) § 2).
-Positions de slots : **colonne / ligne** de la grille du coffre.
+Coordonnées : **pixels fenêtre** (voir [`rendering.md`](rendering.md) § 2).
+Positions de slots : **colonne / ligne** de la grille du coffre.
 
 ## Exemple complet
 
@@ -84,14 +84,14 @@ Positions de slots : **colonne / ligne** de la grille du coffre.
 | `id` | Identifiant unique dans le menu |
 | `texture` | Chemin du PNG, relatif au dossier `textures/` du projet |
 | `x`, `y` | Position du coin haut-gauche, en pixels fenêtre |
-| `visibleWhen` | Condition (§ Conditions) ; absente = toujours visible |
+| `visibleWhen` | Condition (§ Conditions) ; absente = toujours visible |
 | `generator` | Paramètres de la texture si elle a été générée par le studio |
 | `editor` | État dans l’éditeur (§ Métadonnées de l’éditeur), ignoré par la lib |
 
 La lib recadre l’image, calcule son avance et génère le glyphe. L’ordre de la
-liste est l’ordre d’empilement : la dernière couche est au-dessus.
+liste est l’ordre d’empilement : la dernière couche est au-dessus.
 
-`generator` est une **métadonnée du studio** : elle permet de rééditer une
+`generator` est une **métadonnée du studio** : elle permet de rééditer une
 texture générée (style, taille, couleur, cellules dessinées). La lib l’ignore et
 ne lit que le PNG pointé par `texture`.
 
@@ -102,15 +102,15 @@ ne lit que le PNG pointé par `texture`.
 }
 ```
 
-Styles : `panel` (panneau biseauté façon vanilla), `button` (bouton coloré),
+Styles : `panel` (panneau biseauté façon vanilla), `button` (bouton coloré),
 `cell` (cellule de slot), `veil` (voile de modale, couleur avec alpha),
 `flat` (aplat). Ce sont les styles « Deepslate ».
 
-Famille « mc-rs » (esprit du pack d’interface de mc-rs, textures recalculées
-au pixel près par le studio, à toute taille) : `mcrs_panel` (panneau sombre et
+Famille « mc-rs » (esprit du pack d’interface de mc-rs, textures recalculées
+au pixel près par le studio, à toute taille) : `mcrs_panel` (panneau sombre et
 arrondi, bordure d’un pixel), `mcrs_border` (bordure arrondie seule),
-`mcrs_button` (bouton plat à trois états), `mcrs_raised` (bouton en relief :
-reflet, dégradé, lèvre sombre, ombre portée ; vert ou « spécial » selon la
+`mcrs_button` (bouton plat à trois états), `mcrs_raised` (bouton en relief :
+reflet, dégradé, lèvre sombre, ombre portée ; vert ou « spécial » selon la
 couleur), `mcrs_strip` (bande or ou orange), `mcrs_slot` (case sombre
 creusée), `mcrs_grid` (grille de chargement).
 
@@ -176,21 +176,21 @@ sucre d’orge), `dark_badge` (cartouche de valeur à contour d’accent),
 | `id` | Identifiant |
 | `kind` | `button`, `list`, `input` ou `decoration` |
 | `area` | `col`, `row`, et optionnellement `width`, `height` (défaut 1) |
-| `item` | Item affiché (§ Items) ; pour `list`, fourni par la source |
+| `item` | Item affiché (§ Items) ; pour `list`, fourni par la source |
 | `onClick` | Liste d’actions (§ Actions) |
 | `visibleWhen` | Le slot est vide si la condition est fausse |
 | `enabledWhen` | Le slot est affiché mais ne réagit pas si la condition est fausse |
 | `editor` | État dans l’éditeur (§ Métadonnées de l’éditeur) |
 
-Types de slots :
+Types de slots :
 
-- **`button`** : même item et mêmes actions sur toute l’`area` (un bouton 2×2
+- **`button`** : même item et mêmes actions sur toute l’`area` (un bouton 2×2
   couvre 4 slots).
-- **`list`** : remplie par une **source de données** nommée (`list`), fournie en
+- **`list`** : remplie par une **source de données** nommée (`list`), fournie en
   Java par le serveur. La lib gère la pagination.
-- **`input`** : le joueur peut y déposer et y retirer un item (tout le reste du
+- **`input`** : le joueur peut y déposer et y retirer un item (tout le reste du
   menu est verrouillé).
-- **`decoration`** : item affiché, jamais cliquable.
+- **`decoration`** : item affiché, jamais cliquable.
 
 ## Métadonnées de l’éditeur (`editor`)
 
@@ -232,7 +232,7 @@ demande à la lib un item sans rendu (le bouton est dessiné par une couche).
 | `enum` | Une valeur parmi `values`, `default` requis |
 | `bool` | `default` requis |
 | `int` | `default`, `min`, `max` optionnels |
-| `page` | Page courante de la liste `list` ; expose `page.number`, `page.count`, `page.hasPrev`, `page.hasNext` |
+| `page` | Page courante de la liste `list` ; expose `page.number`, `page.count`, `page.hasPrev`, `page.hasNext` |
 
 Sans `default`, un état `int` part de `min`, sinon de 0 ; une valeur donnée
 (action `setState`, état initial d’un `open`) est ramenée dans les bornes.
@@ -241,7 +241,7 @@ renomme partout où le menu les cite.
 
 L’état vit **par joueur et par ouverture**. Changer l’état recompose le titre et
 les slots. Minecraft ne permettant pas de changer le titre d’un inventaire
-ouvert, la lib rouvre le même coffre : le curseur du joueur ne bouge pas.
+ouvert, la lib rouvre le même coffre : le curseur du joueur ne bouge pas.
 
 ## Conditions
 
@@ -260,7 +260,7 @@ Un `flag` est un booléen fourni par la lib (`page.*`) ou par le serveur
 
 | `type` | Paramètres | Effet |
 |---|---|---|
-| `open` | `menu`, `state?` | Ouvre un autre menu (empilé : `back` y revient) |
+| `open` | `menu`, `state?` | Ouvre un autre menu (empilé : `back` y revient) |
 | `back` | – | Revient au menu précédent, ou ferme |
 | `close` | – | Ferme l’inventaire |
 | `setState` | `state`, `value` | Change une variable d’état |
@@ -269,27 +269,28 @@ Un `flag` est un booléen fourni par la lib (`page.*`) ou par le serveur
 | `command` | `command`, `as`: `player` ou `console` | Exécute une commande |
 | `custom` | `id`, `args?` | Transmis à l’adaptateur du serveur |
 
-`custom` est la porte vers l’infrastructure du serveur : dans enderium-core,
+`custom` est la porte vers l’infrastructure du serveur : dans enderium-core,
 l’adaptateur y branche les ClickActions existantes.
 
 ## Variables
 
-Syntaxe `{nom}` dans `name`, `lore` et `value` :
+Syntaxe `{nom}` dans `name`, `lore` et `value` :
 
-- `{viewer.name}`, `{viewer.uuid}` ;
-- `{page.number}`, `{page.count}` ;
-- `{state.<nom>}` ;
+- `{viewer.name}`, `{viewer.uuid}` ;
+- `{page.number}`, `{page.count}` ;
+- `{state.<nom>}` ;
 - tout autre nom est demandé à l’adaptateur (placeholders du serveur).
 
 ## Gabarits
 
 Un gabarit est un fichier du même format avec `"template": true`. `extends`
-fusionne, dans l’ordre : `state` (clé par clé), `layers` (celles du gabarit
+fusionne, dans l’ordre : `state` (clé par clé), `layers` (celles du gabarit
 **sous** celles du menu), `texts` et `slots` (un `id` identique remplace celui du
 gabarit).
 
-Gabarits prévus : `navigation` (barre d’onglets flottante), `modal` (voile +
-panneau + croix), `paginated-list`, `confirm`, `shop`.
+Gabarits fournis (dossier `templates/` du dépôt, embarqués dans l’appli) :
+`chest_panel` (coffre classique), `modal` (voile, panneau et croix),
+`navigation` (barre d’onglets) et `paginated_list` (liste paginée).
 
 ## Composants
 

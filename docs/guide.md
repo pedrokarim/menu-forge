@@ -1,142 +1,203 @@
 # Guide de prise en main
 
-Un premier menu Java, puis un premier formulaire Bedrock, de la création à
-l’ouverture en jeu. Les détails sont dans les autres documents : écrans
-([`screens.md`](screens.md)), format ([`format.md`](format.md)), Bedrock
-([`bedrock.md`](bedrock.md)).
+De l’installation à un premier menu ouvert en jeu, sur Java puis sur Bedrock.
+Chaque étape renvoie à la page de référence qui la détaille ; le sommaire
+complet de la documentation est dans le [sommaire](README.md).
 
 ## 1. Installer et lancer le studio
 
-Prérequis et variantes : [README](../README.md#installation). En bref :
+Prérequis : **Node 24**, **Rust stable** (1.95 ou plus) et, sous Windows,
+**WebView2** (présent sur Windows 11). Pour la lib Java : **JDK 21**.
 
 ```sh
 git clone https://github.com/pedrokarim/menu-forge.git
 cd menu-forge/studio
 npm install
-npm run tauri:dev     # appli de bureau ; npm run dev pour le navigateur
+npm run tauri:dev
 ```
 
-Au premier lancement, le studio propose un espace de travail : le dossier où
-vivent les menus, les textures et les images.
+`npm run tauri:dev` ouvre l’appli de bureau ; `npm run dev` sert le même
+studio dans le navigateur, sur `http://localhost:5173` ; `npm run tauri:build`
+construit l’installateur Windows. Options et variantes :
+[Développer le studio](../studio/README.md).
 
-## 2. Un premier menu Java
+Au premier lancement, le studio propose un **espace de travail**,
+`Documents/menu-forge` (créé s’il manque) : le dossier où vivent les menus
+(`menus/`), les assets (`assets/`), les images de pixels (`pixels/`) et les
+textures (`textures/`).
 
-1. **Créer** : « Nouveau menu » (barre d’outils de l’éditeur ou accueil), puis
-   un gabarit, « Vierge » ou « Générer une interface… ».
-2. **Dessiner** : couches (générées, importées ou tirées d’une bibliothèque),
-   textes, zones de slots (outil `S`) ; l’inspecteur règle chaque élément.
-3. **Rendre cliquable** : dans l’inspecteur d’un slot, les actions au clic
-   (ouvrir, retour, état, page, son, commande) et les conditions.
-4. **Essayer** (`E`) : un clic sur un slot exécute ses actions comme en jeu ;
-   le document ne change pas.
-5. **Enregistrer** (`Ctrl+S`), puis **Exporter** (`Ctrl+E`) : menus et
-   textures partent dans le dossier réglé dans **Paramètres › Export vers le
-   plugin**.
-6. **En jeu**, sur un serveur Paper avec le plugin MenuForge : copier `menus/`
-   et `textures/` dans `plugins/MenuForge/workspace/`, `/menuforge reload`,
-   puis `/menuforge open <id>`. Le pack de polices généré va dans le resource
-   pack du serveur ([`../lib/README.md`](../lib/README.md)).
+## 2. L’accueil
 
-## 3. Un premier formulaire Bedrock
+![L’accueil du studio : actions rapides, galerie d’exemples et documents récents avec leurs vignettes](../site/assets/screens/home.png)
 
-Un formulaire Bedrock est le formulaire à boutons du client Bedrock, affiché
-dans une disposition du pack `mcrs_ui` du serveur mc-rs. Il n’a pas de rendu
-Java : seul l’export Bedrock l’emporte.
+- **Actions rapides** : Nouveau menu, Générer une interface, Nouvel asset,
+  Nouvelle image, Importer un écran, Ouvrir un espace ;
+- en tête de la section, **Voir les exemples** (la galerie du générateur) et
+  **Générer une interface par IA…** ;
+- **documents récents**, avec leur vignette ; clic droit ou bouton « … » pour
+  renommer, dupliquer ou mettre à la corbeille.
 
-### 3.1 Créer
+Tous les écrans : [Écrans du studio](screens.md). La touche `?` ouvre
+l’aide-mémoire des raccourcis ([Raccourcis clavier](shortcuts.md)).
 
-« Nouveau menu », section **Formulaire Bedrock** : choisir une disposition,
-donner un nom (l’identifiant suit), puis « Créer ». Le formulaire est
-enregistré et s’ouvre dans son éditeur, avec quelques boutons de départ.
+## 3. Un premier menu Java
 
-### 3.2 Choisir une disposition
+Sur Java, un menu est un coffre vanilla dont le **titre** porte le visuel, en
+glyphes de police : le plugin Paper MenuForge l’ouvre en jeu. Le principe est
+détaillé dans le [modèle de rendu](rendering.md).
 
-La liste « Disposition », en haut de la colonne de gauche, change de
-disposition à tout moment ; l’aperçu suit.
+### 3.1 Partir d’un exemple
 
-| Disposition | Clé | Pour |
-|---|---|---|
-| Grille | `grid` | grandes cases, trois par ligne : menu d’actions, hub |
-| Grille d’images | `image_grid` | grandes vignettes avec titre superposé : carte, arène |
-| Image carrée | `square_image` | une grande image centrée, description en bas : annonce |
-| Boutique | `store` | onglets de catégories et grille de produits |
-| Boutons à gauche | `left_button` | liste à gauche, description à droite : réglages, navigation |
-| Boutons en bas | `bottom_button` | bannière et description en haut, boutons en bas : mode de jeu |
-| Message du jour | `motd` | colonne étroite, texte défilant, boutons verts côte à côte |
-| Récap | `wrapped` | lien en haut, visuels qui défilent, boutons violets en bas |
+**Voir les exemples** ouvre la galerie du générateur d’interfaces : 22
+interfaces toutes faites, filtrables par type et par famille de styles. Un
+clic charge un exemple dans les réglages, **Personnaliser** permet de le
+retoucher, un double-clic crée le menu tel quel.
 
-Le titre et le contenu acceptent les codes `§` et les variables
-(`{viewer.name}`…).
+![La galerie d’exemples du générateur d’interfaces, l’exemple « Marché » sélectionné](../site/assets/screens/interface-examples.png)
 
-### 3.3 Boutons
+On peut aussi partir de **Nouveau menu** : un coffre vierge, un gabarit
+(coffre classique, modale, barre d’onglets, liste paginée) ou **Générer une
+interface…**. Types, familles et réglages : [Générateur d’interfaces et de
+textures](generator.md).
 
-« Ajouter », dans l’en-tête de la liste, pose un bouton ou, selon la
-disposition, une bannière ou un bouton spécial. Glisser une ligne la déplace ;
-un clic droit duplique, monte, descend ou supprime. L’inspecteur de droite
-édite le bouton sélectionné : identifiant, texte, sous-titre (envoyé après une
-tabulation) et rôle. L’index d’un clic est le **rang parmi les boutons
-envoyés**.
+### 3.2 Retoucher dans l’éditeur
 
-### 3.4 Icônes
+![L’éditeur de menus : une boutique à onglets, le bouton « Acheter » sélectionné et son inspecteur](../site/assets/screens/menu-editor.png)
 
-Bloc « Icône » de l’inspecteur, trois origines :
+- à gauche, les **couches**, les **textes** et les **zones de slots** du menu,
+  et la bibliothèque des textures ;
+- au centre, la **toile**, calée sur la grille du coffre : `V` sélectionne,
+  `S` trace une zone de slots, `Z` zoome ;
+- à droite, l’**inspecteur** de la sélection : position, texture, conditions
+  et, pour un slot, ses actions au clic et son item, sans écrire de JSON ;
+  dessous, l’aperçu de l’état et le **titre composé**, jeton par jeton.
 
-- **Espace** : une texture de l’espace de travail (vignettes filtrables), un
-  PNG importé, une icône de 32 × 32 dessinée dans l’éditeur de pixels
-  (« Dessiner ») ou une texture d’un pack branché (« Bibliothèque ») ; elle est
-  copiée dans le pack Menu Forge à l’export ;
-- **Vanilla** : une texture du jeu ou d’un pack du serveur, citée par son
-  chemin sans extension (`textures/items/diamond`) ; elle n’est jamais copiée,
-  le client la trouve ;
-- **Adresse** : une image en `https://…`.
+Les colonnes se règlent à la souris par leur bord. Tous les gestes :
+[Éditeur de menus](screens.md#éditeur-de-menus).
 
-### 3.5 Actions et conditions
+### 3.3 Essayer
+
+`E` passe en mode **Essayer** : un clic sur un slot exécute ses actions comme
+en jeu (onglets, pages, `open` et `back`, fermeture), commandes et sons sont
+écrits au journal, et le document n’est jamais modifié. `Échap` revient à
+l’édition.
+
+![Le mode « Essayer » : la confirmation ouverte depuis la boutique, la pile des deux menus et le journal](../site/assets/screens/try-mode.png)
+
+### 3.4 Enregistrer et exporter
+
+1. **Paramètres** (`Ctrl+4`), section **Export vers le plugin** : choisir le
+   dossier cible (champ « Ressources d’enderium-core »), l’espace de noms et
+   le `pack_format` de la version du serveur.
+2. `Ctrl+S` enregistre le menu ; `Ctrl+E` exporte tous les menus coffre de
+   l’espace dans `<dossier>/menuforge/` (`menus/` et `textures/`).
+
+Pack ZIP de test, manifeste et détails : [Exporter et installer](export.md).
+
+### 3.5 Ouvrir en jeu sur Paper
+
+```sh
+cd menu-forge/lib
+./gradlew build
+```
+
+1. Déposer `menu-forge-paper/build/libs/MenuForge-<version>.jar` dans le
+   dossier `plugins/` d’un serveur Paper 1.20.6 ou plus, puis le démarrer.
+2. Copier `menus/` et `textures/` de l’export dans
+   `plugins/MenuForge/workspace/`.
+3. `/menuforge reload` : le plugin régénère le pack de polices dans
+   `plugins/MenuForge/pack/`, à intégrer au resource pack du serveur.
+4. `/menuforge open <id>` ouvre le menu.
+
+Commandes, configuration et API : [Lib Java et plugin Paper](../lib/README.md).
+
+## 4. Un premier formulaire Bedrock
+
+Un **formulaire Bedrock** est le formulaire à boutons du client Bedrock,
+affiché dans l’une des huit dispositions du pack `mcrs_ui` du serveur mc-rs
+(grille, grille d’images, image carrée, boutique, boutons à gauche, boutons
+en bas, message du jour, récap). Il n’a pas de rendu Java : seul l’export
+Bedrock l’emporte.
+
+### 4.1 Créer
+
+**Nouveau menu**, section **Formulaire Bedrock** : choisir une disposition,
+donner un nom (l’identifiant suit), puis **Créer**. Le formulaire est
+enregistré et s’ouvre dans son éditeur, avec quelques boutons de départ. La
+liste **Disposition**, en haut de la colonne de gauche, en change à tout
+moment ; ce que lit chaque disposition est décrit dans le
+[format](format.md#formulaire-bedrock-form).
+
+![« Nouveau menu » : les huit dispositions des formulaires Bedrock, la grille choisie](../site/assets/screens/bedrock-layouts.png)
+
+### 4.2 Boutons et icônes
+
+![L’éditeur de formulaires Bedrock : la disposition et les boutons à gauche, l’aperçu au centre, l’inspecteur du bouton sélectionné à droite](../site/assets/screens/bedrock-form.png)
+
+- **Ajouter**, dans l’en-tête de la liste, pose un bouton ou, selon la
+  disposition, une bannière ou un bouton spécial. Glisser une ligne la
+  déplace ; un clic droit la duplique, la monte, la descend ou la supprime.
+- L’inspecteur édite le bouton sélectionné : identifiant, texte, sous-titre et
+  rôle. Le titre, le contenu et les textes acceptent les codes `§` et les
+  variables (`{viewer.name}`…).
+- Bloc **Icône** : une texture de l’espace de travail (importée, dessinée dans
+  l’éditeur de pixels, tirée d’une bibliothèque), copiée dans le pack à
+  l’export ; une texture du jeu citée par son chemin
+  (`textures/items/diamond`), jamais copiée ; ou une adresse `https://…`.
+
+### 4.3 Actions, conditions et essai
 
 - **Actions au clic** : `open` (un menu ou un formulaire ; la pile garde le
   chemin), `back`, `close`, `setState`, `sound`, `command` (en joueur ou en
-  console, variables remplacées), `custom`. Sauf fermeture, le serveur renvoie
-  le formulaire après le clic.
+  console), `custom`. Sauf fermeture, le serveur renvoie le formulaire après
+  le clic.
 - **Envoyé si** (`visibleWhen`) : une condition sur l’état ou sur un drapeau
-  du joueur (`viewer.op`…) ; fausse, le bouton n’est pas envoyé.
+  du joueur (`viewer.op`…) ; fausse, le bouton n’est pas envoyé. L’index d’un
+  clic est donc le **rang parmi les boutons envoyés**.
+- `E` rejoue les clics sur l’aperçu, comme le serveur ; les drapeaux et le
+  pseudo de l’aperçu se règlent dans la colonne de droite. L’aperçu se zoome
+  avec `+`, `-`, `Maj+0`, `Maj+1` et `Maj+2`.
 
-« Essayer » (`E`) rejoue les clics sur l’aperçu, comme le serveur ; les
-drapeaux et le pseudo de l’aperçu se règlent dans la colonne de droite.
+### 4.4 Exporter pour Bedrock
 
-L’aperçu se zoome comme les toiles des autres éditeurs : `+` et `-`,
-`Maj+0` (taille réelle), `Maj+1` (ajuster à la zone), `Maj+2` (zoomer sur le
-bouton sélectionné), ou le sélecteur de la barre de l’aperçu. Les deux
-colonnes se règlent à la souris par leur bord (double-clic pour rétablir) ;
-la largeur choisie est gardée d’une session à l’autre.
+1. **Paramètres › Export pour Bedrock** : le dossier du serveur ; pour mc-rs,
+   `menu_forge/export`.
+2. Dans l’éditeur, bouton **Bedrock** : tous les menus et formulaires de
+   l’espace partent dans ce dossier, le pack de ressources dans `pack/` et le
+   descripteur d’exécution dans `runtime.json`.
 
-### 3.6 Exporter
+### 4.5 Lancer sur mc-rs
 
-1. **Paramètres › Export pour Bedrock** : le dossier du serveur Bedrock ; pour
-   mc-rs, `menu_forge/export`.
-2. Dans l’éditeur, **Bedrock** (barre d’outils) : tous les menus de l’espace
-   sont exportés, le pack de ressources dans `pack/` et le descripteur
-   d’exécution dans `runtime.json`. Un export suivant ne retire que ce que le
-   précédent avait écrit.
+En jeu, `/mf reload` relit l’export, `/mf list` liste les menus et
+formulaires, `/mf open <id>` en ouvre un. Un nouveau visuel (nouvelle icône,
+menu coffre) demande en plus une reconnexion du client, qui recharge le pack.
+Détails : [Exporter et installer](export.md#sur-un-serveur-bedrock-mc-rs) et
+[Menu Forge sur Bedrock](bedrock.md).
 
-Le client a besoin de deux packs, fournis par le serveur : celui de Menu Forge
-(menus coffre et icônes) et `mcrs_ui` (dispositions des formulaires).
+## 5. Générer par IA (facultatif)
 
-### 3.7 Lancer sur mc-rs
+Une texture ou une interface peut aussi être décrite en quelques mots à une
+IA. Rien ne part tant qu’un fournisseur n’est pas activé dans **Paramètres ›
+IA** ; les clés d’API vont dans le trousseau du système.
 
-Sur le serveur, en jeu :
+1. Activer un fournisseur (en ligne, sur ce poste ou Codex CLI) et, pour un
+   service en ligne, coller sa clé.
+2. **Générer une interface par IA…** (accueil, éditeur de menus) ou
+   **Générer une texture par IA…** (éditeur de pixels, bibliothèque).
+3. La génération tourne en **tâche de fond** : fermer le dialogue ne l’arrête
+   pas. Une notification suit sa progression, le rail affiche le nombre de
+   générations en cours, et « Ouvrir » ramène le résultat, à relire avant de
+   l’enregistrer.
 
-| Commande | Effet |
-|---|---|
-| `/mf reload` | relit l’export après un nouvel export, sans redémarrer |
-| `/mf list` | liste les menus et formulaires exportés |
-| `/mf open <id>` | ouvre un menu ou un formulaire au joueur |
+![Une génération par IA en tâche de fond : l’indicateur du rail et les notifications de progression](../site/assets/screens/ai-jobs.png)
 
-Pour un formulaire, un changement de textes, d’actions ou de conditions passe
-par `/mf reload` seul ; un nouveau visuel (menu coffre, nouvelle icône)
-demande en plus une reconnexion du client, qui recharge le pack.
+Fournisseurs, coûts, ce qui est envoyé et contraintes : [Génération par
+IA](ai.md).
 
-## 4. Pour aller plus loin
+## 6. Pour aller plus loin
 
-- [`screens.md`](screens.md) : tous les écrans et leurs raccourcis ;
-- [`format.md`](format.md) : le format des menus, dont la clé `form` ;
-- [`bedrock.md`](bedrock.md) : le contrat entre l’exporteur et le serveur ;
-- [`rendering.md`](rendering.md) : le rendu Java, glyphe par glyphe.
+- [Écrans du studio](screens.md) et [Raccourcis clavier](shortcuts.md) ;
+- [Format des menus](format.md) : couches, états, conditions, actions,
+  gabarits, composants, formulaires ;
+- [Éditeur de pixels](pixels.md) et [mode libre](assets.md) ;
+- [Modèle de rendu Java](rendering.md) et [Menu Forge sur Bedrock](bedrock.md).
