@@ -7,15 +7,18 @@ import { test } from 'node:test';
 import { measureImage } from '../src/export/image.ts';
 import { composeTitle } from '../src/model/compose.ts';
 import { GRID_COLUMNS, WINDOW_WIDTH, windowHeight } from '../src/model/geometry.ts';
+import { INTERFACE_EXAMPLES, exampleId, exampleOptions, filterExamples } from '../src/model/interfaceExamples.ts';
 import {
   INTERFACE_KINDS,
   INTERFACE_KIND_ORDER,
   LAYOUT_LABELS,
   defaultInterfaceOptions,
   generateInterface,
+  normalizeOptions,
   placeButtons,
   textBox,
 } from '../src/model/interfaceGenerator.ts';
+import { ID_PATTERN } from '../src/model/menu.ts';
 import { DEFAULT_PREVIEW, buildPreviewContext, interpolate } from '../src/model/preview.ts';
 import { resolveMenu } from '../src/model/resolve.ts';
 import { clickSlot, currentFrame, startSession } from '../src/model/simulate.ts';
@@ -92,6 +95,40 @@ function problems(menu) {
   }
   return errors;
 }
+
+test('exemples : les 22 réglages de la galerie donnent des menus valides et cohérents', () => {
+  assert.equal(INTERFACE_EXAMPLES.length, 22);
+  assert.equal(new Set(INTERFACE_EXAMPLES.map((entry) => entry.key)).size, INTERFACE_EXAMPLES.length, 'clés uniques');
+  for (const entry of INTERFACE_EXAMPLES) {
+    const id = exampleId(entry, []);
+    assert.match(id, ID_PATTERN, `${entry.key} : identifiant valide`);
+    const options = exampleOptions(entry, id);
+    assert.deepEqual(normalizeOptions(options), options, `${entry.key} : réglages dans les bornes du type`);
+    const menu = generateInterface(options);
+    assert.deepEqual(JSON.parse(JSON.stringify(menu)), menu, `${entry.key} : aucune valeur indéfinie`);
+    assert.deepEqual(validate(schema, menu), [], `${entry.key} : schéma`);
+    assert.deepEqual(problems(menu), [], entry.key);
+    assert.doesNotThrow(() => resolveMenu(menu, () => undefined), entry.key);
+    assert.equal(menu.name, entry.name, `${entry.key} : nom`);
+    assert.equal(menu.container.rows, entry.rows, `${entry.key} : lignes`);
+    assert.equal(menu.texts.find((text) => text.id === 'title').value, entry.name, `${entry.key} : titre repris du nom`);
+    assert.ok(JSON.stringify(menu).includes(entry.accent), `${entry.key} : accent repris`);
+  }
+});
+
+test('exemples : filtres par type et par famille, identifiant toujours libre', () => {
+  assert.equal(filterExamples(null, null).length, INTERFACE_EXAMPLES.length);
+  for (const kind of INTERFACE_KIND_ORDER) {
+    for (const family of FAMILIES) {
+      const found = filterExamples(kind, family);
+      assert.ok(found.length > 0, `${kind}/${family} : au moins un exemple`);
+      assert.ok(found.every((entry) => entry.kind === kind && entry.family === family), `${kind}/${family} : filtre exact`);
+    }
+  }
+  const market = INTERFACE_EXAMPLES.find((entry) => entry.name === 'Marché');
+  assert.equal(exampleId(market, []), 'marche');
+  assert.equal(exampleId(market, ['marche', 'marche_2']), 'marche_3');
+});
 
 test('placeButtons : à gauche, centrés, à droite, répartis', () => {
   assert.deepEqual(placeButtons(3, 1, 0, 9, 'start'), [0, 1, 2]);
