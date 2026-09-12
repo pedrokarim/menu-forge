@@ -7,389 +7,163 @@
 <p align="center"><a href="README.md">Français</a> · <strong>English</strong></p>
 
 <p align="center">
-  <strong>Draw custom Minecraft inventories pixel by pixel, then open them in game without computing a single offset.</strong><br>
-  A local studio (desktop app or browser), a Paper library for Java and a Bedrock export, linked by an open JSON format.
+  <strong>Draw custom Minecraft inventories pixel by pixel, then open them in game on Java and Bedrock alike.</strong><br>
+  A local studio (desktop app or browser), a Paper plugin and a Bedrock export, linked by an open JSON format.
 </p>
 
 <p align="center">
   <a href="https://pedrokarim.github.io/menu-forge/en/">Project website</a> ·
-  <a href="docs/rendering.md">Rendering model</a> ·
-  <a href="docs/format.md">Format</a> ·
-  <a href="docs/guide.md">Guide</a> ·
-  <a href="docs/bedrock.md">Bedrock</a> ·
+  <a href="docs/guide.md">Getting-started guide</a> ·
+  <a href="https://pedrokarim.github.io/menu-forge/en/docs/">Documentation</a> ·
+  <a href="docs/shortcuts.md">Shortcuts</a> ·
   <a href="docs/roadmap.md">Roadmap</a>
 </p>
 
 ![The Menu Forge menu editor: a tabbed shop, a selected slot and its inspector](site/assets/screens/menu-editor.png)
 
-> **Status: young project, under active development.** The rendering model has
-> been validated in game (Paper 1.20.6) and the studio and the library work end
-> to end, but there is no published release yet: build from source.
+> **Status: young project, under active development.** Rendering has been
+> validated in game (Paper 1.20.6, and a Bedrock client on mc-rs), and the
+> studio and the library work end to end, but there is no published release
+> yet: build from source.
 >
-> The documentation in `docs/` and the code comments are written in French.
-
-Menu Forge was born for **Enderium**, a Minecraft server: its plugin
-(`enderium-core`) is the library's first consumer, wired to its actions,
-requirements and resource-pack pipeline through an adapter. The library itself
-depends on no Enderium type and works with any Paper server.
-Its `/profile` screen is the first real menu rebuilt in the studio, with
-generated textures: Enderium's test server loads it, pending validation in
-game with a client.
-
-**Java and Bedrock.** On Java, the MenuForge Paper plugin opens a vanilla
-chest whose title carries the visuals as font glyphs. On Bedrock, a menu
-becomes a server form drawn with JSON UI: chest menus go through a generated
-layout, **Bedrock forms** through the eight layouts of the `mcrs_ui` pack. The
-native mc-rs server runs them (`/mf open <id>`), and they have been checked in
-game on a Bedrock client. See [`docs/bedrock.md`](docs/bedrock.md) and the
-[getting-started guide](docs/guide.md) (both in French).
+> The studio's interface, the documentation in `docs/` and the code comments
+> are written in French.
 
 ## Why
 
-The "modern" menus you see on Minecraft servers (tabs, modals, colored buttons,
-progress bars…) are not mods. They are **vanilla chests** whose frame is hidden
-and whose **title** holds images, drawn by a custom font from the resource
-pack. The result looks great, but building it by hand is painful: every layer
-is a glyph, every glyph has its own `ascent` and advance, and one pixel off
-shifts everything that follows.
+The "modern" menus you see on Minecraft servers (tabs, modals, colored
+buttons, progress bars…) are not mods: they are **vanilla chests** whose
+**title** holds images, drawn by a font from the resource pack. It looks
+great, but building it by hand is painful—every layer is a glyph, every glyph
+has its own `ascent` and advance, and one pixel off shifts everything that
+follows.
 
-Menu Forge automates the whole chain:
+Menu Forge automates the whole chain: you draw in the studio, it exports
+`*.menu.json` files and their PNGs, and the Paper plugin composes the title
+and opens the menu in game. On Bedrock, the same menus and dedicated
+**Bedrock forms** are sent as JSON UI to the native mc-rs server.
 
-1. **Studio** (`studio/`): draw the menu on a canvas snapped to the slot grid,
-   starting from templates or the interface generator; place layers, dynamic texts, clickable areas and
-   their actions.
-2. **Format** (`docs/format.md`): the studio exports a `*.menu.json` file and
-   its PNGs—readable and easy to version.
-3. **Library** (`lib/`): on the Paper server, it reads those files, generates
-   the resource-pack fonts and opens the menus (title composed from the current
-   state, slots, actions, pagination).
-4. **Bedrock export**: the studio also writes a Bedrock resource pack (JSON UI
-   layouts) and a runtime descriptor, `runtime.json`, read by the native mc-rs
-   server.
+Menu Forge was born for **Enderium**, a Minecraft server that wires the
+library to its actions, requirements and resource pack through an adapter.
+The library itself depends on no Enderium type and works with any Paper
+server.
 
-## Features
+## What Menu Forge does
 
-**Studio**
-
-- Pixel-exact canvas, "slots only" or vanilla chest background, zoom and
-  snapping to the slot grid.
-- **Generated** layers (beveled panel, button, cell, veil, flat fill) or
-  imported PNGs—movable with the mouse and the keyboard, reorderable, croppable
-  (atlas sprites).
-- Dynamic texts with variables (`{viewer.name}`, `{page.number}`…), aligned
-  left, center or right, measured with the game's own advances.
-- **Menu Forge's pixel font**, drawn for the project: without a vanilla pack
-  plugged in, texts are shown with the same advances as in game (the vanilla
-  pack is still needed to export an asset with the game's font).
-- Slot areas drawn on the grid: button, paginated list, input, decoration;
-  click actions (open, back, set state, page, sound, command, custom action).
-- State variables, visibility and enabled conditions, preview of every state.
-- **Live composed title**, token by token, using the same algorithm as the
-  library: what you see is what players get.
-- Templates (classic chest, modal, paginated list, tab bar) and inheritance
-  (`extends`).
-- **Interface generator**: a shop, a grid, a confirmation modal, a paginated
-  list or a tab bar, complete in a few fields (rows, buttons, layout, accent),
-  in three style families—Deepslate (beveled), mc-rs (dark, rounded) and
-  "dark with accent" (flat)—with a live preview where tabs and pages can be
-  clicked; the created menu is then edited like any other.
-- **Free mode**: an asset editor (callouts, key hints, badges…) exported as PNG
-  and as a glyph, ready to drop into any text.
-- **Pixel editor** ("Pixels" mode): pencil, eraser, paint bucket, eyedropper,
-  line, rectangle, ellipse, rectangular selection, lasso, magic wand, palette
-  and document colors, layers (opacity, merge), symmetry, zoom from ×1 to
-  ×64; the exported PNG works as is in menus and assets.
-- **Editing gestures**: multi-selection (Shift or Ctrl + click, marquee,
-  `Ctrl+A`), copy / cut / paste through the system clipboard, align and
-  distribute, groups (assets), lock and hide, rename, duplicate or trash a
-  document, drag and drop a PNG from the file explorer.
-- **No JSON required**: visual editors for click actions (reorderable),
-  conditions (an "all", "any", "not" tree), state variables and items
-  (MiniMessage with a preview).
-- **"Try" mode** (`E`): clicking a slot runs its actions as in game (state,
-  pages, `open` and `back`, closing); commands and sounds go to a log, and the
-  document is never modified.
-- Reusable **components** (`component`, `includes`): a pager or a back button
-  drawn once, placed in several menus, offset or prefixed; created from a
-  selection, detachable.
-- **Export**: "Export to the plugin" (`Ctrl+E`, resolved menus and textures in
-  the configured folder) and a test "ZIP pack" (`Ctrl+Shift+E`, fonts,
-  textures, `pack.mcmeta`); fonts identical, byte for byte, to the library's.
-- **Bedrock form**: a menu type of its own (`form` key)—the Bedrock client's
-  button form, in one of the eight layouts of the `mcrs_ui` pack (grid, image
-  grid, square image, store, buttons on the left, buttons at the bottom,
-  message of the day, recap). Buttons with text, subtitle, role (banner,
-  special button), icon (workspace texture, imported or drawn, game texture
-  referenced by its path, web address), click actions and a "Sent if"
-  condition (`visibleWhen`); a preview true to the layouts and "Try" mode.
-  "Export for Bedrock" writes the pack and `runtime.json`: see
-  [`docs/bedrock.md`](docs/bedrock.md) (in French).
-- **JSON schemas** for menus and assets
-  ([`docs/menu.schema.json`](docs/menu.schema.json),
-  [`docs/asset.schema.json`](docs/asset.schema.json)) to validate a
-  hand-written or generated file.
-- **AI generation** (optional): a texture or a whole interface described in a
-  few words, with eleven providers—online (OpenAI, Google Gemini, Anthropic,
-  Mistral, Stability AI, fal, Replicate), on your machine (ComfyUI,
-  Automatic1111, Ollama) or through a command line (Codex CLI). None is
-  contacted until you enable it in Settings; API keys go to the system
-  keychain, never to the settings file; online services bill each
-  generation. The output is constrained: textures are snapped to the pixel
-  grid and a fixed palette, menus are validated against the schema and the
-  library's rules, errors are sent back to the model (5 attempts at most),
-  and the result opens in the editor for review. Verified with simulated
-  providers, not yet with real keys: see [`docs/ai.md`](docs/ai.md) (in
-  French).
-- Local resource-pack libraries (read-only, never published), undo / redo,
-  keyboard shortcuts everywhere, `?` cheat sheet.
-- "Deepslate" style: slate, 2 px bevels, gold for selection, purple game-like
-  item tooltips.
-
-**Java library** (`lib/`)
-
-- `menu-forge-core` (Java 17, Gson only): parser that reports the faulty key
-  path, templates, conditions, PNG measurement, title composition, pack
-  generation (one font per menu).
-- `menu-forge-paper`: standalone Paper plugin **MenuForge**, with an API and
-  extension points (`ListProvider`, `FlagProvider`, `PlaceholderResolver`,
-  `ItemFactory`, `CustomActionHandler`), one session per player with a stack
-  for `back`, and the `/menuforge open`, `reload`, `calibrate` commands.
-- Extra workspaces (`addWorkspace`): a plugin ships its own menus. That is how
-  **Enderium's adapter** (in enderium-core) provides its menus, wires `custom`
-  actions to its ClickActions and flags to its requirements, and merges the
-  generated fonts into its pack.
-- Tested: 46 core tests, including the parity cases shared with the studio,
-  and 28 plugin tests on a mocked server (MockBukkit).
+- **Pixel-exact drawing**: a canvas snapped to the slot grid, generated or
+  imported layers, dynamic texts measured with the game's own advances, a
+  pixel font drawn for the project, a layered pixel editor and a free mode
+  for assets.
+- **Generate a complete interface**: a shop, a grid, a modal, a paginated
+  list or a tab bar, in three style families—or one of the **22 examples**
+  in the gallery—then edit it like any other menu.
+- **Bring the menu to life, no JSON required**: click actions, condition
+  trees, state, reusable components, and a **Try** mode that replays clicks
+  as in game.
+- **Java and Bedrock**: a Paper plugin that opens chests whose title is
+  composed glyph by glyph; a Bedrock export (JSON UI pack and
+  `runtime.json`) and forms in the eight layouts of the `mcrs_ui` pack, run
+  by mc-rs (`/mf open <id>`).
+- **Optional AI**: describe a texture or an interface in a few words, with
+  eleven providers; generation runs as a **background job** tracked by
+  notifications, and its result is constrained (pixel grid and palette, or
+  the format's schema) before you review it. Nothing is sent until you
+  enable a provider, and keys stay in the system keychain.
+- **Keyboard first**: a shortcut for every gesture, one-key zoom, resizable
+  side columns that are remembered, and nothing overflows from 1024 × 600 up
+  to the largest screen.
+- **Reliable**: the studio and the library produce the same fonts, byte for
+  byte (shared fixture), and a 61-test end-to-end suite with a layout checker
+  replays the studio in a real browser.
 
 ## Screenshots
 
 | | |
 |---|---|
-| ![The Bedrock form editor: layout, buttons, grid preview and the selected button's inspector](site/assets/screens/bedrock-form.png) | !["New menu": the eight layouts of Bedrock forms](site/assets/screens/bedrock-layouts.png) |
-| **Bedrock form**: layout, buttons, icons, a preview true to the pack. | **Eight layouts**: picked at creation, changeable later. |
-| ![Interface generator: a tab bar in the "dark with accent" style, with its preview](site/assets/screens/interface-generator.png) | ![A shop created by the generator, in the mc-rs style, open in the editor](site/assets/screens/generated-menu.png) |
-| **Interface generator**: five kinds, three style families, clickable preview. | **Generated menu**: ordinary layers, texts and slots, ready to edit. |
-| !["Generate a texture": the model's image and the texture snapped to 16 × 16 and the Menu Forge palette](site/assets/screens/ai-texture.png) | !["Generate an interface": a first attempt rejected, fixed on the second](site/assets/screens/ai-interface.png) |
-| **AI texture**: pixel grid, fixed palette, background removed. | **AI interface**: validated against the schema, errors sent back to the model. |
-| ![Settings, AI section: eleven providers, all disabled, the OpenAI card expanded with no key](site/assets/screens/ai-settings.png) | ![Texture generator: a beveled panel and its slot cells](site/assets/screens/texture-generator.png) |
-| **AI settings**: nothing is sent until enabled, keys in the keychain. | **Generated textures**: panels, buttons, cells, nothing to draw. |
-| ![Pixel editor: a tab texture drawn in layers](site/assets/screens/pixel-editor.png) | !["Try" mode: simulated clicks and log](site/assets/screens/try-mode.png) |
-| **Pixel editor**: layers, symmetry, palette, zoom up to ×64. | **Try**: actions run as in game, the log follows them. |
-| ![Visual editors for a slot's actions and conditions](site/assets/screens/visual-editors.png) | ![Multi-selection and the align bar](site/assets/screens/multi-select.png) |
-| **No JSON**: click actions and condition trees, in the inspector. | **Editing gestures**: multi-selection, align and distribute. |
-| ![A reusable component and its instance](site/assets/screens/components.png) | ![Export to the plugin and the export menu](site/assets/screens/export.png) |
-| **Components**: drawn once, included in several menus. | **Export**: to the plugin (`Ctrl+E`) or as a test ZIP pack. |
-| ![Home: quick actions and recent documents](site/assets/screens/home.png) | ![A confirmation modal in the editor](site/assets/screens/modal-editor.png) |
-| **Home**: quick actions, recent documents with thumbnails. | **Modals**: veil, centered panel, buttons wired to actions. |
-| ![Asset editor: a help callout](site/assets/screens/asset-editor.png) | ![Keyboard shortcuts cheat sheet](site/assets/screens/shortcuts.png) |
-| **Free mode**: compose an asset and export it as a glyph. | **Shortcuts**: everything also works from the keyboard. |
+| ![The interface generator's example gallery](site/assets/screens/interface-examples.png) | ![The Bedrock form editor](site/assets/screens/bedrock-form.png) |
+| **Example gallery**: 22 ready-made interfaces, rendered live. | **Bedrock form**: layout, buttons, icons, a preview true to the pack. |
+| ![An AI generation running in the background, tracked by notifications](site/assets/screens/ai-jobs.png) | ![Try mode and its log](site/assets/screens/try-mode.png) |
+| **AI in the background**: progress, attempts, notifications. | **Try**: clicks run as they would in game. |
+| ![The pixel editor, a layered texture](site/assets/screens/pixel-editor.png) | ![The shop canvas and its composed title, token by token](site/assets/screens/title-composition.png) |
+| **Pixel editor**: layers, symmetry, zoom up to ×64. | **Composed title**: every offset, every glyph. |
 
-The studio's interface is in French.
+Every screenshot is on the [project website](https://pedrokarim.github.io/menu-forge/en/#gallery).
+They are produced by a script, on a demo workspace made only of textures
+generated or drawn by the studio.
 
-Every screenshot is produced by a script, on a demo workspace made **only** of
-textures generated or drawn by the studio: see [`site/README.md`](site/README.md) (in
-French). The AI generation screenshots use simulated providers on the
-machine: no service is called, no key is used.
+## Get started
 
-## How it works
-
-![The shop canvas and its composed title, token by token](site/assets/screens/title-composition.png)
-
-A Menu Forge menu is an ordinary `generic_9xN` chest. Two resource-pack tricks
-do the rest:
-
-1. the chest texture is replaced by a "slots only" image: the frame disappears,
-   the slot cells stay;
-2. all the visuals are written into the chest's **title**, with a font where
-   every character is an image (`bitmap` provider).
-
-For each visible layer, the library writes a **negative or positive space**
-that moves the cursor to the right x position, then the layer's **glyph**,
-whose `ascent` sets its height (`ascent = 13 − y`). The catch: Minecraft moves
-the cursor by the image's last opaque column + 2, not by its width. Menu Forge
-crops every layer and **measures its advance from the pixels**, in the studio
-as in the library.
-
-Slots remain real slots: a button is an image in the title plus a slot
-(usually holding an invisible item) at the same place. The title is drawn
-below the items, so a layer can paint a button's background without hiding
-its icon.
-
-All the details, measured and validated in game: [`docs/rendering.md`](docs/rendering.md).
-
-## Installation
-
-Requirements: **Node 24**, **Rust stable** (1.95 or later), and on Windows
-**WebView2** (bundled with Windows 11). For the library: **JDK 21**.
+Requirements: Node 24, stable Rust (1.95 or later), WebView2 on Windows
+(included in Windows 11) and, for the library, JDK 21.
 
 ```sh
 git clone https://github.com/pedrokarim/menu-forge.git
 cd menu-forge/studio
 npm install
+npm run tauri:dev     # desktop app; npm run dev for the browser
 ```
 
-### The studio as a desktop app (Tauri)
-
-```sh
-npm run tauri:dev     # development window
-npm run tauri:build   # Windows installer (NSIS)
-```
-
-The installer is written to
-`studio/src-tauri/target/release/bundle/nsis/`. On first launch, the studio
-offers a workspace (`Documents/menu-forge`, created if missing).
-
-### The studio in the browser
-
-```sh
-npm run dev
-```
-
-Starts the Rust backend (`studio-api`, on `127.0.0.1:5174`) and Vite on
-<http://localhost:5173>. The server only listens locally and rejects requests
-from any other origin. Options, settings and API: [`studio/README.md`](studio/README.md).
-
-### The Paper library (MenuForge plugin)
-
-```sh
-cd lib
-./gradlew build
-```
-
-The plugin targets **Paper 1.20.6 and later** (Java 21, `api-version` 1.20).
-On 1.21.4 and later it can also give invisible buttons an item model
-(`item_model`); on older versions it uses `CustomModelData`.
-
-1. Drop `menu-forge-paper/build/libs/MenuForge-<version>.jar` into `plugins/`.
-2. Copy the menus exported by the studio into
-   `plugins/MenuForge/workspace/menus/` and their images into
-   `plugins/MenuForge/workspace/textures/`.
-3. On startup (and on every `/menuforge reload`), the plugin generates the font
-   pack in `plugins/MenuForge/pack/`: **merge it into your server's resource
-   pack**.
-
-The "slots only" chest texture is not provided: your server's pack has to ship
-it. API, extension points and configuration: [`lib/README.md`](lib/README.md).
-
-### From the studio to the server
-
-In the menu editor, **Exporter** (Export, `Ctrl+E`) saves the open menu, then
-writes every menu of the workspace, templates applied, and the PNGs they use
-to `<configured folder>/menuforge/` (`menus/`, `textures/`), along with a
-manifest: the next export only removes what the previous one wrote. The folder
-is set in **Paramètres › Export vers le plugin** (Settings › Export to the
-plugin). For the standalone MenuForge plugin, copy `menus/` and `textures/`
-into `plugins/MenuForge/workspace/`; a plugin that ships its own menus
-registers them with `addWorkspace`, as Enderium does.
-
-**Pack ZIP** (`Ctrl+Shift+E`) writes `exports/<namespace>-pack.zip` into the
-workspace: fonts and textures generated with the same algorithm as the
-library (parity checked byte for byte against a shared fixture) and
-`pack.mcmeta`, to try without a server.
-
-**Bedrock** (toolbar button, or the canvas context menu) writes the resource
-pack (`pack/`) and the runtime descriptor (`runtime.json`) into the folder set
-in **Settings › Export for Bedrock**; for mc-rs, `menu_forge/export`. On the
-server, `/mf reload` reloads the export, `/mf list` lists the menus and
-`/mf open <id>` opens one. Step by step: [`docs/guide.md`](docs/guide.md).
-
-## Repository layout
-
-| Folder | Role |
-|---|---|
-| [`docs/`](docs/) | Format specifications and JSON schemas, rendering model, screens, roadmap (source of truth) |
-| [`studio/`](studio/) | Studio: Vite + React + TypeScript UI (`src/`), Rust backend (`backend/`), Tauri 2 shell (`src-tauri/`) |
-| [`lib/`](lib/) | Java library: standalone core `menu-forge-core` and `menu-forge-paper` plugin |
-| [`templates/`](templates/) | Bundled templates (chest, modal, tabs, paginated list) |
-| [`examples/`](examples/) | Example workspace for browser mode (content not versioned) |
-| [`site/`](site/) | Project website (GitHub Pages) and screenshot script |
+What comes next—from a first menu to opening it in game on Paper, then on
+Bedrock—is in the [getting-started guide](docs/guide.md) (in French).
 
 ## Documentation
 
-The documentation is written in French.
+The [documentation index](https://pedrokarim.github.io/menu-forge/en/docs/)
+on the website summarizes every page in English; the pages themselves are in
+French, like the studio. The most useful ones:
 
-- [`docs/guide.md`](docs/guide.md): getting started step by step, from a first
-  Java menu to a first Bedrock form.
-- [`docs/rendering.md`](docs/rendering.md): how a layer becomes a glyph,
-  coordinates, `ascent`, advance, known pitfalls.
-- [`docs/format.md`](docs/format.md): the `*.menu.json` format (layers, texts,
-  slots, state, conditions, actions, templates).
-- [`docs/bedrock.md`](docs/bedrock.md): Menu Forge on Bedrock—export,
-  `runtime.json`, forms and layouts, server-side execution.
-- [`docs/assets.md`](docs/assets.md): the free-mode `*.asset.json` format.
-- [`docs/pixels.md`](docs/pixels.md): the pixel editor's `*.pixel.json` format,
-  its tools and shortcuts.
-- [`docs/ai.md`](docs/ai.md): AI generation (providers, keys, what is sent,
-  costs, constraints, limits).
-- [`docs/menu.schema.json`](docs/menu.schema.json) and
-  [`docs/asset.schema.json`](docs/asset.schema.json): the JSON schemas of both
-  formats.
-- [`docs/screens.md`](docs/screens.md): the application screens.
-- [`docs/discord.md`](docs/discord.md): Discord Rich Presence (optional).
-- [`studio/README.md`](studio/README.md): run, build, local API.
-- [`lib/README.md`](lib/README.md): the library, the plugin and its extension points.
+- [Getting-started guide](docs/guide.md) and [keyboard shortcuts](docs/shortcuts.md);
+- [Studio screens](docs/screens.md), [interface generator](docs/generator.md), [AI generation](docs/ai.md);
+- [Menu format](docs/format.md) and [rendering model](docs/rendering.md);
+- [Exporting and installing](docs/export.md), [library and Paper plugin](lib/README.md), [Bedrock](docs/bedrock.md);
+- [Roadmap](docs/roadmap.md).
 
-## Roadmap
+## Repository layout
 
-Living details in [`docs/roadmap.md`](docs/roadmap.md).
-Recently landed: **Bedrock** support (exporter, Bedrock forms, port of the
-mc-rs screens), the interface generator and its three style families,
-multi-provider AI generation and Menu Forge's pixel font; before them, the
-pixel editor, editing gestures, visual editors and "Try"
-mode, components, export to the plugin and the ZIP pack, JSON schemas. Next
-steps:
-
-- validate Enderium's `/profile` screen in game with a client, then migrate
-  its other screens (achievements, realms, houses);
-- studio: hand-placed guides, restore
-  a document from the trash;
-- components: override a single field of an instance element; preview
-  "list" slots in "Try" mode;
-- pixel editor: animations and sprite sheets, saved palettes, gradients;
-- AI: try each provider with a real key (default model identifiers, actual
-  image transparency, content refusals, response times);
-- Bedrock: go through Geyser and Floodgate (E4), advanced Bedrock preview
-  (E5), "overloaded chest" rendering for `input` slots (E6);
-- decide what to do with the global chest texture (`generic_54.png`).
+| Folder | Purpose |
+|---|---|
+| [`docs/`](docs/) | Documentation, format specifications and JSON schemas (source of truth) |
+| [`studio/`](studio/) | Studio: Vite + React + TypeScript interface (`src/`), Rust backend (`backend/`), Tauri 2 shell (`src-tauri/`) |
+| [`lib/`](lib/) | Java library: standalone `menu-forge-core` and the `menu-forge-paper` plugin |
+| [`templates/`](templates/) | Bundled templates (chest, modal, tabs, paginated list) |
+| [`examples/`](examples/) | Example workspace for browser mode (contents not versioned) |
+| [`site/`](site/) | Project website (GitHub Pages), its documentation pages and the screenshot script |
 
 ## Contributing
 
-Contributions are welcome—please open an issue first to discuss any large
-change. A few repository rules (details in [`AGENTS.md`](AGENTS.md)):
+Contributions are welcome—please open an issue first to discuss any
+significant change. Repository rules (details in [`AGENTS.md`](AGENTS.md)):
 
-- **English identifiers**, no exception (variables, functions, types, files,
-  JSON keys of the format); comments, UI texts, docs and commit messages
-  **in French**;
-- French typography in French prose;
+- **identifiers in English**, no exceptions; comments, UI text, docs and
+  commit messages **in French**, with French typography;
 - **no third-party assets** in the repository: the bundled templates and
   textures are generated or drawn by the project;
-- before a pull request: `npm run build` and `npm run lint` in `studio/`,
-  `cargo test` in `studio/backend/`, `./gradlew build` in `lib/`.
+- before a pull request: `npm run build`, `npm run lint` and `npm test` in
+  `studio/`, `cargo test` in `studio/backend/`, `./gradlew build` in `lib/`,
+  and `python site/scripts/build.py` if the docs or the website change.
 
 ## License
 
 Menu Forge is released under the **MIT** license, © 2026 Karim (pedrokarim): see [`LICENSE`](LICENSE).
-Third-party components keep their own licenses (below).
+Third-party components keep their own licenses.
 
-## Credits
-
-| Component | Use | License |
+| Component | Used for | License |
 |---|---|---|
 | [Pixelarticons](https://github.com/halfmage/pixelarticons) | Icons | MIT |
 | [Pixelify Sans](https://github.com/eifetx/Pixelify-Sans) | Headings | SIL Open Font License 1.1 |
 | [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) | Body text | SIL Open Font License 1.1 |
 | [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) | Code and paths | SIL Open Font License 1.1 |
-| [React](https://react.dev/) | UI | MIT |
+| [React](https://react.dev/) | Interface | MIT |
 | [Tauri](https://tauri.app/) | Desktop app | MIT or Apache 2.0 |
 | [Gson](https://github.com/google/gson) | Format parsing (library) | Apache 2.0 |
 
-The studio bundles the fonts from the `@fontsource` packages (plus Pixelify
+The studio bundles its fonts from the `@fontsource` packages (plus Pixelify
 Sans in `studio/public/fonts/` for the splash screen); the website self-hosts
 them in `site/assets/fonts/`, each with its license.
 
 ## Notices
 
 Menu Forge is not affiliated with or endorsed by Mojang; Minecraft is a
-trademark of Mojang AB. The repository contains no Minecraft asset: the game
-font and third-party packs are only read from the user's machine and remain the
-property of their authors.
+trademark of Mojang AB. The repository contains no Minecraft assets: the
+game's font and third-party packs are only read from the user's machine and
+remain the property of their authors.
