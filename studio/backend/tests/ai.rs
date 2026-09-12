@@ -692,3 +692,47 @@ fn generations_can_be_cancelled() {
     let (status, _, _) = call(&backend, "POST", "/ai/cancel", json!({ "requestId": "req-1" }));
     assert_eq!(status, 204);
 }
+
+#[test]
+fn progress_is_reported_while_a_generation_runs() {
+    let dir = TempDir::new("progress");
+    let backend = Arc::new(backend(&dir));
+    let fake = Fake::start(|_, _| {
+        thread::sleep(Duration::from_millis(900));
+        json_reply(json!({ "message": { "role": "assistant", "content": "{}" }, "done": true }))
+    });
+    enable(&backend, "ollama", &fake.origin, json!({}));
+    // Avant : inconnue, donc inactive (jamais une erreur : l’interface lit sans condition).
+    let (status, value, _) = call(&backend, "GET", "/ai/progress/prog-1", Value::Null);
+    assert_eq!((status, value["active"].clone()), (200, json!(false)));
+    let worker = {
+        let backend = Arc::clone(&backend);
+        thread::spawn(move || {
+            let mut request = text_request("ollama");
+            request["requestId"] = json!("prog-1");
+            call(&backend, "POST", "/ai/text", request)
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let snapshot = loop {
+        let (status, value, text) = call(&backend, "GET", "/ai/progress/prog-1", Value::Null);
+        assert_eq!(status, 200, "{text}");
+        if value["phase"] == "waiting" {
+            break value;
+        }
+        assert!(Instant::now() < deadline, "phase « waiting » jamais vue : {value}");
+        thread::sleep(Duration::from_millis(30));
+    };
+    assert_eq!(snapshot["active"], true);
+    assert!(snapshot["elapsedMs"].as_u64().is_some(), "{snapshot}");
+    // Rien de la demande ni de la réponse dans la progression.
+    assert!(!snapshot.to_string().contains("un menu"), "{snapshot}");
+    let (status, _, text) = worker.join().unwrap();
+    assert_eq!(status, 200, "{text}");
+    // Après : la génération est retirée, la progression redevient inactive.
+    let (_, value, _) = call(&backend, "GET", "/ai/progress/prog-1", Value::Null);
+    assert_eq!(value["active"], false);
+    // Identifiant malformé : refusé.
+    let (status, _, _) = call(&backend, "GET", "/ai/progress/pas%20valide", Value::Null);
+    assert_eq!(status, 400);
+}

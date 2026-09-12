@@ -15,6 +15,7 @@
 //! | `POST /ai/image` | `{ provider, prompt, system?, negativePrompt?, width, height, requestId? }` → `{ provider, model, mime, data (base64), size, elapsedMs, note }` |
 //! | `POST /ai/text` | `{ provider, system, messages: [{ role, content }], json?, requestId? }` → `{ provider, model, text, elapsedMs }` |
 //! | `POST /ai/cancel` | `{ requestId }` : annule la génération en cours (elle répond 409 « Génération annulée ») |
+//! | `GET /ai/progress/:requestId` | `{ active, phase?, events?, elapsedMs?, phaseMs? }` : progression d’une génération en cours (voir [`progress`]) |
 //!
 //! Rien n’est envoyé à un fournisseur tant qu’il n’est pas **activé** (et,
 //! s’il en exige une, qu’une clé n’est pas enregistrée) : refus 409 avant
@@ -24,6 +25,7 @@
 pub mod config;
 pub mod error;
 pub mod net;
+pub mod progress;
 pub mod providers;
 pub mod secrets;
 
@@ -37,6 +39,7 @@ use serde_json::{Map, Value};
 use config::{Capability, ProviderInfo, ProviderKind, ProviderSettings};
 use error::{AiError, NBSP};
 use net::{Budget, CancelToken};
+use progress::Progress;
 use providers::{Ctx, ImageJob, Message, Role, TextJob};
 use secrets::SecretStore;
 
@@ -63,10 +66,16 @@ const MAX_MESSAGES: usize = 16;
 /// Côté maximal d’une texture demandée (celui de l’éditeur de pixels).
 const MAX_SIDE: u64 = 1024;
 
+/// Génération en cours : de quoi l’annuler et lire sa progression.
+struct Running {
+    cancel: CancelToken,
+    progress: Progress,
+}
+
 /// État de l’IA dans le backend : magasin des clés et générations en cours.
 pub struct AiService {
     store: RwLock<Arc<dyn SecretStore>>,
-    jobs: Mutex<HashMap<String, CancelToken>>,
+    jobs: Mutex<HashMap<String, Running>>,
 }
 
 impl AiService {
@@ -82,27 +91,35 @@ impl AiService {
         *self.store.write().unwrap_or_else(|poisoned| poisoned.into_inner()) = store;
     }
 
-    fn jobs(&self) -> std::sync::MutexGuard<'_, HashMap<String, CancelToken>> {
+    fn jobs(&self) -> std::sync::MutexGuard<'_, HashMap<String, Running>> {
         self.jobs.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
-    /// Enregistre une génération annulable par son identifiant (s’il y en a un).
+    /// Enregistre une génération annulable, et suivie, par son identifiant
+    /// (s’il y en a un ; sans identifiant, ni annulation ni progression).
     fn register(&self, id: Option<String>) -> JobGuard<'_> {
         let token = CancelToken::new();
+        let progress = if id.is_some() { Progress::tracked() } else { Progress::default() };
         if let Some(id) = &id {
-            self.jobs().insert(id.clone(), token.clone());
+            self.jobs().insert(id.clone(), Running { cancel: token.clone(), progress: progress.clone() });
         }
-        JobGuard { service: self, id, token }
+        JobGuard { service: self, id, token, progress }
     }
 
     fn cancel(&self, id: &str) -> bool {
         match self.jobs().get(id) {
-            Some(token) => {
-                token.cancel();
+            Some(running) => {
+                running.cancel.cancel();
                 true
             }
             None => false,
         }
+    }
+
+    /// Progression d’une génération en cours ; `{ active: false }` si elle est
+    /// finie ou inconnue (l’interface arrête alors de la lire).
+    fn progress(&self, id: &str) -> Value {
+        self.jobs().get(id).map(|running| running.progress.clone()).unwrap_or_default().snapshot()
     }
 }
 
@@ -111,6 +128,7 @@ struct JobGuard<'a> {
     service: &'a AiService,
     id: Option<String>,
     token: CancelToken,
+    progress: Progress,
 }
 
 impl Drop for JobGuard<'_> {
@@ -157,14 +175,14 @@ fn side(map: &Map<String, Value>, key: &str) -> Result<u32, AiError> {
 }
 
 /// Identifiant d’annulation choisi par l’interface : `[A-Za-z0-9_-]`, 64 caractères au plus.
+fn valid_request_id(id: &str) -> bool {
+    (1..=64).contains(&id.len()) && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
 fn request_id(map: &Map<String, Value>) -> Result<Option<String>, AiError> {
     match map.get("requestId") {
         None | Some(Value::Null) => Ok(None),
-        Some(Value::String(id))
-            if (1..=64).contains(&id.len()) && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') =>
-        {
-            Ok(Some(id.clone()))
-        }
+        Some(Value::String(id)) if valid_request_id(id) => Ok(Some(id.clone())),
         Some(_) => Err(AiError::BadRequest(format!("«{NBSP}requestId{NBSP}» invalide"))),
     }
 }
@@ -204,6 +222,12 @@ impl Backend {
             ("test", Some(id), "POST") => self.ai_test(in_path(id)?)?,
             ("image", None, "POST") => self.ai_image(&request.body)?,
             ("text", None, "POST") => self.ai_text(&request.body)?,
+            ("progress", Some(id), "GET") => {
+                if !valid_request_id(id) {
+                    return Err(AiError::BadRequest(format!("«{NBSP}requestId{NBSP}» invalide")).into());
+                }
+                json_response(&self.ai.progress(id))
+            }
             ("cancel", None, "POST") => {
                 let map = object(&request.body)?;
                 let id = request_id(&map)?
@@ -333,6 +357,7 @@ impl Backend {
         capability: Capability,
         timeout: Duration,
         cancel: CancelToken,
+        progress: Progress,
     ) -> Result<Ctx, AiError> {
         if !info.supports(capability) {
             let what = if capability == Capability::Image { "d’images" } else { "de texte" };
@@ -372,12 +397,12 @@ impl Backend {
             settings.endpoint.clone().unwrap_or_else(|| info.default_endpoint.to_owned()).trim_end_matches('/').to_owned()
         };
         let model = settings.model(info, capability).unwrap_or_default();
-        Ok(Ctx { info, endpoint, key, model, budget: Budget::new(timeout, cancel) })
+        Ok(Ctx { info, endpoint, key, model, budget: Budget::new(timeout, cancel).with_progress(progress) })
     }
 
     fn ai_test(&self, info: &'static ProviderInfo) -> Result<Response, HttpError> {
         let capability = if info.text { Capability::Text } else { Capability::Image };
-        let ctx = self.ai_context(info, capability, TEST_TIMEOUT, CancelToken::new())?;
+        let ctx = self.ai_context(info, capability, TEST_TIMEOUT, CancelToken::new(), Progress::default())?;
         let budget = ctx.budget.clone();
         let outcome = net::run_job(&budget, move || providers::test(&ctx))?;
         let mut map = Map::new();
@@ -396,7 +421,7 @@ impl Backend {
         let (width, height) = (side(&map, "width")?, side(&map, "height")?);
         let guard = self.ai.register(request_id(&map)?);
         let timeout = if info.kind == ProviderKind::Cli { CLI_TIMEOUT } else { IMAGE_TIMEOUT };
-        let ctx = self.ai_context(info, Capability::Image, timeout, guard.token.clone())?;
+        let ctx = self.ai_context(info, Capability::Image, timeout, guard.token.clone(), guard.progress.clone())?;
         // Les API d’images n’ont pas de message système : consignes en tête du prompt.
         let prompt = match system {
             Some(system) => format!("{system}\n\n{prompt}"),
@@ -453,7 +478,7 @@ impl Backend {
         }
         let guard = self.ai.register(request_id(&map)?);
         let timeout = if info.kind == ProviderKind::Cli { CLI_TIMEOUT } else { TEXT_TIMEOUT };
-        let ctx = self.ai_context(info, Capability::Text, timeout, guard.token.clone())?;
+        let ctx = self.ai_context(info, Capability::Text, timeout, guard.token.clone(), guard.progress.clone())?;
         let job = TextJob { system, messages, json };
         let (budget, model) = (ctx.budget.clone(), ctx.model.clone());
         let started = Instant::now();

@@ -14,6 +14,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use super::error::{AiError, NBSP};
+use super::progress::{Phase, Progress};
 
 /// Taille maximale d’une réponse lue (une image de 4096 px en PNG tient large).
 pub const MAX_BODY: u64 = 64 * 1024 * 1024;
@@ -40,17 +41,28 @@ impl CancelToken {
     }
 }
 
-/// Échéance et annulation d’une génération.
+/// Échéance, annulation et progression d’une génération.
 #[derive(Clone, Debug)]
 pub struct Budget {
     deadline: Instant,
     total: Duration,
     cancel: CancelToken,
+    progress: Progress,
 }
 
 impl Budget {
     pub fn new(total: Duration, cancel: CancelToken) -> Self {
-        Self { deadline: Instant::now() + total, total, cancel }
+        Self { deadline: Instant::now() + total, total, cancel, progress: Progress::default() }
+    }
+
+    /// Même budget, dont la progression est lue par l’interface.
+    pub fn with_progress(mut self, progress: Progress) -> Self {
+        self.progress = progress;
+        self
+    }
+
+    pub fn progress(&self) -> &Progress {
+        &self.progress
     }
 
     /// Temps restant ; erreur si la génération est annulée ou l’échéance passée.
@@ -119,6 +131,8 @@ pub fn send(request: HttpRequest<'_>, budget: &Budget) -> Result<HttpResponse, A
     for (name, value) in &request.headers {
         http = http.set(name, value);
     }
+    // Requête partie : on attend le fournisseur (l’interface affiche « … réfléchit »).
+    budget.progress().set(Phase::Waiting);
     let result = match &request.body {
         Some(body) => http.send_bytes(body),
         None => http.call(),
@@ -127,6 +141,7 @@ pub fn send(request: HttpRequest<'_>, budget: &Budget) -> Result<HttpResponse, A
         Ok(response) | Err(ureq::Error::Status(_, response)) => response,
         Err(ureq::Error::Transport(transport)) => return Err(transport_error(&transport, &request.url, budget)),
     };
+    budget.progress().set(Phase::Receiving);
     let status = response.status();
     let content_type = response.content_type().to_owned();
     let mut body = Vec::new();
