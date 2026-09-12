@@ -97,7 +97,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { useEditorColumns } from '../ui/useResizablePanel';
 
 type DialogState =
-  | { kind: 'new-menu'; generate?: boolean }
+  | { kind: 'new-menu'; generate?: boolean; examples?: boolean }
   | { kind: 'new-asset' }
   | { kind: 'generator'; mode: 'create' }
   | { kind: 'generator'; mode: 'edit'; layerId: string }
@@ -165,7 +165,7 @@ async function bakeTexture(path: string, spec: GeneratorSpec, origin: Point) {
 
 /** Demande venue d’un autre écran (actions rapides de l’accueil) ; `nonce` change à chaque demande. */
 export interface EditorRequest {
-  kind: 'new-menu' | 'generate-menu' | 'new-asset' | 'new-pixel' | 'import-font' | 'ai-interface';
+  kind: 'new-menu' | 'generate-menu' | 'generate-examples' | 'new-asset' | 'new-pixel' | 'import-font' | 'ai-interface';
   nonce: number;
 }
 
@@ -1004,8 +1004,9 @@ export function EditorScreen({
     } else if (kind === 'new-pixel') {
       if (switchMode('pixels')) setDialog({ kind: 'new-pixel' });
     } else if (switchMode('menus')) {
-      if (kind === 'new-menu' || kind === 'generate-menu') setDialog({ kind: 'new-menu', generate: kind === 'generate-menu' });
-      else if (kind === 'ai-interface') setDialog({ kind: 'ai-interface' });
+      if (kind === 'new-menu' || kind === 'generate-menu' || kind === 'generate-examples') {
+        setDialog({ kind: 'new-menu', generate: kind !== 'new-menu', examples: kind === 'generate-examples' });
+      } else if (kind === 'ai-interface') setDialog({ kind: 'ai-interface' });
       else setLeftTab('library');
     }
   };
@@ -2510,6 +2511,7 @@ export function EditorScreen({
           templates={workspace?.templates ?? []}
           existingIds={knownMenus.map((candidate) => candidate.id)}
           generate={dialog.generate}
+          examples={dialog.examples}
           onCancel={() => setDialog(null)}
           onCreate={handleNewMenu}
           onGenerateWithAi={() => setDialog({ kind: 'ai-interface' })}

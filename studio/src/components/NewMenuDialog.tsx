@@ -20,6 +20,8 @@ interface NewMenuDialogProps {
   existingIds: string[];
   /** Ouvrir directement le générateur d’interfaces (action rapide de l’accueil). */
   generate?: boolean;
+  /** Ouvrir le générateur sur sa galerie d’exemples (« Voir les exemples » de l’accueil). */
+  examples?: boolean;
   onCancel: () => void;
   onCreate: (input: NewMenuInput) => Promise<void>;
   /** Propose de décrire le menu à une IA plutôt que de partir d’un gabarit. */
@@ -32,7 +34,7 @@ const InterfaceGeneratorDialog = lazy(() =>
 );
 
 /** Création d’un menu, vierge, à partir d’un gabarit fourni ou généré, ou par IA. */
-export function NewMenuDialog({ templates, existingIds, generate = false, onCancel, onCreate, onGenerateWithAi }: NewMenuDialogProps) {
+export function NewMenuDialog({ templates, existingIds, generate = false, examples = false, onCancel, onCreate, onGenerateWithAi }: NewMenuDialogProps) {
   const [generating, setGenerating] = useState(generate);
   const [name, setName] = useState('Mon menu');
   // Identifiant proposé toujours libre : le dialogue ne s’ouvre jamais sur une erreur.
@@ -92,6 +94,7 @@ export function NewMenuDialog({ templates, existingIds, generate = false, onCanc
           onCancel={onCancel}
           onBack={generate ? undefined : () => setGenerating(false)}
           onCreate={onCreate}
+          initialView={examples ? 'examples' : 'form'}
         />
       </Suspense>
     );

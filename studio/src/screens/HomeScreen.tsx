@@ -18,7 +18,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 
-export type QuickAction = 'new-menu' | 'generate-menu' | 'new-asset' | 'new-pixel' | 'import-font' | 'open-workspace' | 'ai-interface';
+export type QuickAction = 'new-menu' | 'generate-menu' | 'generate-examples' | 'new-asset' | 'new-pixel' | 'import-font' | 'open-workspace' | 'ai-interface';
 /** Gestion d’un document récent depuis l’accueil. */
 export type DocumentAction = 'rename' | 'duplicate' | 'trash';
 
@@ -195,18 +195,26 @@ export function HomeScreen({
       </div>
 
       <section className="screen-section" aria-labelledby="home-actions">
-        {/* L’IA en action de section, alignée sur la ligne de base du titre : en septième carte, elle resterait
-            seule sur sa rangée. */}
+        {/* La galerie d’exemples et l’IA en actions de section, alignées sur la ligne de base du titre : en
+            septième carte, elles resteraient seules sur leur rangée. */}
         <div className="screen-section-head">
           <h2 id="home-actions" className="screen-section-title">
             Actions rapides
           </h2>
-          <Tooltip label="Générer une interface par IA" hint="Décrite en quelques mots à une IA, validée, à relire avant enregistrement">
-            <button type="button" className="sm" onClick={() => onQuickAction('ai-interface')}>
-              <Icon name="sparkles" />
-              Générer une interface par IA…
-            </button>
-          </Tooltip>
+          <div className="section-actions">
+            <Tooltip label="Voir les exemples" hint={`Galerie du générateur d’interfaces${NBSP}: un clic charge des réglages tout faits`}>
+              <button type="button" className="sm" onClick={() => onQuickAction('generate-examples')}>
+                <Icon name="grid" />
+                Voir les exemples
+              </button>
+            </Tooltip>
+            <Tooltip label="Générer une interface par IA" hint="Décrite en quelques mots à une IA, validée, à relire avant enregistrement">
+              <button type="button" className="sm" onClick={() => onQuickAction('ai-interface')}>
+                <Icon name="sparkles" />
+                Générer une interface par IA…
+              </button>
+            </Tooltip>
+          </div>
         </div>
         {/* Mêmes colonnes que les documents récents : une action couvre deux documents. */}
         <div className="quick-actions home-grid">
