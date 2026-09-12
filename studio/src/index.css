@@ -1319,20 +1319,32 @@ body.is-resizing-columns * {
   overflow-wrap: anywhere;
 }
 
-.statusbar-meta {
+/* Liste à points (`DotList`, barre d’état, résumé de l’aperçu d’un formulaire) :
+   le point est posé dans l’écart qui précède un élément, sauf quand celui-ci
+   ouvre une ligne ; jamais de point seul en début ni en fin de ligne. */
+.dot-list {
   display: flex;
-  gap: 14px;
   flex-wrap: wrap;
+  align-items: center;
+  column-gap: 16px;
   row-gap: 0;
+  min-width: 0;
 }
 
-.statusbar-meta span + span::before {
+.dot-list > * {
+  position: relative;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dot-list > :not([data-line-start])::before {
   content: '';
-  display: inline-block;
+  position: absolute;
+  top: 50%;
+  left: -9px;
   width: 2px;
   height: 2px;
-  margin-right: 14px;
-  vertical-align: middle;
+  margin-top: -1px;
   background: var(--ds-faint);
 }
 

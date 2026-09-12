@@ -91,6 +91,7 @@ import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
+import { DotList } from '../ui/DotList';
 import { ResizeHandle } from '../ui/ResizeHandle';
 import { Tooltip } from '../ui/Tooltip';
 import { useEditorColumns } from '../ui/useResizablePanel';
@@ -2462,15 +2463,15 @@ export function EditorScreen({
           Espace de travail : <code>{workspace?.root ?? '…'}</code>
         </span>
         {mode === 'menus' && menu?.form && (
-          <span className="statusbar-meta">
+          <DotList className="statusbar-meta">
             <span>formulaire Bedrock</span>
             <span>{menu.form.layout}</span>
             <span>{plural(menu.form.buttons.length, 'bouton')}</span>
             <span>pas de rendu Java</span>
-          </span>
+          </DotList>
         )}
         {mode === 'menus' && resolved && !menu?.form && (
-          <span className="statusbar-meta">
+          <DotList className="statusbar-meta">
             {ownSelection.length > 1 && <span>{plural(ownSelection.length, 'élément')} sélectionnés</span>}
             <span>
               {resolved.menu.layers.length} couche{resolved.menu.layers.length > 1 ? 's' : ''}
@@ -2482,19 +2483,19 @@ export function EditorScreen({
               {WINDOW_WIDTH} × {windowHeight(resolved.menu.container.rows)} px
             </span>
             <span>×{effectiveZoom}</span>
-          </span>
+          </DotList>
         )}
         {mode === 'assets' && currentAsset && (
-          <span className="statusbar-meta">
+          <DotList className="statusbar-meta">
             <span>asset {currentAsset.id}</span>
             <span>textures/assets/{currentAsset.id}.png</span>
-          </span>
+          </DotList>
         )}
         {mode === 'pixels' && currentPixel && (
-          <span className="statusbar-meta">
+          <DotList className="statusbar-meta">
             <span>image {currentPixel.id}</span>
             <span>textures/{currentPixel.texture}</span>
-          </span>
+          </DotList>
         )}
       </footer>
 

@@ -259,16 +259,19 @@ export function HomeScreen({
                   <span className="doc-name" title={document.name}>
                     {document.name}
                   </span>
-                  <span className="doc-sub">
-                    <span className={`kind-dot doc-kind-${document.type}`} aria-hidden="true" />
-                    {document.type === 'menu' ? 'Menu' : document.type === 'asset' ? 'Asset' : 'Image'} ·{' '}
-                    <span className="mono" title={document.id}>
+                  {/* Pied de même structure dans chaque carte : type, identifiant (à la ligne s’il le faut), date. */}
+                  <span className="doc-footer">
+                    <span className="doc-sub">
+                      <span className={`kind-dot doc-kind-${document.type}`} aria-hidden="true" />
+                      {document.type === 'menu' ? 'Menu' : document.type === 'asset' ? 'Asset' : 'Image'}
+                    </span>
+                    <span className="doc-sub doc-id mono" title={document.id}>
                       {document.id}
                     </span>
-                  </span>
-                  <span className="doc-sub" title={formatDate(document.modified)}>
-                    <Icon name="clock" />
-                    {formatRelative(document.modified)}
+                    <span className="doc-sub" title={formatDate(document.modified)}>
+                      <Icon name="clock" />
+                      {formatRelative(document.modified)}
+                    </span>
                   </span>
                 </span>
               </button>

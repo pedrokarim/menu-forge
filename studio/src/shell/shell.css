@@ -428,11 +428,27 @@
   image-rendering: pixelated;
 }
 
+/* Nom en haut, pied (type, identifiant, date) en bas : les pieds des cartes
+   d’une même rangée tombent sur les mêmes lignes, quelle que soit la longueur
+   du nom. */
 .doc-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px 10px;
+}
+
+.doc-footer {
   display: grid;
   gap: 3px;
   min-width: 0;
-  padding: 8px 10px 10px;
+  margin-top: auto;
+}
+
+/* Identifiant sur sa propre ligne, coupé n’importe où s’il ne tient pas. */
+.doc-sub.doc-id {
+  display: block;
 }
 
 .doc-name {
