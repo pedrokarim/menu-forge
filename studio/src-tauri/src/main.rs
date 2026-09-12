@@ -32,7 +32,7 @@ use studio_backend::server::{self, ServerHandle, StaticFile, StaticFiles};
 use studio_backend::{paths, workspace, AppMode, Backend, BackendConfig};
 use tauri::webview::PageLoadEvent;
 use tauri::window::Color;
-use tauri::{AppHandle, Manager, RunEvent, Theme, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, RunEvent, Theme, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 /// Port du backend en développement : celui vers lequel Vite « proxifie » `/api`.
 const DEV_API_PORT: u16 = 5174;
@@ -143,6 +143,37 @@ fn same_origin(url: &Url, origin: &Url) -> bool {
         && url.port_or_known_default() == origin.port_or_known_default()
 }
 
+/// Taille par défaut de la fenêtre principale (px logiques).
+const MAIN_SIZE: (f64, f64) = (1440.0, 900.0);
+/// Taille minimale : rail d’écrans et trois colonnes de l’éditeur tiennent jusque-là
+/// (vérifié par les tests de bout en bout à 1024 × 600).
+const MAIN_MIN_SIZE: (f64, f64) = (1024.0, 600.0);
+
+/// Borne la fenêtre à la zone utile de l’écran (sans la barre des tâches) : à 125 %
+/// ou 150 % d’échelle, 1440 × 900 ne tient pas, et la barre de titre maison (seule
+/// poignée de déplacement) ne doit jamais sortir de l’écran. Centre la fenêtre dans
+/// cette zone.
+fn fit_to_work_area(window: &WebviewWindow) -> tauri::Result<()> {
+    let monitor = match window.current_monitor()? {
+        Some(monitor) => monitor,
+        None => match window.primary_monitor()? {
+            Some(monitor) => monitor,
+            None => return Ok(()),
+        },
+    };
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    let available = (f64::from(area.size.width) / scale, f64::from(area.size.height) / scale);
+    let size = (MAIN_SIZE.0.min(available.0), MAIN_SIZE.1.min(available.1));
+    let min = (MAIN_MIN_SIZE.0.min(available.0), MAIN_MIN_SIZE.1.min(available.1));
+    window.set_min_size(Some(LogicalSize::new(min.0, min.1)))?;
+    window.set_size(LogicalSize::new(size.0, size.1))?;
+    let x = f64::from(area.position.x) + (f64::from(area.size.width) - size.0 * scale) / 2.0;
+    let y = f64::from(area.position.y) + (f64::from(area.size.height) - size.1 * scale) / 2.0;
+    window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32))?;
+    Ok(())
+}
+
 /// Ouvre le splash, puis la fenêtre principale cachée ; la principale
 /// s’affiche quand sa page a fini de charger (et pas avant 1,8 s).
 fn open_windows(app: &AppHandle, origin: &Url) -> Result<(), BoxError> {
@@ -167,11 +198,11 @@ fn open_windows(app: &AppHandle, origin: &Url) -> Result<(), BoxError> {
 
     let main_origin = origin.clone();
     let on_load = Arc::clone(&revealed);
-    WebviewWindowBuilder::new(app, "main", WebviewUrl::External(origin.clone()))
+    let main_window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(origin.clone()))
         .title("Menu Forge · studio")
-        .inner_size(1440.0, 900.0)
-        // Rail d’écrans + trois colonnes de l’éditeur : en dessous, la toile n’a plus la place de ses outils.
-        .min_inner_size(1180.0, 700.0)
+        .inner_size(MAIN_SIZE.0, MAIN_SIZE.1)
+        // Bornées ensuite à la zone utile de l’écran (`fit_to_work_area`).
+        .min_inner_size(MAIN_MIN_SIZE.0, MAIN_MIN_SIZE.1)
         // Barre de titre maison (logo, écran en cours, boutons de fenêtre) dessinée par l’interface.
         .decorations(false)
         .center()
@@ -194,6 +225,9 @@ fn open_windows(app: &AppHandle, origin: &Url) -> Result<(), BoxError> {
             }
         })
         .build()?;
+    // Encore cachée : taille et position ajustées avant qu’elle ne paraisse. Sans écran
+    // connu, la taille par défaut reste.
+    let _ = fit_to_work_area(&main_window);
 
     reveal_after(app.clone(), revealed, SPLASH_TIMEOUT);
     Ok(())

@@ -159,8 +159,9 @@ taille, palette ; l’image est ramenée sur la grille des pixels, en palette
 imposée, avec une vraie transparence, puis ouverte dans l’éditeur de pixels.
 Fournisseurs, confidentialité et contraintes : [`ai.md`](ai.md).
 
-La fenêtre descend à 1180 × 700 : en dessous, rail d’écrans et trois colonnes
-ne laissent plus à la toile la place de ses outils.
+La fenêtre descend à 1024 × 600, et jamais au-delà de la zone utile de l’écran
+(barre des tâches ôtée, échelle d’affichage comprise) : les barres d’outils
+passent à la ligne par groupes et les colonnes latérales se règlent à la souris.
 
 ### Bibliothèques (`#/bibliotheques`)
 
