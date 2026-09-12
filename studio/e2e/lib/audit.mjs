@@ -8,6 +8,10 @@
  *   il doit tenir dans la boîte de cet ancêtre sur cet axe ; un ancêtre qui
  *   défile (`auto`, `scroll`) le rend atteignable et arrête la recherche ;
  * - sinon, il doit tenir dans la fenêtre (dialogues compris) ;
+ * - une image (`canvas`, `img`) tient dans la largeur de son conteneur, même
+ *   s’il défile : un aperçu qu’il faut faire défiler de côté est coupé à
+ *   l’œil. Seules les toiles des éditeurs, qui se déplacent exprès (`.stage`,
+ *   `.asset-stage`, `.pixel-stage`, `[data-audit-pan]`), en sont dispensées ;
  * - un élément qui rogne son propre contenu (`overflow` `hidden`) sans points
  *   de suspension ne doit pas avoir de contenu plus large que lui ;
  * - un élément qui ne rogne pas (`overflow` `visible`) ne doit pas laisser
@@ -165,6 +169,29 @@ export async function auditLayout(page, options = {}) {
       } else if (!scrollsY && element.scrollHeight > element.clientHeight + 2) {
         push(`${describe(element)} laisse baver son contenu (${element.scrollHeight} px pour ${element.clientHeight} px de haut)`);
         reported.add(element);
+      }
+    }
+
+    /* ---------- Images : dans la largeur de leur conteneur, même s’il défile ---------- */
+
+    // La règle précédente laisse passer ce qui dépasse d’un conteneur qui défile (le contenu reste
+    // atteignable). Pour un texte, soit ; pour une image, non : l’aperçu ×2 de l’export d’un asset
+    // sortait ainsi de sa colonne, coupé à droite, sans que rien ne le signale.
+    const PAN_AREAS = '.stage, .asset-stage, .pixel-stage, [data-audit-pan]';
+    for (const image of document.body.querySelectorAll('canvas, img')) {
+      if (problems.length >= limit) break;
+      if (exempt(image) || reported.has(image) || image.closest(PAN_AREAS) || !shown(image)) continue;
+      const rect = image.getBoundingClientRect();
+      if (rect.width <= 2 || rect.height <= 2) continue;
+      const clipper = clipperOf(image, 'x');
+      if (!clipper?.scrolls) continue;
+      const box = clipper.node.getBoundingClientRect();
+      // Boîte intérieure, barre de défilement exclue.
+      const left = box.left + clipper.node.clientLeft;
+      const right = left + clipper.node.clientWidth;
+      if (rect.left < left - TOLERANCE || rect.right > right + TOLERANCE) {
+        push(`${describe(image)} plus large que ${describe(clipper.node)}, qui le coupe (x${NBSP}: ${Math.round(rect.left)}–${Math.round(rect.right)} pour ${Math.round(left)}–${Math.round(right)})`);
+        reported.add(image);
       }
     }
 

@@ -444,7 +444,8 @@ export function RegionPicker({
           />
         </div>
       )}
-      <div className="asset-region-scroll">
+      {/* Défile exprès au zoom choisi : l’audit de mise en page n’y exige pas que l’image tienne en largeur. */}
+      <div className="asset-region-scroll" data-audit-pan>
         <canvas
           ref={canvasRef}
           style={{
