@@ -506,4 +506,58 @@ export const tests = [
       }
     },
   },
+  {
+    name: 'notifications et indicateur de tâches',
+    async run(t) {
+      expectClean(
+        t,
+        await sweep(t, [
+          { name: 'notifications · accueil', hash: '#/accueil', prepare: showFeedback },
+          { name: 'notifications · éditeur de menus', hash: MENU, prepare: showFeedback },
+          {
+            name: 'notifications · pile dépliée',
+            hash: MENU,
+            prepare: async (page) => {
+              await showFeedback(page);
+              await page.locator('.toast-more').click();
+            },
+          },
+          { name: 'notifications · éditeur de pixels', hash: PIXEL, prepare: showFeedback },
+          {
+            name: 'indicateur · menu des tâches',
+            hash: MENU,
+            perSize: true,
+            keepPointer: true,
+            prepare: async (page) => {
+              await showFeedback(page);
+              await page.locator('.rail .rail-jobs').click();
+              await page.locator('.context-menu').waitFor();
+            },
+          },
+        ]),
+      );
+    },
+  },
 ];
+
+/**
+ * Notifications et indicateur remplis, sans fournisseur : deux tâches qui ne
+ * finissent jamais (deux progressions, l’indicateur « 2 générations en cours »),
+ * puis un essai refusé, un succès et une erreur aux textes longs (cinq
+ * notifications : la plus ancienne est repliée).
+ */
+async function showFeedback(page) {
+  await page.evaluate(async () => {
+    const jobs = await import('/src/ai/jobs.ts');
+    const toasts = await import('/src/ui/toasts.ts');
+    const never = () => new Promise(() => undefined);
+    const long = 'Boutique à deux onglets (armes, armures), grille paginée de 7 × 3, boutons page précédente et suivante, bouton fermer en haut à droite';
+    jobs.startJob({ kind: 'interface', providerId: 'codex', providerName: 'Codex CLI', providerKind: 'cli', prompt: long, maxAttempts: 3, params: {} }, never);
+    jobs.startJob({ kind: 'texture', providerId: 'openai', providerName: 'OpenAI', providerKind: 'cloud', prompt: 'Épée en diamant', maxAttempts: 1, params: {} }, never);
+    toasts.showToast({ variant: 'info', icon: 'warning', title: 'Essai 1 sur 3 refusé : 12 erreurs, correction en cours…', message: `« ${long} »`, duration: null });
+    toasts.showToast({ variant: 'success', title: 'Interface prête', message: `« ${long} » · Codex CLI, 2 min 14 s`, action: { label: 'Ouvrir', run: () => undefined }, duration: null });
+    toasts.showToast({ variant: 'error', title: 'L’interface n’a pas pu être générée', message: 'Le fournisseur n’a pas répondu à temps.', action: { label: 'Voir le détail', run: () => undefined } });
+  });
+  await page.locator('.toast-stack .toast-error').waitFor();
+  await page.locator('.rail .rail-jobs').waitFor();
+}

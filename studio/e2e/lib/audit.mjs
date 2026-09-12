@@ -17,6 +17,9 @@
  * - deux contrôles ou deux textes d’un même calque ne se chevauchent pas
  *   (un menu contextuel, une infobulle ou un dialogue sont d’autres calques) ;
  * - rien ne recouvre le dialogue du dessus ;
+ * - une notification (pile en bas à droite, calque à part) ne recouvre ni la
+ *   barre d’état, ni le rail, ni la barre de titre, ni un dialogue ; dans un
+ *   éditeur, elle reste sur la toile (jamais sur les panneaux) ;
  * - dans une barre d’outils, les contrôles d’une même rangée ont la même
  *   hauteur et le même centre vertical (à 1 px près), et aucun contrôle isolé
  *   ne passe seul à la ligne (un groupe entier, oui) ;
@@ -169,7 +172,8 @@ export async function auditLayout(page, options = {}) {
 
     const INTERACTIVE =
       'button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="tab"], [role="button"], [role="checkbox"], [role="radio"], [role="slider"], [role="separator"][tabindex], label.checkbox';
-    const LAYERS = '[role="dialog"], [role="tooltip"], [role="menu"], .context-menu, .tooltip';
+    // La pile de notifications flotte au-dessus de la page : un calque à part (voir sa règle plus bas).
+    const LAYERS = '[role="dialog"], [role="tooltip"], [role="menu"], .context-menu, .tooltip, .toast-stack';
     const items = [];
     /** Rectangles des lignes de texte propres à un élément (un texte qui passe à la ligne en a plusieurs). */
     const textLines = (element) => {
@@ -297,6 +301,44 @@ export async function auditLayout(page, options = {}) {
             break search;
           }
         }
+      }
+    }
+
+    /* ---------- Notifications : jamais sur la barre d’état, le rail ni un dialogue ---------- */
+
+    const guarded = [...document.querySelectorAll('.statusbar, .rail, .titlebar, [role="dialog"]')].filter((element) => shown(element));
+    for (const toast of document.querySelectorAll('.toast-stack .toast, .toast-stack .toast-more')) {
+      if (problems.length >= limit) break;
+      if (!shown(toast)) continue;
+      // Partie visible seulement : dans une pile dépliée qui défile, le reste est caché, il ne recouvre rien.
+      const box = visiblePart(toast, toast.getBoundingClientRect());
+      if (!box) continue;
+      for (const other of guarded) {
+        const zone = other.getBoundingClientRect();
+        const width = Math.min(box.right, zone.right) - Math.max(box.left, zone.left);
+        const height = Math.min(box.bottom, zone.bottom) - Math.max(box.top, zone.top);
+        if (width > 1 && height > 1) {
+          push(`${describe(toast)} recouvre ${describe(other)} (${Math.round(width)} × ${Math.round(height)} px)`);
+          break;
+        }
+      }
+    }
+
+    // Dans un éditeur, la pile s’ancre sur la toile (`ui/ToastStack.tsx`) : elle ne déborde pas sur
+    // les panneaux et leurs boutons. Même seuil que le studio : sous 280 × 200 px, coin de la fenêtre.
+    let stage = null;
+    for (const element of document.querySelectorAll('.shell-editor:not([hidden]) :is(.stage, .asset-stage, .pixel-stage)')) {
+      const rect = element.getBoundingClientRect();
+      if (rect.width * rect.height > (stage ? stage.width * stage.height : 0)) stage = rect;
+    }
+    if (stage && stage.width >= 280 && stage.height >= 200) {
+      for (const toast of document.querySelectorAll('.toast-stack .toast, .toast-stack .toast-more')) {
+        if (problems.length >= limit) break;
+        if (!shown(toast)) continue;
+        const box = visiblePart(toast, toast.getBoundingClientRect());
+        if (!box) continue;
+        const outside = box.left < stage.left - TOLERANCE || box.right > stage.right + TOLERANCE || box.top < stage.top - TOLERANCE || box.bottom > stage.bottom + TOLERANCE;
+        if (outside) push(`${describe(toast)} sort de la toile de l’éditeur, sur ses panneaux`);
       }
     }
 
