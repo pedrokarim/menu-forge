@@ -3,6 +3,7 @@ import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, ReactN
 import { navigate } from '../shell/router';
 import type { EditorMode } from '../shell/router';
 import type { AiTextureReference, AiTextureResult } from '../ai/AiTextureDialog';
+import { getJob } from '../ai/jobs';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 import { overlayOpen } from '../ui/overlay';
@@ -105,8 +106,8 @@ type DialogState =
   | { kind: 'new-pixel' }
   | { kind: 'rename'; type: DocumentType; id: string; name: string }
   | { kind: 'new-component'; targets: Selection[] }
-  | { kind: 'ai-texture'; reference: AiTextureReference | null }
-  | { kind: 'ai-interface' }
+  | { kind: 'ai-texture'; reference: AiTextureReference | null; jobId?: string }
+  | { kind: 'ai-interface'; jobId?: string }
   | null;
 
 type Recipe = (draft: MenuDefinition) => void;
@@ -165,8 +166,10 @@ async function bakeTexture(path: string, spec: GeneratorSpec, origin: Point) {
 
 /** Demande venue d’un autre écran (actions rapides de l’accueil) ; `nonce` change à chaque demande. */
 export interface EditorRequest {
-  kind: 'new-menu' | 'generate-menu' | 'generate-examples' | 'new-asset' | 'new-pixel' | 'import-font' | 'ai-interface';
+  kind: 'new-menu' | 'generate-menu' | 'generate-examples' | 'new-asset' | 'new-pixel' | 'import-font' | 'ai-interface' | 'ai-job';
   nonce: number;
+  /** `ai-job` : tâche de fond dont rouvrir le dialogue (notification, indicateur du rail). */
+  jobId?: string;
 }
 
 /** Préférences de l’éditeur, tirées des réglages. */
@@ -998,7 +1001,14 @@ export function EditorScreen({
   }, [ready, active, mode, currentId, onRouteChange]);
 
   // Actions rapides de l’accueil (nouveau menu, nouvel asset, import depuis une police).
-  const handleRequest = (kind: EditorRequest['kind']) => {
+  const handleRequest = ({ kind, jobId }: EditorRequest) => {
+    if (kind === 'ai-job') {
+      // Génération de fond : son dialogue, sur son résultat ou sa progression.
+      const job = getJob(jobId);
+      if (job?.kind === 'texture') setDialog({ kind: 'ai-texture', reference: null, jobId: job.id });
+      else if (job && switchMode('menus')) setDialog({ kind: 'ai-interface', jobId: job.id });
+      return;
+    }
     if (kind === 'new-asset') {
       if (switchMode('assets')) setDialog({ kind: 'new-asset' });
     } else if (kind === 'new-pixel') {
@@ -1019,7 +1029,7 @@ export function EditorScreen({
   useEffect(() => {
     if (!request || !ready || request.nonce === handledRequest.current) return;
     handledRequest.current = request.nonce;
-    handleRequestRef.current(request.kind);
+    handleRequestRef.current(request);
   }, [request, ready]);
 
   const anyDirty = dirty || assetDirty || pixelDirty;
@@ -2560,6 +2570,7 @@ export function EditorScreen({
           <AiTextureDialog
             existingIds={pixelList.map((candidate) => candidate.id)}
             reference={dialog.reference}
+            jobId={dialog.jobId}
             onCancel={() => setDialog(null)}
             onOpenSettings={openAiSettings}
             onCreate={handleAiTexture}
@@ -2572,6 +2583,7 @@ export function EditorScreen({
             menus={knownMenus}
             textures={workspace?.textures ?? []}
             initialRows={menu?.container.rows ?? 6}
+            jobId={dialog.jobId}
             onCancel={() => setDialog(null)}
             onOpenSettings={openAiSettings}
             onOpen={handleAiInterface}

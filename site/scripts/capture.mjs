@@ -816,7 +816,7 @@ shot('ai-texture', '« Générer une texture par IA » : sortie du modèle et te
   await field(modal, 'Fournisseur').selectOption('automatic1111');
   await field(modal, 'Taille type').selectOption('0');
   await field(modal, 'Palette imposée').selectOption('menu-forge');
-  await modal.locator('textarea').fill(DEMO_AI.texturePrompt);
+  await modal.locator('textarea.ai-prompt').fill(DEMO_AI.texturePrompt);
   await modal.getByRole('button', { name: 'Générer', exact: true }).click();
   await page.getByRole('img', { name: 'Texture contrainte' }).waitFor({ timeout: 30000 });
   await page.mouse.move(5, 5);
@@ -832,10 +832,10 @@ shot('ai-interface', '« Générer une interface par IA » : essai refusé, corr
   const modal = page.locator('.modal').first();
   await modal.waitFor({ timeout: 30000 });
   await field(modal, 'Fournisseur').selectOption('ollama');
-  await modal.locator('textarea').fill(DEMO_AI.interfacePrompt);
+  await modal.locator('textarea.ai-prompt').fill(DEMO_AI.interfacePrompt);
   await field(modal, 'Nom').fill('Marché de nuit');
   await modal.getByRole('button', { name: 'Générer', exact: true }).click();
-  await modal.locator('.ai-log li.is-ok').waitFor({ timeout: 30000 });
+  await modal.locator('.ai-attempts li.is-ok').waitFor({ timeout: 30000 });
   await page.mouse.move(5, 5);
   await wait(400);
   return modal;

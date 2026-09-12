@@ -44,6 +44,9 @@ import { WorkspacePill } from './shell/WorkspacePill';
 import { navigate, parseRoute, useRoute } from './shell/router';
 import type { EditorMode } from './shell/router';
 import { Icon } from './ui/Icon';
+import { ToastStack } from './ui/ToastStack';
+import { JobIndicator } from './ai/JobIndicator';
+import { onOpenJob } from './ai/jobs';
 import './shell/shell.css';
 
 /** Écrans secondaires et aide-mémoire : chargés à leur première ouverture, hors du paquet principal. */
@@ -153,6 +156,16 @@ export default function App() {
       else navigate({ screen: target });
     },
     [editorRoute],
+  );
+
+  // Notification ou indicateur d’une génération : retour à l’éditeur, qui rouvre le dialogue de la tâche.
+  useEffect(
+    () =>
+      onOpenJob((job) => {
+        setEditorRequest({ kind: 'ai-job', jobId: job.id, nonce: Date.now() });
+        goTo('editor');
+      }),
+    [goTo],
   );
 
   useEffect(() => {
@@ -356,7 +369,7 @@ export default function App() {
     <div className={isTauri ? 'app-frame has-titlebar' : 'app-frame'}>
       {isTauri && <TitleBar context={titleContext} confirmClose={confirmClose} />}
       <div className="shell">
-      <ScreenRail current={screen} onSelect={goTo} onShowShortcuts={() => setShowShortcuts(true)} />
+      <ScreenRail current={screen} onSelect={goTo} onShowShortcuts={() => setShowShortcuts(true)} status={<JobIndicator />} />
       <div className="shell-main">
         {loadError && (
           <div className="banner error" role="alert">
@@ -459,6 +472,7 @@ export default function App() {
         />
       )}
       </div>
+      <ToastStack />
     </div>
     </ContextMenuProvider>
   );

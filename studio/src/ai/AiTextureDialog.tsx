@@ -2,18 +2,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Field, FieldError, Modal, NumberField } from '../components/fields';
 import { NBSP, plural } from '../lib/format';
 import { ID_PATTERN, sanitizeId, uniqueId } from '../model/menu';
-import { bytesToBitmap, loadBitmap } from '../pixel/io';
+import { loadBitmap } from '../pixel/io';
 import { DEFAULT_PALETTE } from '../pixel/palette';
 import type { Bitmap } from '../pixel/raster';
+import { GrowingTextInput } from '../ui/GrowingTextInput';
 import { Icon } from '../ui/Icon';
 import { Tooltip } from '../ui/Tooltip';
-import { base64ToBytes, fetchProviders, generateImage, isAbort } from './api';
+import { fetchProviders } from './api';
 import type { AiProvider } from './api';
 import { DEFAULT_CONSTRAINTS, constrainTexture, extractPalette, parsePalette } from './constrain';
 import type { PaletteChoice, Rgb } from './constrain';
-import { TEXTURE_NEGATIVE, textureSystemPrompt } from './prompts';
-import { nextGenerationId, rememberTexture, textureHistory } from './session';
+import { cancelJob, consumeJob, getJob, isRunning, latestJob, useJob, useWatchJob } from './jobs';
+import { JobPanel } from './JobPanel';
+import { textureHistory } from './session';
 import type { TextureGeneration } from './session';
+import { startTextureJob } from './textureJob';
+import type { TextureJobParams } from './textureJob';
 import './ai.css';
 
 /** Côté maximal d’une texture générée (au-delà, l’éditeur de pixels reste la bonne voie). */
@@ -31,6 +35,7 @@ const SIZE_PRESETS: ReadonlyArray<{ label: string; width: number; height: number
 type PaletteMode = 'menu-forge' | 'reference' | 'auto' | 'free';
 
 const MENU_FORGE_PALETTE: Rgb[] = parsePalette(DEFAULT_PALETTE.map((entry) => entry.hex));
+const DEFAULT_NAME = 'Texture IA';
 
 export interface AiTextureResult {
   id: string;
@@ -49,6 +54,9 @@ interface AiTextureDialogProps {
   existingIds: string[];
   /** Texture dont on reprend la taille et la palette (bibliothèque, image ouverte). */
   reference: AiTextureReference | null;
+  /** Tâche à montrer (notification, indicateur) ; sinon la dernière en cours ou non consultée. */
+  jobId?: string | null;
+  /** Ferme le dialogue ; une génération en cours continue en arrière-plan. */
   onCancel: () => void;
   onOpenSettings: () => void;
   /** Crée l’image de pixels et l’ouvre dans l’éditeur. */
@@ -88,28 +96,38 @@ function BitmapView({ bitmap, box, label }: { bitmap: Bitmap; box: number; label
  * « Générer une texture… » : prompt, fournisseur, taille, palette ; l’image
  * du modèle passe par la chaîne de contrainte (grille, palette, transparence)
  * avant de s’ouvrir dans l’éditeur de pixels pour retouche.
+ *
+ * La génération est une tâche de fond (`jobs.ts`) : fermer le dialogue ne
+ * l’arrête pas, le rouvrir la montre ; seul « Annuler la génération »
+ * l’arrête.
  */
-export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettings, onCreate }: AiTextureDialogProps) {
+export function AiTextureDialog({ existingIds, reference, jobId: requestedJob = null, onCancel, onOpenSettings, onCreate }: AiTextureDialogProps) {
+  const [initialJob] = useState(() => getJob(requestedJob) ?? latestJob('texture'));
+  const initial = initialJob?.params as TextureJobParams | undefined;
+  const [jobId, setJobId] = useState<string | null>(initialJob?.id ?? null);
+  const job = useJob(jobId);
+  useWatchJob(jobId);
+  const running = job !== null && isRunning(job);
+
   const [providers, setProviders] = useState<AiProvider[] | null>(null);
-  const [providerId, setProviderId] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [width, setWidth] = useState(16);
-  const [height, setHeight] = useState(16);
-  const [paletteMode, setPaletteMode] = useState<PaletteMode>('menu-forge');
-  const [autoCount, setAutoCount] = useState(16);
-  const [removeBackground, setRemoveBackground] = useState(DEFAULT_CONSTRAINTS.removeBackground);
-  const [tolerance, setTolerance] = useState(DEFAULT_CONSTRAINTS.backgroundTolerance);
-  const [cropToSubject, setCropToSubject] = useState(DEFAULT_CONSTRAINTS.cropToSubject);
-  const [hardAlpha, setHardAlpha] = useState(true);
+  const [providerId, setProviderId] = useState(initial?.providerId ?? '');
+  const [prompt, setPrompt] = useState(initial?.prompt ?? '');
+  const [width, setWidth] = useState(initial?.width ?? 16);
+  const [height, setHeight] = useState(initial?.height ?? 16);
+  const [paletteMode, setPaletteMode] = useState<PaletteMode>((initial?.paletteMode as PaletteMode | undefined) ?? 'menu-forge');
+  const [autoCount, setAutoCount] = useState(initial?.autoCount ?? 16);
+  const [removeBackground, setRemoveBackground] = useState(initial?.removeBackground ?? DEFAULT_CONSTRAINTS.removeBackground);
+  const [tolerance, setTolerance] = useState(initial?.tolerance ?? DEFAULT_CONSTRAINTS.backgroundTolerance);
+  const [cropToSubject, setCropToSubject] = useState(initial?.cropToSubject ?? DEFAULT_CONSTRAINTS.cropToSubject);
+  const [hardAlpha, setHardAlpha] = useState(initial?.hardAlpha ?? true);
   const [referencePalette, setReferencePalette] = useState<Rgb[]>([]);
-  const [generation, setGeneration] = useState<TextureGeneration | null>(null);
-  const [name, setName] = useState('Texture IA');
+  /** Génération reprise de l’historique de la session (hors tâche). */
+  const [picked, setPicked] = useState<TextureGeneration | null>(null);
+  const [name, setName] = useState(DEFAULT_NAME);
   const [id, setId] = useState(() => uniqueId('texture_ia', existingIds));
   const [idTouched, setIdTouched] = useState(false);
-  const [busy, setBusy] = useState<'generate' | 'create' | null>(null);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [, setHistoryVersion] = useState(0);
-  const controller = useRef<AbortController | null>(null);
 
   // Fournisseurs d’images activés, relus à l’ouverture (aucune requête vers un fournisseur ici).
   useEffect(() => {
@@ -127,7 +145,6 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
     );
     return () => {
       cancelled = true;
-      controller.current?.abort();
     };
   }, []);
 
@@ -150,6 +167,19 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
       cancelled = true;
     };
   }, [reference]);
+
+  const generation = (job?.result as TextureGeneration | null | undefined) ?? picked;
+
+  // Première génération reçue : son prompt devient le nom proposé (tant qu’on n’a rien saisi).
+  const [named, setNamed] = useState<string | null>(null);
+  if (generation && generation.id !== named) {
+    setNamed(generation.id);
+    if (!idTouched && name === DEFAULT_NAME) {
+      const suggested = generation.prompt.slice(0, 40);
+      setName(suggested);
+      setId(uniqueId(sanitizeId(suggested) || 'texture_ia', existingIds));
+    }
+  }
 
   const palette: PaletteChoice =
     paletteMode === 'menu-forge'
@@ -180,119 +210,100 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
   let idError: string | null = null;
   if (!ID_PATTERN.test(id)) idError = 'Lettres minuscules, chiffres et _ uniquement';
   else if (existingIds.includes(id)) idError = 'Une image porte déjà cet identifiant';
+  const canGenerate = Boolean(provider?.ready && prompt.trim()) && !running && !creating;
 
-  const generate = async () => {
-    if (!provider?.ready || !prompt.trim() || busy) return;
-    const abort = new AbortController();
-    controller.current = abort;
-    setBusy('generate');
+  const generate = () => {
+    if (!provider || !canGenerate) return;
     setError(null);
-    try {
-      const fixedColors = palette.kind === 'fixed' ? palette.colors : [];
-      const reply = await generateImage(
-        {
-          provider: provider.id,
-          prompt: prompt.trim(),
-          system: textureSystemPrompt({ width, height, palette: fixedColors }),
-          negativePrompt: TEXTURE_NEGATIVE,
-          width,
-          height,
-        },
-        abort.signal,
-      );
-      const raw = await bytesToBitmap(base64ToBytes(reply.data), reply.mime);
-      const next: TextureGeneration = {
-        id: nextGenerationId(),
-        at: Date.now(),
-        provider: provider.id,
-        providerName: provider.name,
-        model: reply.model,
-        prompt: prompt.trim(),
-        raw,
-        width,
-        height,
-      };
-      rememberTexture(next);
-      setHistoryVersion((version) => version + 1);
-      setGeneration(next);
-      if (!idTouched && name === 'Texture IA') {
-        const suggested = prompt.trim().slice(0, 40);
-        setName(suggested);
-        setId(uniqueId(sanitizeId(suggested) || 'texture_ia', existingIds));
-      }
-    } catch (failure) {
-      if (!isAbort(failure)) setError(errorMessage(failure));
-    } finally {
-      if (controller.current === abort) controller.current = null;
-      setBusy(null);
-    }
+    setPicked(null);
+    if (job) consumeJob(job.id);
+    const params: TextureJobParams = { providerId: provider.id, prompt, width, height, paletteMode, autoCount, removeBackground, tolerance, cropToSubject, hardAlpha };
+    setJobId(startTextureJob(params, provider, palette.kind === 'fixed' ? palette.colors : []));
   };
 
-  const stop = () => controller.current?.abort();
+  const newRequest = () => {
+    setJobId(null);
+    setPicked(null);
+    setError(null);
+  };
+
+  const reject = () => {
+    if (job) consumeJob(job.id);
+    setJobId(null);
+    setError(null);
+  };
 
   const create = async () => {
     if (!constrained || idError || !name.trim()) return;
-    setBusy('create');
+    setCreating(true);
     setError(null);
     try {
       await onCreate({ id, name: name.trim(), bitmap: constrained.bitmap, prompt: generation?.prompt ?? prompt });
+      if (job) consumeJob(job.id);
     } catch (failure) {
       setError(errorMessage(failure));
-      setBusy(null);
+      setCreating(false);
     }
   };
 
-  // Relu à chaque rendu : `setHistoryVersion` en provoque un après chaque génération.
   const history = [...textureHistory()];
   const report = constrained?.report;
 
   return (
     <Modal
       title="Générer une texture par IA"
-      onClose={() => {
-        stop();
-        onCancel();
-      }}
+      onClose={onCancel}
       footer={
-        <>
-          {error && <FieldError>{error}</FieldError>}
-          <button type="button" onClick={onCancel}>
-            Annuler
-          </button>
-          {busy === 'generate' ? (
-            <Tooltip label="Arrêter la génération" hint={`La requête est abandonnée${NBSP}; rien n’est créé`}>
-              <button type="button" onClick={stop}>
+        running ? (
+          <>
+            <Tooltip label="Annuler la génération" hint={`Arrête vraiment la tâche${NBSP}: rien n’est créé`}>
+              <button type="button" onClick={() => cancelJob(job.id)}>
                 <Icon name="stop" />
-                Arrêter
+                Annuler la génération
               </button>
             </Tooltip>
-          ) : (
+            <Tooltip label="Continuer en arrière-plan" hint="Une notification prévient à la fin" shortcut="Échap">
+              <button type="button" className="primary" onClick={onCancel}>
+                <Icon name="chevron-down" />
+                Continuer en arrière-plan
+              </button>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            {error && <FieldError>{error}</FieldError>}
+            <button type="button" onClick={onCancel}>
+              {generation ? 'Fermer' : 'Annuler'}
+            </button>
+            {job && !job.consumed && job.phase !== 'cancelled' && (
+              <Tooltip label="Rejeter ce résultat" hint="Il reste dans les générations de la session">
+                <button type="button" onClick={reject}>
+                  <Icon name="trash" />
+                  Rejeter
+                </button>
+              </Tooltip>
+            )}
             <Tooltip label={generation ? 'Nouvelle image' : 'Lancer la génération'} shortcut="Ctrl+Entrée">
-              <button
-                type="button"
-                className={generation ? undefined : 'primary'}
-                disabled={!provider?.ready || !prompt.trim() || busy !== null}
-                onClick={() => void generate()}
-              >
+              <button type="button" className={generation ? undefined : 'primary'} disabled={!canGenerate} onClick={generate}>
                 <Icon name={generation ? 'reload' : 'sparkles'} />
                 {generation ? 'Régénérer' : 'Générer'}
               </button>
             </Tooltip>
-          )}
-          <button
-            type="button"
-            className={generation ? 'primary' : undefined}
-            disabled={!constrained || Boolean(idError) || !name.trim() || busy !== null}
-            onClick={() => void create()}
-          >
-            <Icon name={busy === 'create' ? 'loader' : 'pencil'} />
-            Ouvrir dans l’éditeur de pixels
-          </button>
-        </>
+            <button
+              type="button"
+              className={generation ? 'primary' : undefined}
+              disabled={!constrained || Boolean(idError) || !name.trim() || creating}
+              onClick={() => void create()}
+            >
+              <Icon name={creating ? 'loader' : 'pencil'} />
+              Ouvrir dans l’éditeur de pixels
+            </button>
+          </>
+        )
       }
     >
       <div className="ai-grid">
-        <div className="ai-form">
+        <fieldset className="ai-form" disabled={running}>
           {providers && ready.length === 0 ? (
             <p className="empty-hint">
               <Icon name="info" />
@@ -325,7 +336,7 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                   event.preventDefault();
-                  void generate();
+                  generate();
                 }
               }}
             />
@@ -396,16 +407,17 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
             <input type="checkbox" checked={hardAlpha} onChange={(event) => setHardAlpha(event.target.checked)} />
             Transparence nette (sans pixels translucides)
           </label>
-        </div>
+        </fieldset>
 
         <div className="ai-side">
+          {job && <JobPanel job={job} onNewRequest={running ? newRequest : undefined} />}
           <div className="ai-stage">
             <div className="ai-frame">
               <span className="ai-frame-label">Sortie du modèle</span>
               {generation ? (
                 <BitmapView bitmap={generation.raw} box={150} label="Image renvoyée par le modèle" />
               ) : (
-                <span className="ai-frame-empty">{busy === 'generate' ? 'Génération…' : 'Aucune image'}</span>
+                <span className="ai-frame-empty">{running ? 'En attente de l’image…' : 'Aucune image'}</span>
               )}
             </div>
             <div className="ai-frame">
@@ -415,7 +427,7 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
               {constrained ? (
                 <BitmapView bitmap={constrained.bitmap} box={150} label="Texture contrainte" />
               ) : (
-                <span className="ai-frame-empty">{busy === 'generate' ? <Icon name="loader" size={24} /> : 'Grille, palette et transparence appliquées ici'}</span>
+                <span className="ai-frame-empty">Grille, palette et transparence appliquées ici</span>
               )}
             </div>
           </div>
@@ -430,11 +442,12 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
           )}
           <div className="field-row">
             <Field label="Nom de l’image">
-              <input
+              {/* Nom repris du prompt, souvent long : il passe à la ligne au lieu d’être coupé. */}
+              <GrowingTextInput
                 value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-                  if (!idTouched) setId(uniqueId(sanitizeId(event.target.value) || 'texture_ia', existingIds));
+                onChange={(value) => {
+                  setName(value);
+                  if (!idTouched) setId(uniqueId(sanitizeId(value) || 'texture_ia', existingIds));
                 }}
               />
             </Field>
@@ -461,8 +474,10 @@ export function AiTextureDialog({ existingIds, reference, onCancel, onOpenSettin
                       role="listitem"
                       className={entry.id === generation?.id ? 'ai-history-item active' : 'ai-history-item'}
                       aria-label={`Reprendre «${NBSP}${entry.prompt}${NBSP}»`}
+                      disabled={running}
                       onClick={() => {
-                        setGeneration(entry);
+                        setJobId(null);
+                        setPicked(entry);
                         setPrompt(entry.prompt);
                       }}
                     >

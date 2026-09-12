@@ -185,26 +185,273 @@
   overflow-wrap: anywhere;
 }
 
-.ai-log {
+/* L’heure ne se coupe jamais (« 07:22 » puis « :40 ») : c’est le prompt qui passe à la ligne. */
+.ai-history-row span.muted {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* Formulaire : un fieldset, désactivé d’un bloc pendant une génération, sans cadre ni marge. */
+fieldset.ai-form {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* ---------- Tâche en cours (JobPanel) ---------- */
+
+.ai-job {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--ds-panel-raised);
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-panel);
+}
+
+.ai-job-head {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.ai-job-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--ds-gold);
+}
+
+.ai-job.is-done .ai-job-icon {
+  color: var(--ds-ok);
+}
+
+.ai-job.is-failed .ai-job-icon {
+  color: var(--ds-danger);
+}
+
+.ai-job.is-cancelled .ai-job-icon {
+  color: var(--ds-muted);
+}
+
+.ai-job-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ai-job-title {
+  margin: 0;
+  font: 600 15px/24px var(--font-display);
+  letter-spacing: 0.02em;
+  color: var(--ds-ink-strong);
+  overflow-wrap: anywhere;
+}
+
+.ai-job-detail {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ds-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Chiffres de même largeur : le chronomètre ne tremble pas. */
+.ai-job-clock {
+  font: 600 14px/24px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-gold);
+}
+
+.ai-job-bar {
+  position: relative;
+  height: 14px;
+  overflow: hidden;
+  background: var(--ds-field);
+  border: 2px solid var(--ds-edge);
+}
+
+.ai-job-bar-fill,
+.ai-job-bar-run {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.ai-job-bar-fill {
+  left: 0;
+  background: var(--ds-gold-btn);
+  box-shadow: inset 0 2px 0 var(--ds-gold-hi), inset 0 -2px 0 var(--ds-gold-lo);
+}
+
+.ai-job.is-done .ai-job-bar-fill {
+  background: var(--ds-ok);
+  box-shadow: none;
+}
+
+/* Étape en cours : des blocs d’or qui avancent de 2 px en 2 px. */
+.ai-job-bar-run {
+  background: repeating-linear-gradient(90deg, var(--ds-gold) 0 6px, transparent 6px 10px);
+  animation: ai-march 500ms steps(5, end) infinite;
+}
+
+@keyframes ai-march {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 10px 0;
+  }
+}
+
+/* Une colonne par étape (le nombre de colonnes est posé par le composant), sous le segment de la barre qui lui correspond. */
+.ai-job-steps {
   display: grid;
   gap: 4px;
-  max-height: 150px;
   margin: 0;
-  padding: 8px;
-  overflow: auto;
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  padding: 0;
   font-size: 11px;
+  list-style: none;
+  color: var(--ds-faint);
+}
+
+.ai-job-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-job-steps li::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: var(--ds-btn);
+}
+
+.ai-job-steps li.is-done {
+  color: var(--ds-muted);
+}
+
+.ai-job-steps li.is-done::before {
+  background: var(--ds-ok);
+}
+
+.ai-job-steps li.is-current {
+  color: var(--ds-ink-strong);
+}
+
+.ai-job-steps li.is-current::before {
+  background: var(--ds-gold);
+  animation: ai-blink 800ms steps(1, end) infinite;
+}
+
+@keyframes ai-blink {
+  50% {
+    background: var(--ds-gold-lo);
+  }
+}
+
+.ai-job-error {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--ds-danger);
+  background: var(--ds-danger-bg);
+  border: 2px solid var(--ds-edge);
+  overflow-wrap: anywhere;
+}
+
+.ai-job-new {
+  justify-self: start;
+}
+
+/* Journal des essais : un essai par ligne, ses erreurs repliables. */
+.ai-attempts {
+  display: grid;
+  gap: 4px;
+  max-height: 180px;
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  font: 11px/1.4 var(--font-mono);
   list-style: none;
   background: var(--ds-field);
   border: 2px solid var(--ds-edge);
 }
 
-.ai-log .is-error {
+.ai-attempts .is-error {
   color: var(--ds-danger);
 }
 
-.ai-log .is-ok {
+.ai-attempts .is-ok {
   color: var(--ds-ok);
+}
+
+.ai-attempts .is-live {
+  color: var(--ds-gold);
+}
+
+.ai-attempt-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+}
+
+summary.ai-attempt-row {
+  grid-template-columns: 12px minmax(0, 1fr) auto 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+summary.ai-attempt-row::-webkit-details-marker {
+  display: none;
+}
+
+summary.ai-attempt-row:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+
+details:not([open]) > summary .ai-attempt-chevron {
+  transform: rotate(-90deg);
+}
+
+.ai-attempt-time {
+  color: var(--ds-faint);
+}
+
+.ai-attempt-errors {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 2px 18px;
+  padding: 0;
+  list-style: none;
+  color: var(--ds-ink);
+}
+
+.ai-attempt-errors li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-attempt-errors li::before {
+  content: '· ';
+  color: var(--ds-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-job-bar-run,
+  .ai-job-steps li.is-current::before {
+    animation: none;
+  }
 }
 
 .ai-json {

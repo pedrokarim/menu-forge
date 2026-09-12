@@ -1,4 +1,5 @@
 import { withWriteHeader } from '../lib/http';
+import type { RemotePhase, RemoteProgress } from './jobs';
 
 /**
  * Client des routes `/api/ai` du backend (voir `backend/src/ai/mod.rs`).
@@ -118,16 +119,50 @@ export function cancelGeneration(requestId: string): void {
   void call<void>('/ai/cancel', 'POST', { requestId }).catch(() => undefined);
 }
 
-/** Lance une génération annulable : l’abandon de `signal` prévient aussi le backend. */
-function cancellable<T>(path: string, body: object, signal?: AbortSignal): Promise<T> {
+/** Première lecture de la progression, puis une par seconde. */
+const PROGRESS_FIRST_MS = 250;
+const PROGRESS_INTERVAL_MS = 1000;
+
+interface ProgressReply {
+  active: boolean;
+  phase?: RemotePhase;
+  events?: number;
+}
+
+/**
+ * Lance une génération annulable : l’abandon de `signal` prévient aussi le
+ * backend. `onProgress` reçoit, chaque seconde tant qu’elle court, la phase
+ * vue par le backend (`GET /ai/progress/:id` ; une lecture échouée est ignorée).
+ */
+function cancellable<T>(path: string, body: object, signal?: AbortSignal, onProgress?: (progress: RemoteProgress) => void): Promise<T> {
   const requestId = newRequestId();
   const onAbort = () => cancelGeneration(requestId);
   signal?.addEventListener('abort', onAbort, { once: true });
-  return call<T>(path, 'POST', { ...body, requestId }, signal).finally(() => signal?.removeEventListener('abort', onAbort));
+  let settled = false;
+  let timer = 0;
+  if (onProgress) {
+    const poll = async () => {
+      try {
+        const reply = await call<ProgressReply>(`/ai/progress/${idPath(requestId)}`);
+        if (!settled && reply.active && reply.phase) onProgress({ phase: reply.phase, events: reply.events ?? 0 });
+      } catch {
+        // Lecture facultative : la génération continue sans elle.
+      }
+      if (!settled) timer = window.setTimeout(() => void poll(), PROGRESS_INTERVAL_MS);
+    };
+    timer = window.setTimeout(() => void poll(), PROGRESS_FIRST_MS);
+  }
+  return call<T>(path, 'POST', { ...body, requestId }, signal).finally(() => {
+    settled = true;
+    window.clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  });
 }
 
-export const generateImage = (request: ImageRequest, signal?: AbortSignal) => cancellable<ImageReply>('/ai/image', request, signal);
-export const generateText = (request: TextRequest, signal?: AbortSignal) => cancellable<TextReply>('/ai/text', request, signal);
+export const generateImage = (request: ImageRequest, signal?: AbortSignal, onProgress?: (progress: RemoteProgress) => void) =>
+  cancellable<ImageReply>('/ai/image', request, signal, onProgress);
+export const generateText = (request: TextRequest, signal?: AbortSignal, onProgress?: (progress: RemoteProgress) => void) =>
+  cancellable<TextReply>('/ai/text', request, signal, onProgress);
 
 export function base64ToBytes(data: string): Uint8Array {
   const binary = atob(data);

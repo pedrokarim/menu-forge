@@ -186,6 +186,18 @@ export function Modal({
     return () => opener?.focus();
   }, []);
 
+  // Un bouton focalisé qui disparaît (pied de dialogue qui change, génération finie) rend le focus au
+  // document : il revient au dialogue, où Échap et Tab agissent toujours.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const observer = new MutationObserver(() => {
+      if (document.activeElement === document.body && dialog.isConnected) dialog.focus({ preventScroll: true });
+    });
+    observer.observe(dialog, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
       className="modal-backdrop"

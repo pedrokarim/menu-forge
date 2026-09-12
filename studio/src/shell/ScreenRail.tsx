@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { Tooltip } from '../ui/Tooltip';
@@ -18,10 +19,12 @@ interface ScreenRailProps {
   current: ScreenId;
   onSelect: (screen: RailScreen) => void;
   onShowShortcuts: () => void;
+  /** Indicateur d’activité en bas du rail (générations en cours). */
+  status?: ReactNode;
 }
 
 /** Rail vertical des écrans : icônes, infobulle avec le raccourci, écran actif en or. */
-export function ScreenRail({ current, onSelect, onShowShortcuts }: ScreenRailProps) {
+export function ScreenRail({ current, onSelect, onShowShortcuts, status }: ScreenRailProps) {
   return (
     <nav className="rail" aria-label="Écrans">
       <img className="rail-logo" src="/brand/logo.svg" alt="Menu Forge" width={32} height={32} />
@@ -40,6 +43,7 @@ export function ScreenRail({ current, onSelect, onShowShortcuts }: ScreenRailPro
         </Tooltip>
       ))}
       <span className="rail-spacer" />
+      {status}
       <Tooltip label="Raccourcis clavier" shortcut="?" placement="right">
         <button type="button" className="rail-button" aria-label="Raccourcis clavier" onClick={onShowShortcuts}>
           <Icon name="keyboard" size={24} />

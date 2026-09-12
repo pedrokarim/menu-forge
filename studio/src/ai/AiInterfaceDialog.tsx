@@ -9,17 +9,15 @@ import { ID_PATTERN, sanitizeId, uniqueId } from '../model/menu';
 import type { MenuDefinition } from '../model/menu';
 import { Icon } from '../ui/Icon';
 import { Tooltip } from '../ui/Tooltip';
-import { fetchProviders, generateText, isAbort } from './api';
+import { fetchProviders } from './api';
 import type { AiProvider } from './api';
-import { DEFAULT_ATTEMPTS, MAX_ATTEMPTS_LIMIT, generateWithCorrections } from './correction';
-import { checkMenu } from './menuCheck';
-import type { MenuCheckContext } from './menuCheck';
-import { interfaceRequest, interfaceSystemPrompt } from './prompts';
-import { interfaceHistory, nextGenerationId, rememberInterface } from './session';
+import { DEFAULT_ATTEMPTS, MAX_ATTEMPTS_LIMIT } from './correction';
+import { startInterfaceJob } from './interfaceJob';
+import type { InterfaceJobParams } from './interfaceJob';
+import { cancelJob, consumeJob, getJob, isRunning, latestJob, useJob, useWatchJob } from './jobs';
+import { JobPanel } from './JobPanel';
+import { interfaceHistory } from './session';
 import type { InterfaceGeneration } from './session';
-// Import statique : ce dialogue est déjà chargé à la demande, et un `import()`
-// dynamique échouait quand Vite réoptimisait ses dépendances en cours de session.
-import schemaText from '../../../docs/menu.schema.json?raw';
 import './ai.css';
 
 interface AiInterfaceDialogProps {
@@ -28,15 +26,13 @@ interface AiInterfaceDialogProps {
   /** Textures de l’espace (chemins relatifs à `textures/`). */
   textures: string[];
   initialRows?: number;
+  /** Tâche à montrer (notification, indicateur) ; sinon la dernière en cours ou non consultée. */
+  jobId?: string | null;
+  /** Ferme le dialogue ; une génération en cours continue en arrière-plan. */
   onCancel: () => void;
   onOpenSettings: () => void;
   /** Ouvre le menu dans l’éditeur, à relire avant enregistrement. */
   onOpen: (menu: MenuDefinition) => Promise<void>;
-}
-
-interface LogLine {
-  attempt: number;
-  errors: string[];
 }
 
 function errorMessage(error: unknown): string {
@@ -107,24 +103,34 @@ function MenuSketch({ menu }: { menu: MenuDefinition }) {
  * coffre ; le modèle reçoit le schéma exact et le contexte de l’espace, sa
  * réponse est validée (schéma, règles de la lib) et corrigée en boucle
  * bornée, puis le menu s’ouvre dans l’éditeur, **non enregistré**.
+ *
+ * La génération est une tâche de fond (`jobs.ts`) : fermer le dialogue ne
+ * l’arrête pas, le rouvrir la montre en direct ; seul « Annuler la
+ * génération » l’arrête.
  */
-export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, onOpenSettings, onOpen }: AiInterfaceDialogProps) {
+export function AiInterfaceDialog({ menus, textures, initialRows = 6, jobId: requestedJob = null, onCancel, onOpenSettings, onOpen }: AiInterfaceDialogProps) {
   const existingIds = useMemo(() => menus.map((menu) => menu.id), [menus]);
+  // Tâche montrée à l’ouverture, et ses valeurs pour préremplir le formulaire.
+  const [initialJob] = useState(() => getJob(requestedJob) ?? latestJob('interface'));
+  const initial = initialJob?.params as InterfaceJobParams | undefined;
+  const [jobId, setJobId] = useState<string | null>(initialJob?.id ?? null);
+  const job = useJob(jobId);
+  useWatchJob(jobId);
+  const running = job !== null && isRunning(job);
+
   const [providers, setProviders] = useState<AiProvider[] | null>(null);
-  const [providerId, setProviderId] = useState('');
-  const [description, setDescription] = useState('');
-  const [name, setName] = useState('Menu généré');
-  const [id, setId] = useState(() => uniqueId('menu_genere', existingIds));
-  const [idTouched, setIdTouched] = useState(false);
-  const [rows, setRows] = useState(initialRows);
-  const [attempts, setAttempts] = useState(DEFAULT_ATTEMPTS);
-  const [allowGenerated, setAllowGenerated] = useState(true);
-  const [log, setLog] = useState<LogLine[]>([]);
-  const [result, setResult] = useState<InterfaceGeneration | null>(null);
-  const [busy, setBusy] = useState<'generate' | 'open' | null>(null);
+  const [providerId, setProviderId] = useState(initial?.providerId ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [name, setName] = useState(initial?.name ?? 'Menu généré');
+  const [id, setId] = useState(() => initial?.id ?? uniqueId('menu_genere', existingIds));
+  const [idTouched, setIdTouched] = useState(Boolean(initial));
+  const [rows, setRows] = useState(initial?.rows ?? initialRows);
+  const [attempts, setAttempts] = useState(initial?.attempts ?? DEFAULT_ATTEMPTS);
+  const [allowGenerated, setAllowGenerated] = useState(initial?.allowGenerated ?? true);
+  /** Génération reprise de l’historique de la session (hors tâche). */
+  const [picked, setPicked] = useState<InterfaceGeneration | null>(null);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [, setHistoryVersion] = useState(0);
-  const controller = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,7 +147,6 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
     );
     return () => {
       cancelled = true;
-      controller.current?.abort();
     };
   }, []);
 
@@ -151,139 +156,106 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
   if (!ID_PATTERN.test(id)) idError = 'Lettres minuscules, chiffres et _ uniquement';
   else if (existingIds.includes(id)) idError = 'Un menu porte déjà cet identifiant';
 
-  const generate = async () => {
-    if (!provider?.ready || !description.trim() || idError || busy) return;
-    const abort = new AbortController();
-    controller.current = abort;
-    setBusy('generate');
+  const result = (job?.result as InterfaceGeneration | null | undefined) ?? picked;
+  const menu = result?.menu ?? null;
+  const canGenerate = Boolean(provider?.ready && description.trim()) && !idError && !running && !opening;
+
+  const generate = () => {
+    if (!provider || !canGenerate) return;
     setError(null);
-    setLog([]);
-    setResult(null);
-    try {
-      const context: MenuCheckContext = {
-        schema: JSON.parse(schemaText) as unknown,
-        menuId: id,
-        rows,
-        textures: new Set(textures),
-        menus,
-        allowGenerated,
-      };
-      const system = interfaceSystemPrompt({
-        schemaText,
-        menuId: id,
-        name: name.trim() || id,
-        rows,
-        textures: [...textures].sort(),
-        menus: menus.filter((menu) => !menu.template && !menu.component).map((menu) => menu.id),
-        allowGenerated,
-      });
-      let model = '';
-      const outcome = await generateWithCorrections<MenuDefinition>({
-        request: interfaceRequest(description),
-        maxAttempts: attempts,
-        signal: abort.signal,
-        send: async (messages, signal) => {
-          const reply = await generateText({ provider: provider.id, system, messages, json: true }, signal);
-          model = reply.model;
-          return reply.text;
-        },
-        validate: (value) => checkMenu(value, context),
-        onAttempt: (attempt) => setLog((lines) => [...lines, { attempt: attempt.index, errors: attempt.errors }]),
-      });
-      const last = outcome.attempts.at(-1);
-      const generation: InterfaceGeneration = {
-        id: nextGenerationId(),
-        at: Date.now(),
-        provider: provider.id,
-        providerName: provider.name,
-        model,
-        prompt: description.trim(),
-        menu: outcome.value,
-        attempts: outcome.attempts.length,
-        errors: outcome.value ? [] : (last?.errors ?? []),
-      };
-      rememberInterface(generation);
-      setHistoryVersion((version) => version + 1);
-      setResult(generation);
-      if (!outcome.value) {
-        setError(`Aucun document valide après ${plural(outcome.attempts.length, 'essai')}${NBSP}: reformule la demande ou augmente le nombre d’essais`);
-      }
-    } catch (failure) {
-      if (!isAbort(failure)) setError(errorMessage(failure));
-    } finally {
-      if (controller.current === abort) controller.current = null;
-      setBusy(null);
-    }
+    setPicked(null);
+    // Une nouvelle proposition remplace le résultat affiché (il reste dans les générations de la session).
+    if (job) consumeJob(job.id);
+    const params: InterfaceJobParams = { providerId: provider.id, description, name, id, rows, attempts, allowGenerated };
+    setJobId(startInterfaceJob(params, provider, { menus, textures }));
   };
 
-  const stop = () => controller.current?.abort();
+  /** Pendant une génération : formulaire libéré pour une autre demande (la première continue). */
+  const newRequest = () => {
+    setJobId(null);
+    setPicked(null);
+    setError(null);
+    setId(uniqueId(sanitizeId(name) || 'menu_genere', [...existingIds, id]));
+  };
+
+  const reject = () => {
+    if (job) consumeJob(job.id);
+    setJobId(null);
+    setError(null);
+  };
 
   const open = async () => {
-    const menu = result?.menu;
     if (!menu) return;
     if (existingIds.includes(menu.id)) {
       setError(`Un menu «${NBSP}${menu.id}${NBSP}» existe déjà`);
       return;
     }
-    setBusy('open');
+    setOpening(true);
     setError(null);
     try {
       await onOpen(menu);
+      if (job) consumeJob(job.id);
     } catch (failure) {
       setError(errorMessage(failure));
-      setBusy(null);
+      setOpening(false);
     }
   };
 
-  // Relu à chaque rendu : `setHistoryVersion` en provoque un après chaque génération.
   const history = [...interfaceHistory()];
-  const menu = result?.menu ?? null;
   const generatedLayers = menu?.layers.filter((layer) => layer.generator).length ?? 0;
 
   return (
     <Modal
       title="Générer une interface par IA"
-      onClose={() => {
-        stop();
-        onCancel();
-      }}
+      onClose={onCancel}
       footer={
-        <>
-          {error && <FieldError>{error}</FieldError>}
-          <button type="button" onClick={onCancel}>
-            Annuler
-          </button>
-          {busy === 'generate' ? (
-            <Tooltip label="Arrêter la génération" hint="Les essais en cours sont abandonnés">
-              <button type="button" onClick={stop}>
+        running ? (
+          <>
+            <Tooltip label="Annuler la génération" hint={`Arrête vraiment la tâche${NBSP}: rien n’est créé`}>
+              <button type="button" onClick={() => cancelJob(job.id)}>
                 <Icon name="stop" />
-                Arrêter
+                Annuler la génération
               </button>
             </Tooltip>
-          ) : (
-            <Tooltip label={menu ? 'Nouvelle proposition' : 'Lancer la génération'} shortcut="Ctrl+Entrée">
-              <button
-                type="button"
-                className={menu ? undefined : 'primary'}
-                disabled={!provider?.ready || !description.trim() || Boolean(idError) || busy !== null}
-                onClick={() => void generate()}
-              >
-                <Icon name={menu ? 'reload' : 'sparkles'} />
-                {menu ? 'Régénérer' : 'Générer'}
+            <Tooltip label="Continuer en arrière-plan" hint="Une notification prévient à la fin" shortcut="Échap">
+              <button type="button" className="primary" onClick={onCancel}>
+                <Icon name="chevron-down" />
+                Continuer en arrière-plan
               </button>
             </Tooltip>
-          )}
-          <Tooltip label="Ouvrir dans l’éditeur" hint={`Non enregistré${NBSP}: relis-le, puis Ctrl+S`}>
-            <button type="button" className={menu ? 'primary' : undefined} disabled={!menu || busy !== null} onClick={() => void open()}>
-              <Icon name={busy === 'open' ? 'loader' : 'open'} />
-              Ouvrir dans l’éditeur
+          </>
+        ) : (
+          <>
+            {error && <FieldError>{error}</FieldError>}
+            <button type="button" onClick={onCancel}>
+              {result ? 'Fermer' : 'Annuler'}
             </button>
-          </Tooltip>
-        </>
+            {job && !job.consumed && job.phase !== 'cancelled' && (
+              <Tooltip label="Rejeter ce résultat" hint="Il reste dans les générations de la session">
+                <button type="button" onClick={reject}>
+                  <Icon name="trash" />
+                  Rejeter
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip label={result ? 'Nouvelle proposition' : 'Lancer la génération'} shortcut="Ctrl+Entrée">
+              <button type="button" className={menu ? undefined : 'primary'} disabled={!canGenerate} onClick={generate}>
+                <Icon name={result ? 'reload' : 'sparkles'} />
+                {result ? 'Régénérer' : 'Générer'}
+              </button>
+            </Tooltip>
+            <Tooltip label="Ouvrir dans l’éditeur" hint={`Non enregistré${NBSP}: relis-le, puis Ctrl+S`}>
+              <button type="button" className={menu ? 'primary' : undefined} disabled={!menu || opening} onClick={() => void open()}>
+                <Icon name={opening ? 'loader' : 'open'} />
+                Ouvrir dans l’éditeur
+              </button>
+            </Tooltip>
+          </>
+        )
       }
     >
       <div className="ai-grid">
-        <div className="ai-form">
+        <fieldset className="ai-form" disabled={running}>
           {providers && ready.length === 0 ? (
             <p className="empty-hint">
               <Icon name="info" />
@@ -316,7 +288,7 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                   event.preventDefault();
-                  void generate();
+                  generate();
                 }
               }}
             />
@@ -340,7 +312,7 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
                   setId(event.target.value);
                 }}
               />
-              {idError && <FieldError>{idError}</FieldError>}
+              {idError && !running && <FieldError>{idError}</FieldError>}
             </Field>
           </div>
           <div className="field-row">
@@ -360,15 +332,16 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
           <p className="muted small">
             {plural(textures.length, 'texture')} de l’espace et {plural(existingIds.length, 'menu')} sont proposés au modèle (noms seulement).
           </p>
-        </div>
+        </fieldset>
 
         <div className="ai-side">
+          {job && <JobPanel job={job} onNewRequest={running ? newRequest : undefined} />}
           <div className="ai-frame">
             <span className="ai-frame-label">Aperçu</span>
             {menu ? (
               <MenuSketch menu={menu} />
             ) : (
-              <span className="ai-frame-empty">{busy === 'generate' ? <Icon name="loader" size={24} /> : 'Le menu validé apparaîtra ici'}</span>
+              <span className="ai-frame-empty">{running ? 'Le menu apparaîtra ici dès qu’un essai sera valide' : 'Le menu validé apparaîtra ici'}</span>
             )}
           </div>
           {menu && (
@@ -377,19 +350,6 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
               {plural((menu.texts ?? []).length, 'texte')} · {plural((menu.slots ?? []).length, 'slot')} · valide au{' '}
               {result?.attempts === 1 ? '1er essai' : `${result?.attempts}e essai`}
             </p>
-          )}
-          {log.length > 0 && (
-            <ul className="ai-log" aria-label="Essais">
-              {log.map((line) => (
-                <li key={line.attempt} className={line.errors.length ? 'is-error' : 'is-ok'}>
-                  Essai {line.attempt}
-                  {NBSP}: {line.errors.length === 0 ? 'valide' : `${plural(line.errors.length, 'erreur')}, renvoyée${line.errors.length > 1 ? 's' : ''} au modèle`}
-                  {line.errors.slice(0, 4).map((problem) => (
-                    <div key={problem}>· {problem}</div>
-                  ))}
-                </li>
-              ))}
-            </ul>
           )}
           {menu && (
             <details>
@@ -407,10 +367,11 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
                     type="button"
                     role="listitem"
                     className="ai-history-row"
+                    disabled={running}
                     onClick={() => {
-                      setResult(entry);
+                      setJobId(null);
+                      setPicked(entry);
                       setDescription(entry.prompt);
-                      setLog([]);
                     }}
                   >
                     <Icon name={entry.menu ? 'check' : 'alert'} />
