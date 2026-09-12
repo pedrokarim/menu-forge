@@ -17,6 +17,9 @@ import type { MenuCheckContext } from './menuCheck';
 import { interfaceRequest, interfaceSystemPrompt } from './prompts';
 import { interfaceHistory, nextGenerationId, rememberInterface } from './session';
 import type { InterfaceGeneration } from './session';
+// Import statique : ce dialogue est déjà chargé à la demande, et un `import()`
+// dynamique échouait quand Vite réoptimisait ses dépendances en cours de session.
+import schemaText from '../../../docs/menu.schema.json?raw';
 import './ai.css';
 
 interface AiInterfaceDialogProps {
@@ -157,7 +160,6 @@ export function AiInterfaceDialog({ menus, textures, initialRows = 6, onCancel, 
     setLog([]);
     setResult(null);
     try {
-      const schemaText = (await import('../../../docs/menu.schema.json?raw')).default;
       const context: MenuCheckContext = {
         schema: JSON.parse(schemaText) as unknown,
         menuId: id,
