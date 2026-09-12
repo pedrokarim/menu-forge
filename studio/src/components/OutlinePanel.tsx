@@ -10,6 +10,7 @@ import { mergeSelections, sameSelection, selectionIncludes, toggleSelection } fr
 import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
+import { nodeText } from '../ui/nodeText';
 import { Tooltip } from '../ui/Tooltip';
 import { SLOT_COLORS } from './slotColors';
 
@@ -144,7 +145,10 @@ export function OutlinePanel(props: OutlinePanelProps) {
         }}
         title={title}
       >
-        <span className="outline-label">{label}</span>
+        {/* Texte complet au survol : la colonne étroite coupe les longs identifiants et les valeurs de texte. */}
+        <span className="outline-label" title={nodeText(label)}>
+          {label}
+        </span>
         {isInherited ? (
           <span className="badge" title={origin ? `${origin.kind === 'component' ? 'Composant' : 'Gabarit'} « ${origin.id} »` : undefined}>
             {origin?.kind === 'component' ? 'composant' : 'gabarit'}

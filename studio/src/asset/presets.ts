@@ -56,13 +56,14 @@ export function findBoxPreset(id: string): BoxPreset {
   return BOX_PRESETS.find((preset) => preset.id === id) ?? BOX_PRESETS[0];
 }
 
-export type AssetTool = 'select' | 'box' | 'text' | 'image';
+export type AssetTool = 'select' | 'box' | 'text' | 'image' | 'zoom';
 
 export const TOOL_LABELS: Record<AssetTool, { label: string; key: string; hint: string }> = {
   select: { label: 'Sélection', key: 'V', hint: 'Clic : sélectionner · glisser : déplacer · flèches : 1 px (Maj : 10 px)' },
   box: { label: 'Box', key: 'B', hint: 'Glisser : dessiner une box · clic : box à la taille du préréglage' },
   text: { label: 'Texte', key: 'T', hint: 'Clic : poser un texte' },
-  image: { label: 'Image', key: 'I', hint: 'Choisis une texture, puis clic : poser l’image' },
+  image: { label: 'Image', key: 'I', hint: 'Choisis une texture, puis clic : poser l’image' },
+  zoom: { label: 'Zoom', key: 'Z', hint: 'Clic : zoom avant · Alt+clic : arrière · glisser : zoomer sur la zone · Z maintenu : le temps de l’appui' },
 };
 
 export const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8, 10, 12] as const;

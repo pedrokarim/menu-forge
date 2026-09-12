@@ -1,3 +1,5 @@
+import { zoomCommand } from '../canvas/viewport';
+import { useHeldTool } from '../lib/heldTool';
 import { shortcutLetter } from '../lib/shortcuts';
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
@@ -53,6 +55,8 @@ import {
 import type { Bitmap, Point, Rect, Rgba, Transform } from './raster';
 import { BRUSH_TOOLS, DEFAULT_OPTIONS, GRID_MIN_ZOOM, SELECTION_TOOLS, TOOLS, TOOL_CODES, TOOL_INFO, ZOOM_LEVELS } from './tools';
 import type { BrushSize, PixelTool, ToolOptions } from './tools';
+import { ResizeHandle } from '../ui/ResizeHandle';
+import { useEditorColumns } from '../ui/useResizablePanel';
 import './pixel.css';
 
 export interface PixelEditorProps {
@@ -173,6 +177,10 @@ function PixelWorkbench(props: WorkbenchProps) {
   const [recent, setRecent] = useState<Rgba[]>([]);
   const [showGrid, setShowGrid] = useState(props.defaultShowGrid);
   const [zoom, setZoom] = useState(1);
+  // Variables séparées : la fonction de mesure part en `ref`, le reste sert au rendu.
+  const { observe: observeColumns, style: columnStyle, left: leftColumn, right: rightColumn } = useEditorColumns('pixels');
+  // Z maintenu : outil Zoom le temps de l’appui, puis retour à l’outil précédent.
+  const heldTool = useHeldTool<PixelTool>('z', setTool);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [dialog, setDialog] = useState<'resize' | null>(null);
@@ -581,6 +589,16 @@ function PixelWorkbench(props: WorkbenchProps) {
       return;
     }
     if (isTextEntry(event.target)) return;
+    // Zoom à une touche (+, -, Maj+0, Maj+1, Maj+2), comme dans les deux autres éditeurs.
+    const zoomKey = zoomCommand(event);
+    if (zoomKey) {
+      event.preventDefault();
+      if (zoomKey === 'in' || zoomKey === 'out') canvasRef.current?.zoomStep(zoomKey === 'in' ? 1 : -1);
+      else if (zoomKey === 'fit') canvasRef.current?.fit();
+      else if (zoomKey === 'actual') canvasRef.current?.actualSize();
+      else if (!canvasRef.current?.zoomToSelection()) setStatus('Rien de sélectionné : Maj+2 cadre la sélection.');
+      return;
+    }
     if (withModifier) {
       const actions: Record<string, () => void> = {
         KeyZ: event.shiftKey ? redo : undo,
@@ -629,6 +647,9 @@ function PixelWorkbench(props: WorkbenchProps) {
         shifted[code]();
         return;
       }
+    } else if (code === 'KeyZ') {
+      heldTool.press('zoom', tool);
+      return;
     } else if (TOOL_CODES[code]) {
       setTool(TOOL_CODES[code]);
       return;
@@ -728,7 +749,8 @@ function PixelWorkbench(props: WorkbenchProps) {
   };
 
   const toggle = (on: boolean, icon: IconName, label: string, hint: string, onClick: () => void, shortcut?: string) => (
-    <IconButton icon={icon} label={label} hint={hint} shortcut={shortcut} pressed={on} variant={on ? 'normal' : 'ghost'} onClick={onClick} />
+    // Taille standard des boutons de barre d’outils (24 px de picto), comme annuler et rétablir.
+    <IconButton icon={icon} label={label} hint={hint} shortcut={shortcut} pressed={on} variant={on ? 'normal' : 'ghost'} size={24} onClick={onClick} />
   );
 
   const brushSizes = BRUSH_TOOLS.has(tool) && !(tool === 'rectangle' && options.filled) && !(tool === 'ellipse' && options.filled);
@@ -736,7 +758,7 @@ function PixelWorkbench(props: WorkbenchProps) {
   const info = TOOL_INFO[tool];
 
   return (
-    <div className="pixel-editor">
+    <div className="pixel-editor" ref={observeColumns} style={columnStyle}>
       <aside className="sidebar">
         <ColorPanel
           primary={primary}
@@ -749,7 +771,10 @@ function PixelWorkbench(props: WorkbenchProps) {
       </aside>
 
       <section className="pixel-main">
+        {/* Quatre groupes, comme les autres barres : l’outil et ses réglages, la symétrie, l’historique,
+            l’affichage. Faute de place, c’est un groupe entier qui passe à la ligne. */}
         <div className="asset-toolbar pixel-options" role="toolbar" aria-label="Réglages de l’outil">
+          <div className="asset-toolbar-group pixel-tool-options" role="group" aria-label={`Outil ${info.label}`}>
           <span className="pixel-tool-name">
             <Icon name={info.icon} />
             {info.label}
@@ -821,12 +846,13 @@ function PixelWorkbench(props: WorkbenchProps) {
           )}
           {(SELECTION_TOOLS.has(tool) || tool === 'move') && (
             <div className="asset-toolbar-group">
-              <IconButton icon="flip-h" label="Retourner horizontalement" shortcut="Maj+H" hint="La sélection, ou toute l’image" variant="ghost" onClick={() => transform('flip-h')} />
-              <IconButton icon="flip-v" label="Retourner verticalement" shortcut="Maj+V" hint="La sélection, ou toute l’image" variant="ghost" onClick={() => transform('flip-v')} />
-              <IconButton icon="rotate-ccw" label="Pivoter de 90° (antihoraire)" hint="La sélection, ou toute l’image" variant="ghost" onClick={() => transform('rotate-ccw')} />
-              <IconButton icon="rotate-cw" label="Pivoter de 90° (horaire)" shortcut="Maj+R" hint="La sélection, ou toute l’image" variant="ghost" onClick={() => transform('rotate-cw')} />
+              <IconButton icon="flip-h" label="Retourner horizontalement" shortcut="Maj+H" hint="La sélection, ou toute l’image" variant="ghost" size={24} onClick={() => transform('flip-h')} />
+              <IconButton icon="flip-v" label="Retourner verticalement" shortcut="Maj+V" hint="La sélection, ou toute l’image" variant="ghost" size={24} onClick={() => transform('flip-v')} />
+              <IconButton icon="rotate-ccw" label="Pivoter de 90° (antihoraire)" hint="La sélection, ou toute l’image" variant="ghost" size={24} onClick={() => transform('rotate-ccw')} />
+              <IconButton icon="rotate-cw" label="Pivoter de 90° (horaire)" shortcut="Maj+R" hint="La sélection, ou toute l’image" variant="ghost" size={24} onClick={() => transform('rotate-cw')} />
             </div>
           )}
+          </div>
           <span className="tb-sep" aria-hidden="true" />
           <div className="asset-toolbar-group" role="group" aria-label="Symétrie">
             {toggle(
@@ -844,15 +870,20 @@ function PixelWorkbench(props: WorkbenchProps) {
               () => setOption('symmetry', { ...options.symmetry, vertical: !options.symmetry.vertical }),
             )}
           </div>
-          <div className="asset-toolbar-group asset-toolbar-end">
+          <span className="tb-sep" aria-hidden="true" />
+          <div className="asset-toolbar-group" role="group" aria-label="Historique">
             <IconButton icon="undo" label="Annuler" shortcut="Ctrl+Z" size={24} disabled={history.past.length === 0} onClick={undo} />
             <IconButton icon="redo" label="Rétablir" shortcut="Ctrl+Y" size={24} disabled={history.future.length === 0} onClick={redo} />
+          </div>
+          <div className="asset-toolbar-group asset-toolbar-end" role="group" aria-label="Affichage">
             <Tooltip label="Grille des pixels" shortcut="Maj+G" hint={`Visible à partir de ×${GRID_MIN_ZOOM}`}>
               <label className="checkbox">
                 <input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />
                 Grille
               </label>
             </Tooltip>
+            <IconButton icon="minus" label="Zoom arrière" shortcut="-" hint="Ctrl+molette : sur le pointeur" size={24} disabled={zoom <= ZOOM_LEVELS[0]} onClick={() => canvasRef.current?.zoomStep(-1)} />
+            <Tooltip label="Niveau de zoom" shortcut="Maj+1" hint="Maj+1 : ajuster ; Maj+0 : taille réelle ; Maj+2 : cadrer la sélection">
             <select
               className="pixel-zoom"
               value={String(zoom)}
@@ -869,6 +900,8 @@ function PixelWorkbench(props: WorkbenchProps) {
                 </option>
               ))}
             </select>
+            </Tooltip>
+            <IconButton icon="plus" label="Zoom avant" shortcut="+" hint="Ctrl+molette : sur le pointeur" size={24} disabled={zoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]} onClick={() => canvasRef.current?.zoomStep(1)} />
           </div>
         </div>
 
@@ -976,6 +1009,8 @@ function PixelWorkbench(props: WorkbenchProps) {
                 ['Flèches', 'Déplacer la sélection de 1 px'],
                 ['Ctrl+J', 'Dupliquer le calque'],
                 ['Ctrl+E', 'Fusionner vers le bas'],
+                ['+', 'Zoom avant (- : arrière)'],
+                ['Maj+1', 'Ajuster (Maj+0 : ×1 ; Maj+2 : sélection)'],
                 ['Ctrl+S', 'Enregistrer et exporter'],
               ].map(([keys, label]) => (
                 <Fragment key={keys}>
@@ -989,6 +1024,9 @@ function PixelWorkbench(props: WorkbenchProps) {
           </details>
         </section>
       </aside>
+      {/* Poignées des deux colonnes : largeur réglée à la souris ou au clavier, mémorisée. */}
+      <ResizeHandle side="left" label="Largeur de la colonne de gauche" handle={leftColumn} />
+      <ResizeHandle side="right" label="Largeur de la colonne de droite" handle={rightColumn} />
 
       {dialog === 'resize' && <ResizeDialog width={width} height={height} onCancel={() => setDialog(null)} onApply={resize} />}
     </div>

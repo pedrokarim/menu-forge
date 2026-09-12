@@ -125,12 +125,15 @@ Les images apparaissent dans les documents récents (`GET /api/documents/recent`
 | Rectangle, ellipse | `U`, `Maj+U` | Contour (épaisseur de la brosse) ou plein ; `Maj` : carré, cercle |
 | Sélection rectangulaire, lasso, baguette | `M`, `Q`, `W` | `Maj` : ajouter ; `Alt` : retirer ; glisser dans la sélection : la déplacer |
 | Déplacement | `V` | La sélection (ou tout le calque) ; `Ctrl` : en copie ; flèches : 1 px (`Maj` : 8 px) |
+| Zoom | `Z` | Clic : zoom avant ; `Alt`+clic : arrière ; glisser : cadrer la zone ; `Z` maintenu : le temps d’un geste |
 
 Et aussi : couleurs principale et secondaire (`X` pour échanger), saisie
 `#rrggbb` ou `#rrggbbaa`, palette par défaut (tons de l’interface de Minecraft,
 du thème Deepslate, 16 couleurs du chat), couleurs récentes et couleurs du
 document ; symétrie horizontale et verticale ; grille des pixels (`Maj+G`) ;
-zoom de ×1 à ×64 (`Ctrl`+molette sur le pointeur, `Ctrl+0` pour ajuster) ;
+zoom de ×1 à ×64 (`Ctrl`+molette sur le pointeur, `+` et `-`, `Ctrl+0` ou
+`Maj+1` pour ajuster, `Maj+0` pour la taille réelle, `Maj+2` pour cadrer la
+sélection, outil Zoom `Z`) ;
 défilement (`Espace`+glisser, clic molette, molette) ; calques (ajouter,
 dupliquer `Ctrl+J`, supprimer, réordonner, visibilité, opacité, fusionner vers
 le bas `Ctrl+E`) ; copier, couper, coller (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`, image

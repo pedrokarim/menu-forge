@@ -71,7 +71,7 @@
 
 .ai-grid {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 16px;
   min-width: 0;
 }
@@ -181,9 +181,8 @@
 }
 
 .ai-history-row span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ai-log {
@@ -213,7 +212,8 @@
   margin: 0;
   overflow: auto;
   font-size: 11px;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .ai-range {

@@ -249,7 +249,6 @@ button {
   font: inherit;
   color: var(--ds-btn-ink);
   text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.45);
-  white-space: nowrap;
   background: var(--ds-btn);
   border: 2px solid var(--ds-edge);
   border-radius: 0;
@@ -620,6 +619,8 @@ input[type='color']::-webkit-color-swatch {
 .field-label {
   font-size: 12px;
   color: var(--ds-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .field-hint {
@@ -634,6 +635,7 @@ input[type='color']::-webkit-color-swatch {
   gap: 6px;
   font-size: 12px;
   color: var(--ds-danger);
+  overflow-wrap: anywhere;
 }
 
 /* Alignés en haut : l’aide sous un champ ne doit pas étirer le champ voisin. */
@@ -659,6 +661,8 @@ input[type='color']::-webkit-color-swatch {
   min-height: 24px;
   cursor: pointer;
   user-select: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .checkbox:has(input:disabled) {
@@ -691,6 +695,7 @@ input[type='color']::-webkit-color-swatch {
   background: var(--ds-warn-bg);
   border: 2px solid var(--ds-edge);
   box-shadow: inset 2px 0 0 #8f5a14;
+  overflow-wrap: anywhere;
 }
 
 .warning .icon {
@@ -707,6 +712,7 @@ input[type='color']::-webkit-color-swatch {
   line-height: 1.45;
   color: var(--ds-muted);
   border: 2px dashed #3a3b44;
+  overflow-wrap: anywhere;
 }
 
 .empty-hint .icon {
@@ -731,6 +737,7 @@ input[type='color']::-webkit-color-swatch {
   border-image: linear-gradient(var(--ds-tip-top), var(--ds-tip-bottom)) 1;
   box-shadow: 0 0 0 2px var(--ds-tip-edge), 0 6px 0 rgba(0, 0, 0, 0.28);
   pointer-events: none;
+  overflow-wrap: anywhere;
 }
 
 .tooltip-head {
@@ -741,7 +748,9 @@ input[type='color']::-webkit-color-swatch {
 }
 
 .tooltip-label {
+  /* Nom de fichier ou chemin sans espace : il passe à la ligne dans la bulle. */
   font-weight: 700;
+  min-width: 0;
 }
 
 .tooltip-hint {
@@ -885,11 +894,12 @@ input[type='color']::-webkit-color-swatch {
   grid-row: 4;
 }
 
-/* Une seule ligne, quelle que soit la largeur : les outils de la toile vivent
-   dans la barre de la zone centrale, pas ici. */
+/* Une ligne tant qu’elle suffit ; sinon ce sont des groupes entiers qui passent
+   à la ligne, jamais un bouton seul. Les outils de la toile vivent dans la barre
+   de la zone centrale, pas ici. */
 .toolbar {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: center;
   gap: 8px 10px;
@@ -919,12 +929,6 @@ input[type='color']::-webkit-color-swatch {
   letter-spacing: 0.02em;
   color: var(--ds-ink-strong);
 }
-
-.brand-sub {
-  font: 400 15px/1 var(--font-display);
-  color: var(--ds-muted);
-}
-
 .tb-sep {
   width: 2px;
   height: 26px;
@@ -939,9 +943,19 @@ input[type='color']::-webkit-color-swatch {
   gap: 6px;
 }
 
-/* 15vw : à la taille minimale (1180 px), la barre garde « Exporter », « Pack ZIP » et « Bedrock » sur une ligne. */
 .menu-picker {
-  width: clamp(160px, 15vw, 260px);
+  width: clamp(170px, 18vw, 260px);
+}
+
+/* Sélecteur de document à la largeur du nom affiché, borné : le nom entier est
+   aussi dans l’infobulle (`title`). */
+@supports (field-sizing: content) {
+  .menu-picker {
+    width: auto;
+    min-width: 170px;
+    max-width: min(40vw, 420px);
+    field-sizing: content;
+  }
 }
 
 .zoom-picker {
@@ -970,12 +984,11 @@ input[type='color']::-webkit-color-swatch {
   min-width: 0;
   margin-left: auto;
   color: var(--ds-muted);
-  white-space: nowrap;
 }
 
 .status-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .status .icon {
@@ -995,6 +1008,7 @@ input[type='color']::-webkit-color-swatch {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
+  overflow-wrap: anywhere;
 }
 
 .banner.error {
@@ -1008,21 +1022,21 @@ input[type='color']::-webkit-color-swatch {
   color: var(--ds-danger);
 }
 
+/* Largeurs des colonnes réglées à la souris (`useEditorColumns`, qui pose
+   `--left-width` et `--right-width`) ; les valeurs de repli sont les largeurs
+   par défaut. Position relative : les poignées se placent sur les bords. */
 .workspace {
+  position: relative;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 330px;
+  grid-template-columns: var(--left-width, 280px) minmax(0, 1fr) var(--right-width, 330px);
   min-height: 0;
 }
 
-/* Petites fenêtres (l’appli descend à 1100 px) : colonnes plus étroites pour
+/* Petites fenêtres (l’appli descend à 1024 px) : colonnes plus étroites pour
    laisser de la place à la toile. */
 @media (max-width: 1279px) {
   .workspace {
-    grid-template-columns: 248px minmax(0, 1fr) 296px;
-  }
-
-  .brand-sub {
-    display: none;
+    grid-template-columns: var(--left-width, 248px) minmax(0, 1fr) var(--right-width, 296px);
   }
 }
 
@@ -1063,22 +1077,108 @@ input[type='color']::-webkit-color-swatch {
   margin-left: auto;
 }
 
-/* Colonne centrale étroite : les outils ne gardent que leur picto (touche et nom
-   restent dans l’infobulle), le zoom se règle à la liste ou à Ctrl + molette. */
+/* Barres d’outils et pied des éditeurs d’assets et de pixels : mêmes règles que
+   la barre de la toile des menus. Ici et non dans asset.css, chargé avec
+   l’éditeur d’assets seulement : l’éditeur de pixels ouvert en premier les
+   perdait (barre sans fond, contrôles de toutes les hauteurs). */
+.asset-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) 10px;
+  padding: 7px 12px 8px;
+  background: var(--ds-panel-raised);
+  border-bottom: 2px solid var(--ds-edge-soft);
+  box-shadow: inset 0 2px 0 #3d3e47, inset 0 -2px 0 #1f2026;
+}
+
+.asset-toolbar > * {
+  flex: none;
+}
+
+.asset-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Réglages de la vue calés à droite, comme dans la barre de la toile des menus. */
+.asset-toolbar-end {
+  margin-left: auto;
+}
+
+/* Une case à cocher de barre d’outils a la hauteur des boutons voisins : même
+   centre, même ligne de base. */
+.stage-toolbar .checkbox,
+.asset-toolbar .checkbox {
+  min-height: var(--control-h);
+}
+
+.asset-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 28px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--ds-muted);
+  background: var(--ds-panel-sunken);
+  border-top: 2px solid var(--ds-edge-soft);
+  box-shadow: inset 0 2px 0 #2c2d34;
+  flex-wrap: wrap;
+}
+
+.asset-footer-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-status {
+  min-width: 0;
+  color: var(--ds-ink);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Colonne centrale étroite : les séparateurs s’effacent et les groupes passent à
+   la ligne entiers ; libellés, touches et boutons de zoom restent visibles. */
 @container stage (max-width: 700px) {
   .stage-toolbar {
     gap: 8px;
   }
 
-  .stage-toolbar .tb-sep,
-  .stage-toolbar .tool-label,
-  .stage-toolbar .segmented kbd,
-  .stage-toolbar-end > :not(.zoom-picker) {
+  .stage-toolbar .tb-sep {
     display: none;
   }
+}
 
-  .stage-toolbar .zoom-picker {
-    width: 116px;
+/* Colonne très étroite (petite fenêtre, colonnes élargies) : les outils se
+   resserrent, puis se rangent en deux lignes égales plutôt que de déborder ;
+   libellés et touches restent visibles. */
+@container stage (max-width: 560px) {
+  .stage-toolbar .segmented > button {
+    gap: 4px;
+    padding-inline: 7px;
+  }
+
+  .stage-toolbar .segmented kbd {
+    margin-left: 0;
+  }
+}
+
+@container stage (max-width: 400px) {
+  .stage-toolbar .segmented {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 2px;
+  }
+
+  .stage-toolbar .segmented > button + button {
+    margin-left: 0;
   }
 }
 
@@ -1102,12 +1202,71 @@ input[type='color']::-webkit-color-swatch {
   background-size: 12px 12px;
 }
 
-.sidebar:first-child {
+/* « of-type » : les poignées de redimensionnement sont des sœurs des colonnes. */
+.sidebar:first-of-type {
   border-right: 2px solid var(--ds-edge-soft);
 }
 
-.sidebar:last-child {
+.sidebar:last-of-type {
   border-left: 2px solid var(--ds-edge-soft);
+}
+
+/* Poignée de redimensionnement d’une colonne (ResizeHandle) : 6 px de prise sur
+   la bordure, côté toile (la barre de défilement de la colonne reste libre) ;
+   un trait or au survol, au focus et pendant le glisser. */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resize-handle-left {
+  left: calc(var(--left-width, 280px) - 2px);
+}
+
+.resize-handle-right {
+  right: calc(var(--right-width, 330px) - 4px);
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+}
+
+.resize-handle-left::after {
+  left: 0;
+}
+
+.resize-handle-right::after {
+  right: 0;
+}
+
+.resize-handle:hover::after,
+.resize-handle.is-active::after {
+  background: var(--ds-gold);
+}
+
+.resize-handle:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: -2px;
+}
+
+.resize-handle:focus-visible::after {
+  background: var(--ds-gold);
+}
+
+body.is-resizing-columns,
+body.is-resizing-columns * {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 /* Flex + margin: auto : centré s’il reste de la place, aligné en haut à gauche
@@ -1132,10 +1291,11 @@ input[type='color']::-webkit-color-swatch {
   padding: 3px 12px;
   font: 11px/1.4 var(--font-mono);
   color: var(--ds-muted);
-  white-space: nowrap;
   background: var(--ds-panel-sunken);
   border-top: 2px solid var(--ds-edge-soft);
   box-shadow: inset 0 2px 0 #2c2d34;
+  flex-wrap: wrap;
+  row-gap: 0;
 }
 
 .statusbar code {
@@ -1143,13 +1303,15 @@ input[type='color']::-webkit-color-swatch {
 }
 
 .statusbar-path {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .statusbar-meta {
   display: flex;
   gap: 14px;
+  flex-wrap: wrap;
+  row-gap: 0;
 }
 
 .statusbar-meta span + span::before {
@@ -1213,14 +1375,17 @@ input[type='color']::-webkit-color-swatch {
 
 .section-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   min-height: 24px;
 }
 
+/* Colonne étroite : les actions passent sous le titre, en groupe. */
 .section-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
@@ -1242,6 +1407,11 @@ input[type='color']::-webkit-color-swatch {
   padding: 6px 8px 0;
   background: var(--ds-panel-sunken);
   border-bottom: 2px solid var(--ds-edge);
+  /* Conteneur de requêtes : les onglets se tassent selon la largeur de la colonne
+     (réglable à la souris), pas de la fenêtre. Posé ici et non sur la colonne :
+     l’endiguement de mise en page ferait de toute la colonne le bloc conteneur
+     des éléments fixes qu’elle contient (menus contextuels). */
+  container: sidebar-tabs / inline-size;
 }
 
 .sidebar-tabs button {
@@ -1277,21 +1447,33 @@ input[type='color']::-webkit-color-swatch {
   outline-offset: -4px;
 }
 
-/* Colonne réduite (sous 1280 px) : les onglets perdent leur picto et leur marge
-   intérieure pour que « Bibliothèque » tienne en entier. */
-@media (max-width: 1279px) {
+/* Libellé d’onglet sur deux lignes plutôt que de baver sur la barre voisine
+   (colonne étroite, police de repli plus large) : jamais coupé. */
+.sidebar-tabs button {
+  min-width: 0;
+  white-space: normal;
+}
+
+.sidebar-tabs .tab-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* Onglets trop étroits pour le picto et le libellé côte à côte (« Bibliothèque »
+   demande environ 134 px, la colonne par défaut en laisse 129) : le picto passe
+   au-dessus du libellé. Les deux restent, rien n’est coupé ; au-delà d’environ
+   290 px de colonne, ils reviennent sur une ligne. */
+@container sidebar-tabs (max-width: 271px) {
   .sidebar-tabs button {
-    gap: 0;
-    padding-inline: 4px;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
     font-size: 14px;
   }
 
   .sidebar-tabs button:where(:active:not(:disabled)) {
-    padding-inline: 4px;
-  }
-
-  .sidebar-tabs button .icon {
-    display: none;
+    padding: 5px 3px 3px 5px;
   }
 }
 
@@ -1316,6 +1498,9 @@ select {
 .outline-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  /* Rangées à la hauteur de leur contenu : dans une liste bornée (calques), une
+     rangée « auto » se tasserait à sa hauteur minimale et son texte déborderait. */
+  grid-auto-rows: max-content;
   gap: 2px;
   margin: 0;
   padding: 0;
@@ -1360,15 +1545,23 @@ select {
 }
 
 .outline-label {
+  /* Un identifiant trop long se coupe ; un mot court (« bouton ») passe entier à la ligne. */
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
-.outline-label .muted {
-  margin-left: 4px;
+/* Pastille de type calée à gauche : le nom commence à côté d’elle et passe à la
+   ligne dessous, au lieu de laisser la pastille seule sur sa ligne. */
+.outline-label > .kind-dot {
+  float: left;
+  margin: 4px 8px 0 0;
+}
+
+/* Une vraie espace devant la valeur (et non une marge) : c’est là que la ligne se
+   coupe, jamais au milieu d’un mot court comme « bouton ». */
+.outline-label .muted::before {
+  content: ' ';
 }
 
 .outline-meta {
@@ -1448,11 +1641,10 @@ select {
   padding: 2px 6px;
   font: 700 11px/1.3 var(--font-ui);
   color: var(--ds-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   background: var(--ds-panel-sunken);
   box-shadow: inset 0 0 0 1px #3a3b44;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .badge-own {
@@ -1483,13 +1675,15 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex: none;
+  flex: 0 1 auto;
   padding: 2px 7px;
   font: 700 11px/1.3 var(--font-ui);
   color: #d6d0f0;
-  white-space: nowrap;
   background: #2a1d48;
   box-shadow: inset 0 0 0 1px #3f2c70;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .pill .kind-dot {
@@ -1509,10 +1703,9 @@ select {
 /* Vignette = vraie case d’inventaire. */
 .thumb {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
   gap: 2px;
   justify-items: center;
-  aspect-ratio: 0.86;
   min-width: 0;
   min-height: 0;
   padding: 5px 4px 3px;
@@ -1549,11 +1742,13 @@ select {
 /* Cadre de l’image : l’image y est contenue quelles que soient ses
    proportions (une texture de 2600 px de haut ne sort pas de sa case). */
 .thumb-image {
+  /* Case carrée pour l’image ; le nom en dessous agrandit la vignette au lieu d’être rogné. */
   position: relative;
   width: 100%;
-  height: 100%;
+  height: auto;
   min-height: 0;
   overflow: hidden;
+  aspect-ratio: 1;
 }
 
 .thumb-image img {
@@ -1575,11 +1770,10 @@ select {
 
 .thumb-name {
   max-width: 100%;
-  overflow: hidden;
   font: 600 9.5px/1.2 var(--font-mono);
   color: #262626;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .thumb-preview {
@@ -1610,7 +1804,6 @@ select {
 .usage-list li::marker {
   color: var(--ds-faint);
 }
-
 
 .loading-line {
   display: flex;
@@ -1714,7 +1907,7 @@ select {
    endroit, même à côté de la combinaison la plus longue (les 4 flèches). */
 .shortcut-list {
   display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 6px 10px;
   align-items: center;
   margin: 0;
@@ -1735,9 +1928,13 @@ select {
 
 /* Titre composé */
 
+/* Jetons du titre : longues suites de glyphes sans espace, coupées n’importe où
+   plutôt que de sortir du panneau. */
 .token-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 3px;
+  overflow-wrap: anywhere;
   margin: 0;
   padding-left: 24px;
   font: 11px/1.5 var(--font-mono);
@@ -1788,6 +1985,7 @@ select {
   align-items: center;
   gap: 8px;
   padding: 10px 12px 10px 16px;
+  flex-wrap: wrap;
 }
 
 .modal-header {
@@ -1804,6 +2002,8 @@ select {
   gap: 10px;
   font-size: 19px;
   color: var(--ds-ink-strong);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .modal-footer {
@@ -1816,6 +2016,9 @@ select {
 
 .modal-footer .field-error {
   margin-right: auto;
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .modal-body {
@@ -1827,7 +2030,7 @@ select {
 
 .generator {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 16px;
 }
 
@@ -1853,6 +2056,8 @@ select {
 .generator-preview canvas {
   max-width: 100%;
   image-rendering: pixelated;
+  max-height: 60vh;
+  object-fit: contain;
 }
 
 .generator-preview .muted {
@@ -1879,11 +2084,13 @@ select {
 }
 
 .template-card strong {
+  /* Nom de gabarit sans espace : il passe à la ligne dans sa carte. */
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .template-card .muted {
@@ -1925,6 +2132,8 @@ select {
   background: var(--ds-panel-raised);
   border: 2px solid var(--ds-edge);
   box-shadow: var(--bevel-panel), 0 8px 0 rgba(0, 0, 0, 0.35);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
 }
 
 .context-item {
@@ -1937,7 +2146,6 @@ select {
   padding: 0 8px;
   font-size: 13px;
   text-align: left;
-  white-space: nowrap;
   color: var(--ds-ink);
   text-shadow: none;
   background: transparent;
@@ -1977,8 +2185,7 @@ select {
 
 .context-label {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .context-icon {
@@ -1995,16 +2202,16 @@ select {
 
 .context-heading {
   padding: 4px 8px 3px;
-  overflow: hidden;
   font: 11px/1.3 var(--font-mono);
   color: var(--ds-faint);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Texture sélectionnée (volet épinglé en bas de la bibliothèque) ---------- */
 
 .library-dock {
+  /* Hauteur bornée : un nom de fichier long ne cache pas la grille des vignettes. */
   position: sticky;
   bottom: 0;
   z-index: 2;
@@ -2015,6 +2222,8 @@ select {
   background: var(--ds-panel-raised);
   border-top: 2px solid var(--ds-edge);
   box-shadow: inset 0 2px 0 #44454f, 0 -8px 14px rgba(0, 0, 0, 0.35);
+  max-height: 40%;
+  overflow-y: auto;
 }
 
 .library-dock-head {
@@ -2051,9 +2260,7 @@ select {
 
 .library-dock-info > * {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .library-dock-info strong {
@@ -2219,11 +2426,13 @@ kbd.key-icon {
   padding: 8px 14px;
   font: 400 15px/1 var(--font-display);
   color: var(--ds-gold);
-  white-space: nowrap;
+  white-space: normal;
   pointer-events: none;
   background: var(--ds-tip-bg);
   border: 2px solid var(--ds-gold);
   transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  text-align: center;
 }
 
 /* Dialogue de renommage : liste des menus qui font référence au document. */
@@ -2255,4 +2464,26 @@ kbd.key-icon {
 
 .button-row.wrap > * {
   flex: 1 1 auto;
+}
+
+/* Barres d’outils : libellés sur une ligne (la barre passe à la ligne par groupes). Ailleurs, un bouton peut passer à la ligne. */
+.toolbar button:not(.workspace-pill),
+.stage-toolbar button,
+.asset-toolbar button,
+.segmented > button,
+.asset-segmented > button,
+.titlebar button {
+  white-space: nowrap;
+}
+
+/* Identifiants et chemins dans l’inspecteur et les panneaux : coupés n’importe où plutôt que de déborder. */
+.inspector code,
+.panel-section code {
+  overflow-wrap: anywhere;
+}
+
+/* Texte d’un message à côté de son picto : il se replie au lieu de pousser le cadre. */
+.banner > span,
+.empty-hint > span {
+  min-width: 0;
 }

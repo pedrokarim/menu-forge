@@ -6,6 +6,8 @@ import { loadTexture } from '../lib/textures';
 import type { LoadedTexture } from '../lib/textures';
 import { Icon } from '../ui/Icon';
 import { FieldError, Modal } from './fields';
+// Styles du dialogue et du sélecteur de zone : sans eux, ouvert avant l’éditeur d’assets, il perdait sa mise en page.
+import '../asset/asset.css';
 
 export interface CropAction {
   label: string;

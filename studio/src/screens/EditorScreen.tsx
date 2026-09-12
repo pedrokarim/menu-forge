@@ -9,7 +9,7 @@ import { overlayOpen } from '../ui/overlay';
 import type { GeneratorResult } from '../components/GeneratorDialog';
 import { Inspector } from '../components/Inspector';
 import { MenuCanvas } from '../components/MenuCanvas';
-import type { BackgroundMode, CanvasTool } from '../components/MenuCanvas';
+import type { BackgroundMode, CanvasTool, ZoomRequest } from '../components/MenuCanvas';
 import type { NewMenuInput } from '../components/NewMenuDialog';
 import { RenameDocumentDialog } from '../components/DocumentDialogs';
 import { createEmptyAsset } from '../asset/model';
@@ -40,6 +40,7 @@ import { hasDraggedFiles, imageSizeOf, pastedImageName, pngFiles, uniqueTextureP
 import { importFromLibrary, libraryRawUrl } from '../lib/libraryApi';
 import type { LibraryIndex, LibrarySourceInfo, LibraryTexture } from '../lib/libraryApi';
 import { buildMenuFromFont } from '../lib/libraryImport';
+import { useHeldTool } from '../lib/heldTool';
 import { arrowDelta, isDeleteKey, shortcutDigit, shortcutLetter, withCommand } from '../lib/shortcuts';
 import { useClipboardShortcuts } from '../lib/useClipboardShortcuts';
 import { loadTexture, useTextures } from '../lib/textures';
@@ -83,13 +84,16 @@ import { referencedStates } from '../model/stateEdit';
 import { NewComponentDialog } from '../components/visual/NewComponentDialog';
 import type { NewComponentInput } from '../components/visual/NewComponentDialog';
 import { TryJournal, TrySessionPanel } from '../components/visual/TryPanel';
-import { CANVAS_MARGINS, fitZoom, isEditableTarget, stepZoom } from '../canvas/viewport';
+import { CANVAS_MARGINS, fitZoom, isEditableTarget, zoomCommand } from '../canvas/viewport';
+import type { ZoomCommand } from '../canvas/viewport';
 import { INITIAL_EDITOR, editorReducer, selectionIncludes } from '../state/editor';
 import type { Selection } from '../state/editor';
 import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
+import { ResizeHandle } from '../ui/ResizeHandle';
 import { Tooltip } from '../ui/Tooltip';
+import { useEditorColumns } from '../ui/useResizablePanel';
 
 type DialogState =
   | { kind: 'new-menu'; generate?: boolean }
@@ -216,12 +220,20 @@ export function EditorScreen({
   const [textureVersions, setTextureVersions] = useState<Record<string, number>>({});
   const [preview, setPreview] = useState<PreviewValues>(DEFAULT_PREVIEW);
   const [zoom, setZoom] = useState(() => preferences.defaultZoom || 3);
+  // Variables séparées : la fonction de mesure part en `ref`, le reste sert au rendu.
+  const { observe: observeColumns, style: columnStyle, left: leftColumn, right: rightColumn } = useEditorColumns('menus');
   // Zoom « Ajuster » par défaut : le plus grand palier où tout le coffre tient dans la zone.
   const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>(() => (preferences.defaultZoom === 0 ? 'fit' : 'manual'));
   // Espace lu et premier document ouvert : l’adresse peut dès lors piloter l’éditeur.
   const [ready, setReady] = useState(false);
   const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
   const [tool, setTool] = useState<CanvasTool>('select');
+  // Z maintenu : outil Zoom le temps de l’appui, puis retour à l’outil précédent.
+  const heldTool = useHeldTool<CanvasTool>('z', setTool);
+  // Demandes de zoom (clavier, barre de la toile) : un palier autour du centre, ou une zone à cadrer.
+  const [zoomRequest, setZoomRequest] = useState<ZoomRequest | null>(null);
+  const requestZoom = (request: Omit<ZoomRequest, 'serial'>) =>
+    setZoomRequest((previous) => ({ ...request, serial: (previous?.serial ?? 0) + 1 }));
   const [background, setBackground] = useState<BackgroundMode>('slots-only');
   const [showSlots, setShowSlots] = useState(true);
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -646,6 +658,19 @@ export function EditorScreen({
     }
   };
 
+  /** Zoom au clavier : palier autour du centre, taille réelle, ajuster, ou cadrer la sélection. */
+  const runZoomCommand = (command: ZoomCommand) => {
+    if (command === 'fit') setZoomMode('fit');
+    else if (command === 'actual') {
+      setZoomMode('manual');
+      setZoom(ZOOM_LEVELS.includes(1) ? 1 : Math.min(...ZOOM_LEVELS));
+    }
+    else if (command === 'selection') {
+      if (selectionBounds) requestZoom({ area: selectionBounds });
+      else setStatus('Rien de sélectionné : Maj+2 cadre la sélection.');
+    } else requestZoom({ step: command === 'in' ? 1 : -1 });
+  };
+
   /* Clavier et presse-papiers */
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
@@ -671,6 +696,13 @@ export function EditorScreen({
         event.preventDefault();
         dispatch({ type: letter === 'y' || event.shiftKey ? 'redo' : 'undo' });
       }
+      return;
+    }
+    // Zoom à une touche (+, -, Maj+0, Maj+1, Maj+2), en essai aussi : rien ne modifie le menu.
+    const zoomKey = zoomCommand(event);
+    if (zoomKey) {
+      event.preventDefault();
+      runZoomCommand(zoomKey);
       return;
     }
     // Mode « Essayer » : Échap ou E terminent l’essai, Retour arrière simule « back » ; rien ne modifie le menu.
@@ -713,6 +745,7 @@ export function EditorScreen({
     if (command || event.altKey) return;
     if (letter === 'v') setTool('select');
     else if (letter === 's') setTool('slot');
+    else if (letter === 'z') heldTool.press('zoom', tool);
     else if (letter === 'e') startTry();
     else if (event.key === 'Escape') select([]);
     else if (isDeleteKey(event) && ownSelection.length > 0) {
@@ -1743,6 +1776,7 @@ export function EditorScreen({
                 onContextMenu={(event) => openContextMenu(event, documentMenu('menu'))}
                 disabled={knownMenus.length === 0}
                 aria-label="Menu ouvert"
+                title={menu?.name}
               >
                 {!menu && <option value="">Aucun menu</option>}
                 {menu && !menuIsOnDisk && <option value={menu.id}>{menu.name} (non enregistré)</option>}
@@ -1793,6 +1827,7 @@ export function EditorScreen({
               >
                 <button
                   type="button"
+                 
                   onClick={() => void runExport('plugin')}
                   disabled={exporting || knownMenus.length === 0}
                   aria-keyshortcuts="Control+E"
@@ -1808,6 +1843,7 @@ export function EditorScreen({
               >
                 <button
                   type="button"
+                 
                   onClick={() => void runExport('pack')}
                   disabled={exporting || knownMenus.length === 0}
                   aria-keyshortcuts="Control+Shift+E"
@@ -1836,6 +1872,7 @@ export function EditorScreen({
               onContextMenu={(event) => openContextMenu(event, documentMenu('asset'))}
               disabled={knownAssets.length === 0}
               aria-label="Asset ouvert"
+              title={currentAsset?.name}
             >
               {!currentAsset && <option value="">Aucun asset</option>}
               {knownAssets.map((candidate) => (
@@ -1881,6 +1918,7 @@ export function EditorScreen({
               onContextMenu={(event) => openContextMenu(event, documentMenu('pixel'))}
               disabled={pixelList.length === 0}
               aria-label="Image ouverte"
+              title={currentPixel?.name}
             >
               {!currentPixel && <option value="">Aucune image</option>}
               {pixelList.map((candidate) => (
@@ -1999,7 +2037,7 @@ export function EditorScreen({
           />
         </Suspense>
       ) : mode === 'menus' ? (
-      <main className="workspace">
+      <main className="workspace" ref={observeColumns} style={columnStyle}>
         <aside className="sidebar">
           <div className="sidebar-tabs" role="tablist" aria-label="Colonne de gauche" hidden={trySession !== null}>
             <button
@@ -2010,7 +2048,10 @@ export function EditorScreen({
               onClick={() => setLeftTab('outline')}
             >
               <Icon name="list" />
-              Éléments
+              {/* Coupé par des points de suspension plutôt que de baver sur la barre voisine. */}
+              <span className="tab-label" title="Éléments">
+                Éléments
+              </span>
             </button>
             <button
               type="button"
@@ -2020,7 +2061,10 @@ export function EditorScreen({
               onClick={() => setLeftTab('library')}
             >
               <Icon name="library" />
-              Bibliothèque
+              {/* Coupé par des points de suspension plutôt que de baver sur la barre voisine. */}
+              <span className="tab-label" title="Bibliothèque">
+                Bibliothèque
+              </span>
             </button>
           </div>
           {/* Les deux onglets restent montés : la bibliothèque garde ses filtres et son index. */}
@@ -2094,6 +2138,23 @@ export function EditorScreen({
                   <kbd aria-hidden="true">S</kbd>
                 </button>
               </Tooltip>
+              <Tooltip label="Zoom" hint="Clic : zoom avant ; Alt+clic : arrière ; glisser : zoomer sur la zone ; Z maintenu : le temps de l’appui" shortcut="Z">
+                <button
+                  type="button"
+                  className={!trySession && tool === 'zoom' ? 'active' : ''}
+                  aria-pressed={!trySession && tool === 'zoom'}
+                  aria-label="Zoom"
+                  aria-keyshortcuts="Z"
+                  onClick={() => {
+                    stopTry();
+                    setTool('zoom');
+                  }}
+                >
+                  <Icon name="zoom-in" />
+                  <span className="tool-label">Zoom</span>
+                  <kbd aria-hidden="true">Z</kbd>
+                </button>
+              </Tooltip>
               <Tooltip label="Essayer" hint="Cliquer un slot exécute ses actions, sans modifier le menu ; Échap pour revenir" shortcut="E">
                 <button
                   type="button"
@@ -2147,11 +2208,13 @@ export function EditorScreen({
               <IconButton
                 icon="minus"
                 label="Zoom arrière"
-                shortcut="Ctrl+molette"
+                shortcut="-"
+                hint="Ctrl+molette : sur le pointeur"
                 size={24}
                 disabled={effectiveZoom <= ZOOM_LEVELS[0]}
-                onClick={() => setManualZoom(stepZoom(ZOOM_LEVELS, effectiveZoom, -1))}
+                onClick={() => requestZoom({ step: -1 })}
               />
+              <Tooltip label="Niveau de zoom" shortcut="Maj+1" hint="Maj+1 : ajuster ; Maj+0 : taille réelle ; Maj+2 : cadrer la sélection">
               <select
                 className="zoom-picker"
                 value={zoomMode === 'fit' ? 'fit' : String(zoom)}
@@ -2168,13 +2231,15 @@ export function EditorScreen({
                   </option>
                 ))}
               </select>
+              </Tooltip>
               <IconButton
                 icon="plus"
                 label="Zoom avant"
-                shortcut="Ctrl+molette"
+                shortcut="+"
+                hint="Ctrl+molette : sur le pointeur"
                 size={24}
                 disabled={effectiveZoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-                onClick={() => setManualZoom(stepZoom(ZOOM_LEVELS, effectiveZoom, 1))}
+                onClick={() => requestZoom({ step: 1 })}
               />
             </div>
           </div>
@@ -2205,6 +2270,7 @@ export function EditorScreen({
               onSlotAreaChange={handleSlotAreaChange}
               zoomLevels={ZOOM_LEVELS}
               onZoomChange={setManualZoom}
+              zoomRequest={zoomRequest}
               onContextMenu={openCanvasMenu}
             />
           ) : (
@@ -2283,6 +2349,9 @@ export function EditorScreen({
             />
           )}
         </aside>
+        {/* Poignées des deux colonnes : largeur réglée à la souris ou au clavier, mémorisée. */}
+        <ResizeHandle side="left" label="Largeur de la colonne de gauche" handle={leftColumn} />
+        <ResizeHandle side="right" label="Largeur de la colonne de droite" handle={rightColumn} />
       </main>
       ) : mode === 'assets' ? (
         <main className="asset-host">
@@ -2389,7 +2458,7 @@ export function EditorScreen({
       )}
 
       <footer className="statusbar">
-        <span className="statusbar-path">
+        <span className="statusbar-path" title={workspace?.root}>
           Espace de travail : <code>{workspace?.root ?? '…'}</code>
         </span>
         {mode === 'menus' && menu?.form && (

@@ -169,7 +169,7 @@ export function LayersPanel(props: LayersPanelProps) {
                     }}
                   />
                 ) : (
-                  <span className="outline-label">
+                  <span className="outline-label" title={layer.name}>
                     <span className="outline-name">{layer.name}</span>
                   </span>
                 )}

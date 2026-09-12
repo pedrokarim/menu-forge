@@ -40,17 +40,32 @@ function MenuSurface({ state, onClose }: { state: OpenState; onClose: (restoreFo
       if (!ref.current?.contains(event.target as Node)) onClose(false);
     };
     const dismiss = () => onClose(false);
+    // Un défilement ailleurs ferme le menu, pas le sien (hauteur bornée à la fenêtre). Et pas celui qui
+    // l’a précédé : un clic qui amène d’abord son bouton à l’écran émet son événement « scroll » à
+    // l’image suivante, après l’ouverture ; il ne referme pas le menu qu’il vient d’ouvrir.
+    let armed = false;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        armed = true;
+      });
+    });
+    const onScroll = (event: Event) => {
+      if (armed && !ref.current?.contains(event.target as Node)) onClose(false);
+    };
     window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('blur', dismiss);
     window.addEventListener('resize', dismiss);
-    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('scroll', onScroll, true);
     // Changement d’écran (raccourci, Précédent) : le menu de l’écran quitté disparaît.
     window.addEventListener('hashchange', dismiss);
     return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
       window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('blur', dismiss);
       window.removeEventListener('resize', dismiss);
-      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('hashchange', dismiss);
     };
   }, [onClose]);

@@ -176,8 +176,9 @@ les variables d’état et l’aperçu des drapeaux. Les textes et chemins longs
 passent à la ligne : rien ne déborde de la colonne. Format :
 [`format.md`](format.md) § Formulaire Bedrock ; export : [`bedrock.md`](bedrock.md) § 9.
 
-La fenêtre descend à 1180 × 700 : en dessous, rail d’écrans et trois colonnes
-ne laissent plus à la toile la place de ses outils.
+La fenêtre descend à 1024 × 600, et jamais au-delà de la zone utile de l’écran
+(barre des tâches ôtée, échelle d’affichage comprise) : les barres d’outils
+passent à la ligne par groupes et les colonnes latérales se règlent à la souris.
 
 ### Bibliothèques (`#/bibliotheques`)
 

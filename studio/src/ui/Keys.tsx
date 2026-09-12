@@ -31,7 +31,8 @@ function Key({ name }: { name: string }) {
 
 /** Touches d’un raccourci, séparées par « + » (« Ctrl+Z », « Maj+Flèches »…), affichées comme des touches de clavier. */
 export function ShortcutKeys({ shortcut }: { shortcut: string }) {
-  const keys = shortcut.split('+');
+  // Séparateur : un « + » suivi d’une autre touche ; « + » seul ou en fin (« Ctrl++ ») est la touche plus.
+  const keys = shortcut.split(/\+(?=.)/);
   return (
     <span className="shortcut-keys">
       {keys.map((key, index) => (
