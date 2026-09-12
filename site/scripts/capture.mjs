@@ -824,8 +824,8 @@ shot('ai-texture', '« Générer une texture par IA » : sortie du modèle et te
   await field(modal, 'Fournisseur').selectOption('automatic1111');
   await field(modal, 'Taille type').selectOption('0');
   await field(modal, 'Palette imposée').selectOption('menu-forge');
-  // Description courte : le nom de l’image en est tiré, et le studio le coupe au-delà de 40 caractères.
-  await modal.locator('textarea.ai-prompt').fill('Émeraude taillée, facettes vert vif');
+  // Le nom de l’image est tiré de la description, coupé au dernier mot entier (40 caractères au plus).
+  await modal.locator('textarea.ai-prompt').fill('Émeraude taillée, facettes vert vif, contour sombre et reflet blanc');
   await modal.getByRole('button', { name: 'Générer', exact: true }).click();
   await page.getByRole('img', { name: 'Texture contrainte' }).waitFor({ timeout: 30000 });
   await page.mouse.move(5, 5);
