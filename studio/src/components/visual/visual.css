@@ -161,11 +161,30 @@
 
 /* Choix exclusifs compacts (exécutant d’une commande, rendu d’un item) */
 
+/* Toutes les options sur une rangée si chacune a 10 caractères de large ;
+   sinon deux par rangée (quatre options) ou une par rangée : jamais une option
+   seule en bout de rangée. Le nombre d’options est lu sur les enfants. */
 .segmented-mini {
+  --options: 2;
+  --fallback-columns: 1;
+  /* Largeur minimale d’une option (libellé et picto). */
+  --option-min: 10ch;
   display: grid;
   gap: 2px;
   min-width: 0;
-  grid-template-columns: repeat(auto-fit, minmax(10ch, 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(max(calc(100% / var(--options) - 2px), min(calc(100% / var(--fallback-columns) - 2px), calc((var(--options) * var(--option-min) - 100%) * 999))), 1fr)
+  );
+}
+
+.segmented-mini:has(> :nth-child(3)) {
+  --options: 3;
+}
+
+.segmented-mini:has(> :nth-child(4)) {
+  --options: 4;
+  --fallback-columns: 2;
 }
 
 .segmented-mini button {

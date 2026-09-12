@@ -1795,6 +1795,9 @@ export function EditorScreen({
                 disabled={!menu}
                 onClick={(event) => openContextMenu(event, documentMenu('menu'))}
               />
+            </div>
+            {/* Trois groupes (document, création et enregistrement, exports) : la barre passe à la ligne entre eux. */}
+            <div className="toolbar-group">
               <Tooltip label="Nouveau menu" hint="Vierge ou à partir d’un gabarit">
                 <button type="button" onClick={() => setDialog({ kind: 'new-menu' })}>
                   <Icon name="plus" />
@@ -1821,6 +1824,8 @@ export function EditorScreen({
                   {dirty && <span className="dirty-mark" aria-hidden="true" />}
                 </button>
               </Tooltip>
+            </div>
+            <div className="toolbar-group">
               <Tooltip
                 label="Exporter vers le plugin"
                 hint="Tous les menus de l’espace, gabarits appliqués, et leurs textures, dans le dossier réglé dans les paramètres"

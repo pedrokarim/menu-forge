@@ -2012,7 +2012,11 @@ select {
   flex-wrap: wrap;
 }
 
+/* Titre long : il passe à la ligne à gauche, le bouton Fermer reste en haut à
+   droite (jamais seul sur une ligne sous le titre). */
 .modal-header {
+  flex-wrap: nowrap;
+  align-items: flex-start;
   justify-content: space-between;
   margin: 2px 2px 0;
   background: var(--ds-panel-raised);
