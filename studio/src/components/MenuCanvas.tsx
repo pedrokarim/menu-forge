@@ -18,7 +18,7 @@ import type { ScreenRect } from '../canvas/overlay';
 import { alignmentGuides, gridSnapLines, snapRect, snapThreshold, withRects } from '../canvas/snapping';
 import type { SnapGuide, SnapLines } from '../canvas/snapping';
 import { labelFont } from '../canvas/theme';
-import { CANVAS_MARGINS, isEditableTarget, scrollParentOf, stepZoom } from '../canvas/viewport';
+import { CANVAS_MARGINS, isEditableTarget, largestFittingZoom, scrollParentOf, stepZoom } from '../canvas/viewport';
 import type { MinecraftFont } from '../lib/minecraftFont';
 import { usePreviewFont } from '../lib/previewFont';
 import { isAdditiveClick } from '../lib/shortcuts';
@@ -55,8 +55,22 @@ import { mergeSelections, sameSelection, selectionIncludes, toggleSelection } fr
 import type { Selection } from '../state/editor';
 import { SLOT_COLORS } from './slotColors';
 
-/** `try` : mode « Essayer », un clic sur un slot exécute ses actions (rien ne se sélectionne ni ne bouge). */
-export type CanvasTool = 'select' | 'slot' | 'try';
+/**
+ * `try` : mode « Essayer », un clic sur un slot exécute ses actions (rien ne se sélectionne ni ne bouge).
+ * `zoom` : clic pour zoomer (Alt : dézoomer), glisser pour cadrer une zone.
+ */
+export type CanvasTool = 'select' | 'slot' | 'try' | 'zoom';
+
+/**
+ * Demande de zoom venue du clavier ou de la barre de la toile : un palier de plus
+ * ou de moins autour du centre visible, ou une zone de la fenêtre à cadrer. `serial`
+ * change à chaque demande (une demande n’est traitée qu’une fois).
+ */
+export interface ZoomRequest {
+  serial: number;
+  step?: 1 | -1;
+  area?: Rect;
+}
 export type BackgroundMode = 'slots-only' | 'vanilla' | 'none';
 
 /** Marges autour de la fenêtre, pour voir ce qui déborde (barre d’onglets flottante…). */
@@ -108,6 +122,7 @@ interface MenuCanvasProps {
   /** Paliers de zoom parcourus au Ctrl + molette. */
   zoomLevels?: readonly number[];
   onZoomChange?: (zoom: number) => void;
+  zoomRequest?: ZoomRequest | null;
   /**
    * Clic droit : l’élément sous le pointeur (sélectionné au passage, sauf s’il
    * fait déjà partie de la sélection), ou `null` sur une zone vide.
@@ -173,7 +188,17 @@ interface Marquee {
   moved: boolean;
 }
 
-type Interaction = GroupMove | SlotResize | SlotDraw | Pan | Marquee;
+/** Outil Zoom : clic (Alt : zoom arrière) ou rectangle à cadrer. */
+interface ZoomBox {
+  kind: 'zoom';
+  startClient: Point;
+  start: Point;
+  end: Point;
+  out: boolean;
+  moved: boolean;
+}
+
+type Interaction = GroupMove | SlotResize | SlotDraw | Pan | Marquee | ZoomBox;
 
 interface Hover {
   target: Selection | null;
@@ -445,6 +470,57 @@ export function MenuCanvas(props: MenuCanvasProps) {
     setInteraction({ kind: 'marquee', startClient: client, start: point, end: point, additive, base: selection, moved: false });
   }
 
+  /** Change de zoom en gardant le point `gui` (px de la fenêtre du coffre) sous le point `client` de l’écran. */
+  function zoomAround(level: number, gui: Point, client: Point) {
+    const canvas = canvasRef.current;
+    if (!canvas || !props.onZoomChange) return;
+    if (level !== zoom) {
+      zoomAnchorRef.current = { gui, client };
+      props.onZoomChange(level);
+      return;
+    }
+    // Même palier : seul le défilement change.
+    const scroller = scrollParentOf(canvas);
+    if (!scroller) return;
+    const rect = canvas.getBoundingClientRect();
+    scroller.scrollLeft += rect.left + (gui.x + MARGIN_X) * zoom - client.x;
+    scroller.scrollTop += rect.top + (gui.y + MARGIN_TOP) * zoom - client.y;
+  }
+
+  /** Centre visible de la zone de travail (px écran) et sa place utile (marges intérieures ôtées). */
+  function stageView() {
+    const scroller = scrollParentOf(canvasRef.current);
+    if (!scroller) return null;
+    const box = scroller.getBoundingClientRect();
+    const style = getComputedStyle(scroller);
+    return {
+      center: { x: box.left + scroller.clientLeft + scroller.clientWidth / 2, y: box.top + scroller.clientTop + scroller.clientHeight / 2 },
+      available: {
+        width: scroller.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+        height: scroller.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom),
+      },
+    };
+  }
+
+  /** Zoom sur une zone de la fenêtre : le plus grand palier où elle tient, centrée dans la zone de travail. */
+  function zoomToArea(area: Rect) {
+    const view = stageView();
+    if (!view) return;
+    const size = { width: Math.max(area.width, 1), height: Math.max(area.height, 1) };
+    const level = largestFittingZoom(size, view.available, props.zoomLevels ?? DEFAULT_ZOOM_LEVELS);
+    zoomAround(level, { x: area.x + area.width / 2, y: area.y + area.height / 2 }, view.center);
+  }
+
+  /** Palier suivant ou précédent, autour du centre visible. */
+  function zoomStepCentered(direction: 1 | -1) {
+    const canvas = canvasRef.current;
+    const view = stageView();
+    if (!canvas || !view) return;
+    const rect = canvas.getBoundingClientRect();
+    const gui = { x: (view.center.x - rect.left) / zoom - MARGIN_X, y: (view.center.y - rect.top) / zoom - MARGIN_TOP };
+    zoomAround(stepZoom(props.zoomLevels ?? DEFAULT_ZOOM_LEVELS, zoom, direction), gui, view.center);
+  }
+
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
     const canvas = event.currentTarget;
     const { screen, point, client } = readPointer(event);
@@ -466,6 +542,11 @@ export function MenuCanvas(props: MenuCanvasProps) {
     }
     canvas.setPointerCapture(event.pointerId);
     lastPointRef.current = point;
+
+    if (tool === 'zoom') {
+      setInteraction({ kind: 'zoom', startClient: client, start: point, end: point, out: event.altKey, moved: false });
+      return;
+    }
 
     if (tool === 'slot') {
       const cell = chestCellAt(point, rows);
@@ -519,6 +600,8 @@ export function MenuCanvas(props: MenuCanvasProps) {
       next = { target: slot ? { kind: 'slot', id: slot.id } : null, handle: null, cell: null };
     } else if (tool === 'slot') {
       next = { target: null, handle: null, cell: chestCellAt(point, rows) };
+    } else if (tool === 'zoom') {
+      next = NO_HOVER;
     } else {
       const handle = handleAt(screen);
       next = handle ? { target: null, handle, cell: null } : { target: pick(hitStack(point)).target, handle: null, cell: null };
@@ -549,7 +632,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
     const moved =
       current.moved || Math.hypot(client.x - current.startClient.x, client.y - current.startClient.y) >= DRAG_THRESHOLD;
     if (!moved) return;
-    if (current.kind === 'marquee') {
+    if (current.kind === 'marquee' || current.kind === 'zoom') {
       setInteraction({ ...current, moved, end: point });
     } else if (current.kind === 'move') {
       setInteraction({ ...current, moved, ...groupDelta(current, point, event.altKey) });
@@ -588,8 +671,27 @@ export function MenuCanvas(props: MenuCanvasProps) {
         return;
       case 'pan':
         return;
+      case 'zoom': {
+        // Rectangle : cadrer la zone ; simple clic : un palier autour du point visé.
+        const area = rectBetween(current.start, current.end);
+        if (current.moved && area.width >= 1 && area.height >= 1) zoomToArea(area);
+        else zoomAround(stepZoom(props.zoomLevels ?? DEFAULT_ZOOM_LEVELS, zoom, current.out ? -1 : 1), current.start, current.startClient);
+        return;
+      }
     }
   }
+
+  // Demande de zoom du clavier ou de la barre : traitée une seule fois (numéro déjà vu au montage compris).
+  const handledRequest = useRef(props.zoomRequest?.serial ?? 0);
+  const handleZoomRequest = useEffectEvent(() => {
+    const request = props.zoomRequest;
+    if (!request || request.serial === handledRequest.current) return;
+    handledRequest.current = request.serial;
+    if (request.area) zoomToArea(request.area);
+    else if (request.step) zoomStepCentered(request.step);
+  });
+  const requestSerial = props.zoomRequest?.serial ?? 0;
+  useEffect(() => handleZoomRequest(), [requestSerial]);
 
   function cancelInteraction() {
     if (interactionRef.current) setInteraction(null);
@@ -717,7 +819,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
       const size = areaSize(area);
       return { text: `${size.width} × ${size.height}`, rect: areaRect(area) };
     }
-    if (interaction.kind === 'pan' || interaction.kind === 'marquee' || !interaction.moved) return null;
+    if (interaction.kind === 'pan' || interaction.kind === 'marquee' || interaction.kind === 'zoom' || !interaction.moved) return null;
     if (interaction.kind === 'slot-resize') {
       const { area } = interaction;
       const size = areaSize(area);
@@ -812,6 +914,8 @@ export function MenuCanvas(props: MenuCanvasProps) {
       }
       drawMarquee(ctx, toScreenRect(area));
     }
+    // Outil Zoom : la zone à cadrer.
+    if (interaction?.kind === 'zoom' && interaction.moved) drawMarquee(ctx, toScreenRect(rectBetween(interaction.start, interaction.end)));
 
     const selectedRects = selection
       .map((target) => elementRect(target, shown))
@@ -831,6 +935,7 @@ export function MenuCanvas(props: MenuCanvasProps) {
     if (interaction?.kind === 'slot-resize') return HANDLE_CURSORS[interaction.handle];
     if (interaction?.kind === 'move') return 'move';
     if (interaction?.kind === 'marquee') return 'crosshair';
+    if (tool === 'zoom') return interaction?.kind === 'zoom' && interaction.out ? 'zoom-out' : 'zoom-in';
     if (tool === 'try') return hover.target ? 'pointer' : 'default';
     if (tool === 'slot') return 'crosshair';
     if (hover.handle) return HANDLE_CURSORS[hover.handle];

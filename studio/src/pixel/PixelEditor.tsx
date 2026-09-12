@@ -1,3 +1,5 @@
+import { zoomCommand } from '../canvas/viewport';
+import { useHeldTool } from '../lib/heldTool';
 import { shortcutLetter } from '../lib/shortcuts';
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
@@ -175,6 +177,10 @@ function PixelWorkbench(props: WorkbenchProps) {
   const [recent, setRecent] = useState<Rgba[]>([]);
   const [showGrid, setShowGrid] = useState(props.defaultShowGrid);
   const [zoom, setZoom] = useState(1);
+  // Variables séparées : la fonction de mesure part en `ref`, le reste sert au rendu.
+  const { observe: observeColumns, style: columnStyle, left: leftColumn, right: rightColumn } = useEditorColumns('pixels');
+  // Z maintenu : outil Zoom le temps de l’appui, puis retour à l’outil précédent.
+  const heldTool = useHeldTool<PixelTool>('z', setTool);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [dialog, setDialog] = useState<'resize' | null>(null);
@@ -583,6 +589,16 @@ function PixelWorkbench(props: WorkbenchProps) {
       return;
     }
     if (isTextEntry(event.target)) return;
+    // Zoom à une touche (+, -, Maj+0, Maj+1, Maj+2), comme dans les deux autres éditeurs.
+    const zoomKey = zoomCommand(event);
+    if (zoomKey) {
+      event.preventDefault();
+      if (zoomKey === 'in' || zoomKey === 'out') canvasRef.current?.zoomStep(zoomKey === 'in' ? 1 : -1);
+      else if (zoomKey === 'fit') canvasRef.current?.fit();
+      else if (zoomKey === 'actual') canvasRef.current?.actualSize();
+      else if (!canvasRef.current?.zoomToSelection()) setStatus('Rien de sélectionné : Maj+2 cadre la sélection.');
+      return;
+    }
     if (withModifier) {
       const actions: Record<string, () => void> = {
         KeyZ: event.shiftKey ? redo : undo,
@@ -631,6 +647,9 @@ function PixelWorkbench(props: WorkbenchProps) {
         shifted[code]();
         return;
       }
+    } else if (code === 'KeyZ') {
+      heldTool.press('zoom', tool);
+      return;
     } else if (TOOL_CODES[code]) {
       setTool(TOOL_CODES[code]);
       return;
@@ -863,6 +882,8 @@ function PixelWorkbench(props: WorkbenchProps) {
                 Grille
               </label>
             </Tooltip>
+            <IconButton icon="minus" label="Zoom arrière" shortcut="-" hint="Ctrl+molette : sur le pointeur" size={24} disabled={zoom <= ZOOM_LEVELS[0]} onClick={() => canvasRef.current?.zoomStep(-1)} />
+            <Tooltip label="Niveau de zoom" shortcut="Maj+1" hint="Maj+1 : ajuster ; Maj+0 : taille réelle ; Maj+2 : cadrer la sélection">
             <select
               className="pixel-zoom"
               value={String(zoom)}
@@ -879,6 +900,8 @@ function PixelWorkbench(props: WorkbenchProps) {
                 </option>
               ))}
             </select>
+            </Tooltip>
+            <IconButton icon="plus" label="Zoom avant" shortcut="+" hint="Ctrl+molette : sur le pointeur" size={24} disabled={zoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]} onClick={() => canvasRef.current?.zoomStep(1)} />
           </div>
         </div>
 
@@ -986,6 +1009,8 @@ function PixelWorkbench(props: WorkbenchProps) {
                 ['Flèches', 'Déplacer la sélection de 1 px'],
                 ['Ctrl+J', 'Dupliquer le calque'],
                 ['Ctrl+E', 'Fusionner vers le bas'],
+                ['+', 'Zoom avant (- : arrière)'],
+                ['Maj+1', 'Ajuster (Maj+0 : ×1 ; Maj+2 : sélection)'],
                 ['Ctrl+S', 'Enregistrer et exporter'],
               ].map(([keys, label]) => (
                 <Fragment key={keys}>

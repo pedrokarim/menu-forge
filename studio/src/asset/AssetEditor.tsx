@@ -11,6 +11,9 @@ import { assetClipboard, nextPasteShift, readClipboard, writeClipboard } from '.
 import type { AssetClipboard, ClipboardContent } from '../lib/clipboard';
 import { plural } from '../lib/format';
 import { hasDraggedFiles, pastedImageName, pngFiles } from '../lib/imageImport';
+import { largestFittingZoom, stepZoom, zoomCommand } from '../canvas/viewport';
+import type { ZoomCommand } from '../canvas/viewport';
+import { useHeldTool } from '../lib/heldTool';
 import { arrowDelta, isDeleteKey, shortcutDigit, shortcutLetter, withCommand } from '../lib/shortcuts';
 import type { LoadedTexture } from '../lib/textures';
 import { useClipboardShortcuts } from '../lib/useClipboardShortcuts';
@@ -93,8 +96,10 @@ export interface AssetEditorProps {
   onImportImage?: (blob: Blob, fileName: string) => Promise<string>;
 }
 
-const TOOLS: readonly AssetTool[] = ['select', 'box', 'text', 'image'];
-const TOOL_ICONS: Record<AssetTool, IconName> = { select: 'cursor', box: 'box', text: 'text', image: 'image' };
+const TOOLS: readonly AssetTool[] = ['select', 'box', 'text', 'image', 'zoom'];
+const TOOL_ICONS: Record<AssetTool, IconName> = { select: 'cursor', box: 'box', text: 'text', image: 'image', zoom: 'zoom-in' };
+/** Ctrl + molette : défilement cumulé (px) qui vaut un palier de zoom, comme sur la toile des menus. */
+const WHEEL_STEP = 50;
 const TOOL_KEYS: Record<string, AssetTool> = { v: 'select', b: 'box', t: 'text', i: 'image' };
 const TYPE_NOUNS: Record<AssetElement['type'], string> = { box: 'Box', image: 'Image', text: 'Texte' };
 
@@ -157,6 +162,13 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     return () => observer.disconnect();
   }, []);
   const [showGrid, setShowGrid] = useState(defaultShowGrid);
+  // Variables séparées : la fonction de mesure part en `ref`, le reste sert au rendu.
+  const { observe: observeColumns, style: columnStyle, left: leftColumn, right: rightColumn } = useEditorColumns('assets');
+  // Z maintenu : outil Zoom le temps de l’appui, puis retour à l’outil précédent.
+  const heldTool = useHeldTool<AssetTool>('z', setTool);
+  /** Point de l’asset à garder sous un point de l’écran au prochain changement de zoom. */
+  const zoomAnchor = useRef<{ point: Point; client: Point } | null>(null);
+  const wheelTotal = useRef(0);
   const [leftTab, setLeftTab] = useState<'elements' | 'library'>('elements');
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
   const [saving, setSaving] = useState(false);
@@ -543,6 +555,13 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       return;
     }
     if (isTypingTarget(event.target)) return;
+    // Zoom à une touche (+, -, Maj+0, Maj+1, Maj+2), comme dans les deux autres éditeurs.
+    const zoomKey = zoomCommand(event);
+    if (zoomKey) {
+      event.preventDefault();
+      runZoomCommand(zoomKey);
+      return;
+    }
     if (command && letter === 'z') {
       event.preventDefault();
       dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
@@ -577,7 +596,9 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     }
     // Ctrl+C, Ctrl+X, Ctrl+V : traités par useClipboardShortcuts.
     if (command || event.altKey) return;
-    if (letter && TOOL_KEYS[letter] && !event.shiftKey) {
+    if (letter === 'z' && !event.shiftKey) {
+      heldTool.press('zoom', tool);
+    } else if (letter && TOOL_KEYS[letter] && !event.shiftKey) {
       setTool(TOOL_KEYS[letter]);
     } else if (event.key === 'Escape') {
       setSelectedIds([]);
@@ -622,6 +643,95 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     setZoomMode('manual');
     setZoom(level);
   };
+
+  /** Zone de la toile : centre visible (px écran) et place utile autour de l’asset (marge et coordonnées ôtées). */
+  const stageView = () => {
+    const node = stageNode.current;
+    if (!node) return null;
+    const box = node.getBoundingClientRect();
+    return {
+      center: { x: box.left + node.clientLeft + node.clientWidth / 2, y: box.top + node.clientTop + node.clientHeight / 2 },
+      available: { width: node.clientWidth - CANVAS_PAD * 2, height: node.clientHeight - CANVAS_PAD * 2 - 34 },
+    };
+  };
+  /** Fait défiler la zone pour que le point `point` de l’asset tombe sous le point `client` de l’écran. */
+  const scrollToAnchor = (anchor: { point: Point; client: Point }, level: number) => {
+    const node = stageNode.current;
+    const canvas = node?.querySelector('canvas.asset-canvas');
+    if (!node || !canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    node.scrollLeft += rect.left + CANVAS_PAD + anchor.point.x * level - anchor.client.x;
+    node.scrollTop += rect.top + CANVAS_PAD + anchor.point.y * level - anchor.client.y;
+  };
+  /** Change de zoom en gardant le point `point` de l’asset sous le point `client` de l’écran. */
+  const zoomAround = (level: number, point: Point, client: Point) => {
+    if (level === effectiveZoom) {
+      scrollToAnchor({ point, client }, level);
+      return;
+    }
+    zoomAnchor.current = { point, client };
+    setManualZoom(level);
+  };
+  /** Palier suivant ou précédent, autour du centre visible. */
+  const zoomStepCentered = (direction: 1 | -1) => {
+    const view = stageView();
+    const level = stepZoom(zoomOptions, effectiveZoom, direction);
+    const point = view ? pixelAt(view.center.x, view.center.y) : null;
+    if (view && point) zoomAround(level, point, view.center);
+    else setManualZoom(level);
+  };
+  /** Zoom sur une zone de l’asset : le plus grand palier où elle tient, centrée. */
+  const zoomToArea = (area: { x: number; y: number; width: number; height: number }) => {
+    const view = stageView();
+    if (!view) return;
+    const level = largestFittingZoom({ width: Math.max(area.width, 1), height: Math.max(area.height, 1) }, view.available, zoomOptions);
+    zoomAround(level, { x: area.x + area.width / 2, y: area.y + area.height / 2 }, view.center);
+  };
+  /** Zoom au clavier : palier autour du centre, taille réelle, ajuster, ou cadrer la sélection. */
+  const runZoomCommand = (command: ZoomCommand) => {
+    if (command === 'fit') setZoomMode('fit');
+    else if (command === 'actual') setManualZoom(1);
+    else if (command === 'selection') {
+      if (selectionBounds) zoomToArea(selectionBounds);
+      else setStatus('Rien de sélectionné : Maj+2 cadre la sélection.');
+    } else zoomStepCentered(command === 'in' ? 1 : -1);
+  };
+  // Après un zoom demandé autour d’un point (outil Zoom, Ctrl+molette, clavier) : ce point reste en place.
+  useLayoutEffect(() => {
+    const anchor = zoomAnchor.current;
+    zoomAnchor.current = null;
+    if (anchor) scrollToAnchor(anchor, effectiveZoom);
+    // Seul le changement de zoom déclenche le recalage.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveZoom]);
+
+  // Ctrl + molette : palier suivant ou précédent, en gardant sous le pointeur le point visé.
+  const handleStageWheel = (event: WheelEvent) => {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    event.preventDefault();
+    const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1;
+    const delta = event.deltaY * scale;
+    if (Math.sign(delta) !== Math.sign(wheelTotal.current)) wheelTotal.current = 0;
+    wheelTotal.current += delta;
+    if (Math.abs(wheelTotal.current) < WHEEL_STEP) return;
+    const direction = wheelTotal.current < 0 ? 1 : -1;
+    wheelTotal.current = 0;
+    const level = stepZoom(zoomOptions, effectiveZoom, direction);
+    const point = pixelAt(event.clientX, event.clientY);
+    if (point) zoomAround(level, point, { x: event.clientX, y: event.clientY });
+    else setManualZoom(level);
+  };
+  const wheelHandler = useRef(handleStageWheel);
+  useEffect(() => {
+    wheelHandler.current = handleStageWheel;
+  });
+  useEffect(() => {
+    const node = stageNode.current;
+    if (!node) return;
+    const listener = (event: WheelEvent) => wheelHandler.current(event);
+    node.addEventListener('wheel', listener, { passive: false });
+    return () => node.removeEventListener('wheel', listener);
+  }, []);
 
   /* Glisser-déposer d’un PNG depuis l’explorateur */
 
@@ -784,6 +894,14 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                   </dt>
                   <dd>Ajuster le zoom</dd>
                   <dt>
+                    <ShortcutKeys shortcut="+" />
+                  </dt>
+                  <dd>Zoom avant (- : arrière)</dd>
+                  <dt>
+                    <ShortcutKeys shortcut="Maj+0" />
+                  </dt>
+                  <dd>Taille réelle (Maj+1 : ajuster ; Maj+2 : sélection)</dd>
+                  <dt>
                     <ShortcutKeys shortcut="Ctrl+S" />
                   </dt>
                   <dd>Enregistrer et exporter</dd>
@@ -841,7 +959,9 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
               onClick={() => dispatch({ type: 'redo' })}
             />
           </div>
-          <div className="asset-toolbar-group asset-toolbar-end">
+          <div className="asset-toolbar-group asset-toolbar-end" role="group" aria-label="Affichage">
+            <IconButton icon="minus" label="Zoom arrière" shortcut="-" hint="Ctrl+molette : sur le pointeur" size={24} disabled={effectiveZoom <= zoomOptions[0]} onClick={() => zoomStepCentered(-1)} />
+            <Tooltip label="Niveau de zoom" shortcut="Maj+1" hint="Maj+1 : ajuster ; Maj+0 : taille réelle ; Maj+2 : cadrer la sélection">
             <select
               className="zoom-picker"
               value={zoomMode === 'fit' ? 'fit' : String(effectiveZoom)}
@@ -858,6 +978,8 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
                 </option>
               ))}
             </select>
+            </Tooltip>
+            <IconButton icon="plus" label="Zoom avant" shortcut="+" hint="Ctrl+molette : sur le pointeur" size={24} disabled={effectiveZoom >= zoomOptions[zoomOptions.length - 1]} onClick={() => zoomStepCentered(1)} />
             <label className="checkbox" title={`Grille de pixels (à partir de ×${GRID_MIN_ZOOM})`}>
               <input
                 type="checkbox"
@@ -913,6 +1035,8 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
             onCreateBox={createBox}
             onCreateText={createText}
             onPlaceImage={placeImage}
+            onZoomClick={(point, client, out) => zoomAround(stepZoom(zoomOptions, effectiveZoom, out ? -1 : 1), point, client)}
+            onZoomArea={zoomToArea}
             onContextMenu={openCanvasMenu}
           />
         </div>

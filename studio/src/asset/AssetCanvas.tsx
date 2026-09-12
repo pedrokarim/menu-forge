@@ -57,6 +57,10 @@ interface AssetCanvasProps {
   onCreateBox: (rect: Rect, clicked: boolean) => void;
   onCreateText: (pixel: Point) => void;
   onPlaceImage: (pixel: Point) => void;
+  /** Outil Zoom : clic sur un point de l’asset (Alt : zoom arrière), à garder sous le pointeur. */
+  onZoomClick?: (point: Point, client: Point, out: boolean) => void;
+  /** Outil Zoom : zone glissée à cadrer, en pixels d’asset. */
+  onZoomArea?: (area: Rect) => void;
   /** Clic droit : l’élément visé (sa sélection est prise s’il n’y était pas), ou `null` sur une zone vide. */
   onContextMenu?: (id: string | null, event: ReactMouseEvent<HTMLCanvasElement>) => void;
 }
@@ -83,6 +87,9 @@ export function AssetCanvas(props: AssetCanvasProps) {
   const marqueeRef = useRef<Marquee | null>(null);
   const [hover, setHover] = useState<Point | null>(null);
   const [cursor, setCursor] = useState('default');
+  // Outil Zoom : point de départ, et zone si la souris a bougé.
+  const [zoomBox, setZoomBoxState] = useState<{ start: Point; end: Point; client: Point; out: boolean; moved: boolean } | null>(null);
+  const zoomBoxRef = useRef<typeof zoomBox>(null);
 
   const { width, height } = asset.size;
   const viewWidth = width * zoom + PAD * 2;
@@ -92,6 +99,11 @@ export function AssetCanvas(props: AssetCanvasProps) {
   const single = selected.length === 1 ? selected[0] : null;
   const singleRect = single ? (bounds.get(single.id) ?? null) : null;
   const resizable = tool === 'select' && single?.type === 'box' && !single.locked;
+
+  function setZoomBox(next: typeof zoomBox) {
+    zoomBoxRef.current = next;
+    setZoomBoxState(next);
+  }
 
   function setMarquee(next: Marquee | null) {
     marqueeRef.current = next;
@@ -140,7 +152,7 @@ export function AssetCanvas(props: AssetCanvasProps) {
     ctx.lineWidth = 1;
     ctx.strokeRect(PAD - 0.5, PAD - 0.5, assetWidth + 1, assetHeight + 1);
 
-    if (tool !== 'select' && hover && !draft && zoom >= 3) {
+    if (tool !== 'select' && tool !== 'zoom' && hover && !draft && zoom >= 3) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.strokeRect(PAD + hover.x * zoom + 0.5, PAD + hover.y * zoom + 0.5, zoom - 1, zoom - 1);
     }
@@ -185,6 +197,17 @@ export function AssetCanvas(props: AssetCanvasProps) {
       ctx.fillStyle = 'rgba(242, 201, 76, 0.16)';
       ctx.fillRect(screen.x, screen.y, screen.width, screen.height);
       ctx.strokeStyle = SELECTION_COLOR;
+      ctx.strokeRect(screen.x + 0.5, screen.y + 0.5, screen.width - 1, screen.height - 1);
+      ctx.restore();
+    }
+
+    // Outil Zoom : la zone à cadrer, en pointillés.
+    if (zoomBox?.moved) {
+      const screen = toScreen(rectBetween(zoomBox.start, zoomBox.end));
+      ctx.save();
+      ctx.strokeStyle = SELECTION_COLOR;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
       ctx.strokeRect(screen.x + 0.5, screen.y + 0.5, screen.width - 1, screen.height - 1);
       ctx.restore();
     }
@@ -261,6 +284,10 @@ export function AssetCanvas(props: AssetCanvasProps) {
     const pixel = clampPixel(toPixel(point));
     event.currentTarget.setPointerCapture(event.pointerId);
 
+    if (tool === 'zoom') {
+      setZoomBox({ start: point, end: point, client: { x: event.clientX, y: event.clientY }, out: event.altKey, moved: false });
+      return;
+    }
     if (tool === 'box') {
       setDraft({ start: pixel, end: pixel });
       return;
@@ -319,6 +346,13 @@ export function AssetCanvas(props: AssetCanvasProps) {
       setHover(pixel);
     }
 
+    const box = zoomBoxRef.current;
+    if (box) {
+      const moved = box.moved || Math.hypot(point.x - box.start.x, point.y - box.start.y) * zoom >= MARQUEE_THRESHOLD;
+      if (moved) setZoomBox({ ...box, end: point, moved });
+      return;
+    }
+
     if (draft) {
       const end = clampPixel(pixel);
       if (end.x !== draft.end.x || end.y !== draft.end.y) setDraft({ start: draft.start, end });
@@ -364,6 +398,14 @@ export function AssetCanvas(props: AssetCanvasProps) {
   }
 
   function handlePointerUp() {
+    const box = zoomBoxRef.current;
+    if (box) {
+      setZoomBox(null);
+      const area = rectBetween(box.start, box.end);
+      if (box.moved && area.width > 0 && area.height > 0) props.onZoomArea?.(area);
+      else props.onZoomClick?.(box.start, box.client, box.out);
+      return;
+    }
     if (draft) {
       const clicked = draft.start.x === draft.end.x && draft.start.y === draft.end.y;
       props.onCreateBox(rectFromPixels(draft.start, draft.end), clicked);
@@ -384,6 +426,7 @@ export function AssetCanvas(props: AssetCanvasProps) {
   }
 
   function handlePointerCancel() {
+    setZoomBox(null);
     setDraft(null);
     setMarquee(null);
     dragRef.current = null;
@@ -405,7 +448,11 @@ export function AssetCanvas(props: AssetCanvasProps) {
       <canvas
         ref={canvasRef}
         className="asset-canvas"
-        style={{ width: viewWidth, height: viewHeight, cursor: tool === 'select' ? (marquee ? 'crosshair' : cursor) : 'crosshair' }}
+        style={{
+          width: viewWidth,
+          height: viewHeight,
+          cursor: tool === 'zoom' ? (zoomBox?.out ? 'zoom-out' : 'zoom-in') : tool === 'select' ? (marquee ? 'crosshair' : cursor) : 'crosshair',
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

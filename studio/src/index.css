@@ -1077,23 +1077,108 @@ input[type='color']::-webkit-color-swatch {
   margin-left: auto;
 }
 
-/* Colonne centrale étroite : les outils ne gardent que leur picto (touche et nom
-   restent dans l’infobulle), le zoom se règle à la liste ou à Ctrl + molette. */
+/* Barres d’outils et pied des éditeurs d’assets et de pixels : mêmes règles que
+   la barre de la toile des menus. Ici et non dans asset.css, chargé avec
+   l’éditeur d’assets seulement : l’éditeur de pixels ouvert en premier les
+   perdait (barre sans fond, contrôles de toutes les hauteurs). */
+.asset-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) 10px;
+  padding: 7px 12px 8px;
+  background: var(--ds-panel-raised);
+  border-bottom: 2px solid var(--ds-edge-soft);
+  box-shadow: inset 0 2px 0 #3d3e47, inset 0 -2px 0 #1f2026;
+}
+
+.asset-toolbar > * {
+  flex: none;
+}
+
+.asset-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Réglages de la vue calés à droite, comme dans la barre de la toile des menus. */
+.asset-toolbar-end {
+  margin-left: auto;
+}
+
+/* Une case à cocher de barre d’outils a la hauteur des boutons voisins : même
+   centre, même ligne de base. */
+.stage-toolbar .checkbox,
+.asset-toolbar .checkbox {
+  min-height: var(--control-h);
+}
+
+.asset-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 28px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--ds-muted);
+  background: var(--ds-panel-sunken);
+  border-top: 2px solid var(--ds-edge-soft);
+  box-shadow: inset 0 2px 0 #2c2d34;
+  flex-wrap: wrap;
+}
+
+.asset-footer-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-status {
+  min-width: 0;
+  color: var(--ds-ink);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Colonne centrale étroite : les séparateurs s’effacent et les groupes passent à
+   la ligne entiers ; libellés, touches et boutons de zoom restent visibles. */
 @container stage (max-width: 700px) {
   .stage-toolbar {
     gap: 8px;
   }
 
-  .stage-toolbar .tb-sep,
-  .stage-toolbar .tool-label,
-  .stage-toolbar .segmented kbd,
-  .stage-toolbar-end > :not(.zoom-picker) {
+  .stage-toolbar .tb-sep {
     display: none;
   }
 }
 
-  .stage-toolbar .zoom-picker {
-    width: 116px;
+/* Colonne très étroite (petite fenêtre, colonnes élargies) : les outils se
+   resserrent, puis se rangent en deux lignes égales plutôt que de déborder ;
+   libellés et touches restent visibles. */
+@container stage (max-width: 560px) {
+  .stage-toolbar .segmented > button {
+    gap: 4px;
+    padding-inline: 7px;
+  }
+
+  .stage-toolbar .segmented kbd {
+    margin-left: 0;
+  }
+}
+
+@container stage (max-width: 400px) {
+  .stage-toolbar .segmented {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 2px;
+  }
+
+  .stage-toolbar .segmented > button + button {
+    margin-left: 0;
   }
 }
 

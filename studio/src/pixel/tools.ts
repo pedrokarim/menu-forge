@@ -14,7 +14,8 @@ export type PixelTool =
   | 'marquee'
   | 'lasso'
   | 'wand'
-  | 'move';
+  | 'move'
+  | 'zoom';
 
 export interface ToolInfo {
   label: string;
@@ -37,6 +38,7 @@ export const TOOLS: readonly PixelTool[] = [
   'lasso',
   'wand',
   'move',
+  'zoom',
 ];
 
 export const TOOL_INFO: Record<PixelTool, ToolInfo> = {
@@ -51,9 +53,18 @@ export const TOOL_INFO: Record<PixelTool, ToolInfo> = {
   lasso: { label: 'Lasso', shortcut: 'Q', hint: 'Sélection à main levée ; Maj : ajouter ; Alt : retirer', icon: 'lasso' },
   wand: { label: 'Baguette magique', shortcut: 'W', hint: 'Sélectionne la zone de même couleur ; Maj : ajouter ; Alt : retirer', icon: 'wand' },
   move: { label: 'Déplacement', shortcut: 'V', hint: 'Déplace la sélection (ou tout le calque) ; Ctrl : en copie', icon: 'drag' },
+  zoom: {
+    label: 'Zoom',
+    shortcut: 'Z',
+    hint: 'Clic : zoom avant ; Alt+clic : arrière ; glisser : zoomer sur la zone ; Z maintenu : le temps de l’appui',
+    icon: 'zoom-in',
+  },
 };
 
-/** Lettre du raccourci (sous la forme `KeyX`, voir `shortcutLetter`) → outil, sans modificateur. */
+/**
+ * Lettre du raccourci (sous la forme `KeyX`, voir `shortcutLetter`) → outil, sans modificateur.
+ * Z (outil Zoom) n’y est pas : maintenu, il prête l’outil le temps de l’appui (`useHeldTool`).
+ */
 export const TOOL_CODES: Record<string, PixelTool> = {
   KeyB: 'pencil',
   KeyE: 'eraser',

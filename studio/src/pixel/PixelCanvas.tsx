@@ -1,7 +1,7 @@
 import { shortcutLetter } from '../lib/shortcuts';
 import { useCallback, useEffect, useEffectEvent, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, Ref } from 'react';
-import { isEditableTarget } from '../canvas/viewport';
+import { isEditableTarget, largestFittingZoom } from '../canvas/viewport';
 import { NBSP } from '../lib/format';
 import { activeLayer, dropFloating, nextVersion, withLayerData } from './document';
 import type { FloatingLayer, PixelLayer, PixelState } from './document';
@@ -48,6 +48,10 @@ export interface PixelCanvasHandle {
   /** Palier suivant (1) ou précédent (−1), centré sur la vue. */
   zoomStep(direction: 1 | -1): void;
   setZoom(level: number): void;
+  /** Taille réelle (×1), centrée sur la vue. */
+  actualSize(): void;
+  /** Cadre la sélection (ou le contenu flottant) ; `false` s’il n’y en a pas. */
+  zoomToSelection(): boolean;
   /** Pixel d’image au centre de la vue (où poser un collage). */
   visibleCenter(): Point;
 }
@@ -116,7 +120,9 @@ type Session =
   | { kind: 'marquee'; base: PixelState; start: Point; end: Point; mode: SelectionMode; moved: boolean }
   | { kind: 'lasso'; base: PixelState; points: Point[]; mode: SelectionMode }
   | { kind: 'move'; base: PixelState; floating: FloatingLayer; start: Point; origin: Point; moved: boolean }
-  | { kind: 'shift'; base: PixelState; layerId: string; data: Uint8ClampedArray; start: Point; offset: Point };
+  | { kind: 'shift'; base: PixelState; layerId: string; data: Uint8ClampedArray; start: Point; offset: Point }
+  /** Outil Zoom : points de la zone (px CSS de la toile) ; Alt au clic : zoom arrière. */
+  | { kind: 'zoom'; start: Point; end: Point; out: boolean; moved: boolean };
 
 /** Couleurs de la zone de travail et du damier (jetons Deepslate, comme les autres toiles). */
 const STAGE_COLOR = '#131418';
@@ -166,6 +172,8 @@ export function PixelCanvas(props: PixelCanvasProps) {
   const [, setViewEpoch] = useState(0);
   const [stage, setStage] = useState<{ width: number; height: number } | null>(null);
   const fittedFor = useRef('');
+  /** Vue encore « ajustée » (ni zoomée ni défilée à la main) : elle suit les changements de taille de la zone. */
+  const fitted = useRef(true);
   const sessionRef = useRef<Session | null>(null);
   const [sessionKind, setSessionKind] = useState<Session['kind'] | null>(null);
   const hoverRef = useRef<Point | null>(null);
@@ -229,6 +237,18 @@ export function PixelCanvas(props: PixelCanvasProps) {
 
   const stageCenter = (): Point => ({ x: (stage?.width ?? 0) / 2, y: (stage?.height ?? 0) / 2 });
 
+  /** Zoom sur une zone de l’image (px d’image) : le plus grand palier où elle tient, centrée dans la zone. */
+  const zoomToRect = (rect: Rect) => {
+    if (!stage) return;
+    const available = { width: stage.width - FIT_PAD * 2, height: stage.height - FIT_PAD * 2 };
+    const zoom = largestFittingZoom({ width: Math.max(rect.width, 1), height: Math.max(rect.height, 1) }, available, ZOOM_LEVELS);
+    applyView({
+      zoom,
+      x: Math.round(stage.width / 2 - (rect.x + rect.width / 2) * zoom),
+      y: Math.round(stage.height / 2 - (rect.y + rect.height / 2) * zoom),
+    });
+  };
+
   useImperativeHandle(ref, () => ({
     fit: () => {
       applyView(fitView());
@@ -240,6 +260,12 @@ export function PixelCanvas(props: PixelCanvasProps) {
       if (next) zoomAt(next, stageCenter());
     },
     setZoom: (level) => zoomAt(level, stageCenter()),
+    actualSize: () => zoomAt(1, stageCenter()),
+    zoomToSelection: () => {
+      if (!selectionBounds) return false;
+      zoomToRect(selectionBounds);
+      return true;
+    },
     visibleCenter: () => {
       const view = viewRef.current;
       const center = stageCenter();
@@ -499,10 +525,21 @@ export function PixelCanvas(props: PixelCanvasProps) {
       });
     }
 
-    // Pixel visé : la brosse (miroirs compris), ou un simple cadre.
+    // Outil Zoom : la zone à cadrer, en pointillés.
+    if (session?.kind === 'zoom' && session.moved) {
+      const left = Math.round(Math.min(session.start.x, session.end.x));
+      const top = Math.round(Math.min(session.start.y, session.end.y));
+      context.save();
+      context.strokeStyle = '#f2c94c';
+      context.setLineDash([4, 4]);
+      context.strokeRect(left + 0.5, top + 0.5, Math.round(Math.abs(session.end.x - session.start.x)), Math.round(Math.abs(session.end.y - session.start.y)));
+      context.restore();
+    }
+
+    // Pixel visé : la brosse (miroirs compris), ou un simple cadre.
     const hover = hoverRef.current;
     const busy = session !== null && session.kind !== 'paint' && session.kind !== 'shape';
-    if (hover && !busy && !spaceRef.current && tool !== 'move') {
+    if (hover && !busy && !spaceRef.current && tool !== 'move' && tool !== 'zoom') {
       const size = tool === 'pencil' || tool === 'eraser' || tool === 'line' || (tool !== 'rectangle' && tool !== 'ellipse' ? false : !options.filled)
         ? options.brushSize
         : 1;
@@ -820,6 +857,9 @@ export function PixelCanvas(props: PixelCanvasProps) {
       case 'move':
         beginMove(point, event.ctrlKey || event.metaKey);
         return;
+      case 'zoom':
+        startSession({ kind: 'zoom', start: local, end: local, out: event.altKey, moved: false });
+        return;
     }
   }
 
@@ -844,6 +884,12 @@ export function PixelCanvas(props: PixelCanvasProps) {
     updateHover(inImage(point) ? point : null);
     if (!session) return;
     switch (session.kind) {
+      case 'zoom':
+        if (!session.moved && Math.hypot(local.x - session.start.x, local.y - session.start.y) < 3) return;
+        session.end = local;
+        session.moved = true;
+        scheduleDraw();
+        return;
       case 'pick': {
         const color = sample(point);
         if (color) props.onPickColor(color, session.target);
@@ -944,6 +990,21 @@ export function PixelCanvas(props: PixelCanvasProps) {
       case 'shift':
         if (session.offset.x !== 0 || session.offset.y !== 0) props.onCommit(withLayerData(session.base, session.layerId, session.data));
         break;
+      case 'zoom': {
+        const view = viewRef.current;
+        const toImage = (local: Point) => ({ x: (local.x - view.x) / view.zoom, y: (local.y - view.y) / view.zoom });
+        if (session.moved) {
+          // Zone glissée : la cadrer.
+          const [a, b] = [toImage(session.start), toImage(session.end)];
+          const rect = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) };
+          if (rect.width > 0 && rect.height > 0) zoomToRect(rect);
+        } else {
+          // Simple clic : un palier autour du point visé (Alt : en arrière).
+          const next = session.out ? ZOOM_LEVELS.findLast((level) => level < view.zoom) : ZOOM_LEVELS.find((level) => level > view.zoom);
+          if (next) zoomAt(next, session.start);
+        }
+        break;
+      }
       default:
         break;
     }
@@ -1046,6 +1107,7 @@ export function PixelCanvas(props: PixelCanvasProps) {
   if (sessionKind === 'pan') cursor = 'grabbing';
   else if (spaceHeld) cursor = 'grab';
   else if (tool === 'move' || sessionKind === 'move') cursor = 'move';
+  else if (tool === 'zoom') cursor = 'zoom-in';
 
   const selectionBounds = state.floating
     ? { x: state.floating.x, y: state.floating.y, width: state.floating.bitmap.width, height: state.floating.bitmap.height }
