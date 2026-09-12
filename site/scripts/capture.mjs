@@ -37,6 +37,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { deflateSync } from 'node:zlib';
+import { startFakeAi } from '../../studio/e2e/lib/fakeAi.mjs';
 import { DEMO_AI, DEMO_ASSETS, DEMO_MENUS, DEMO_PIXELS, DEMO_WORKSPACE_NAME } from './demo-workspace.mjs';
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -471,6 +472,13 @@ shot('texture-generator', 'Gros plan : le générateur de textures', async (page
 
 shot('asset-editor', 'Éditeur d’assets (mode libre) : un encart d’aide', async (page) => {
   await open(page, '#/editeur/assets/help_banner');
+  // Colonne de droite élargie au clavier (Fin : largeur maximale) : l’aperçu ×2 de l’export y tient en entier.
+  await page.getByRole('separator').last().focus();
+  await page.keyboard.press('End');
+  // Rendre le focus sans cliquer : un clic dans la barre tomberait sur un bouton.
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.mouse.move(700, 600);
+  await wait(400);
 });
 
 shot('shortcuts', 'Aide-mémoire des raccourcis', async (page) => {
@@ -816,7 +824,8 @@ shot('ai-texture', '« Générer une texture par IA » : sortie du modèle et te
   await field(modal, 'Fournisseur').selectOption('automatic1111');
   await field(modal, 'Taille type').selectOption('0');
   await field(modal, 'Palette imposée').selectOption('menu-forge');
-  await modal.locator('textarea.ai-prompt').fill(DEMO_AI.texturePrompt);
+  // Description courte : le nom de l’image en est tiré, et le studio le coupe au-delà de 40 caractères.
+  await modal.locator('textarea.ai-prompt').fill('Émeraude taillée, facettes vert vif');
   await modal.getByRole('button', { name: 'Générer', exact: true }).click();
   await page.getByRole('img', { name: 'Texture contrainte' }).waitFor({ timeout: 30000 });
   await page.mouse.move(5, 5);
@@ -839,6 +848,77 @@ shot('ai-interface', '« Générer une interface par IA » : essai refusé, corr
   await page.mouse.move(5, 5);
   await wait(400);
   return modal;
+});
+
+/*
+ * Génération en tâche de fond : un faux Ollama **lent** (celui des tests de bout en bout,
+ * `studio/e2e/lib/fakeAi.mjs`) garde chaque réponse jusqu’à ce que la capture la libère.
+ * Le premier essai est refusé par le schéma, le second reste en attente : la tâche tourne
+ * pendant les deux captures qui suivent.
+ */
+let slowAi = null;
+
+/** Lance une génération d’interface en arrière-plan, premier essai refusé ; sans effet si elle tourne déjà. */
+async function backgroundJob(page) {
+  const indicator = page.locator('.rail').getByRole('button', { name: '1 génération en cours', exact: true });
+  if (await indicator.isVisible().catch(() => false)) return indicator;
+  slowAi ??= await startFakeAi({ menu: DEMO_AI.menu, image: fakeModelImage() });
+  await configureAi(page, 'ollama', { enabled: true, endpoint: slowAi.endpoint });
+  await open(page, '#/editeur/menus/shop');
+  await assertNoRealKeys(page);
+  await zoomIn(page);
+  await page.getByRole('button', { name: 'Générer une interface par IA…', exact: true }).first().click();
+  const modal = page.locator('.modal').first();
+  await modal.waitFor({ timeout: 30000 });
+  await field(modal, 'Fournisseur').selectOption('ollama');
+  await modal.locator('textarea.ai-prompt').fill(DEMO_AI.interfacePrompt);
+  await field(modal, 'Nom').fill('Marché de nuit');
+  await modal.getByRole('button', { name: 'Générer', exact: true }).click();
+  await modal.locator('.ai-job-title', { hasText: 'Ollama réfléchit…' }).waitFor({ timeout: 30000 });
+  await modal.getByRole('button', { name: 'Continuer en arrière-plan', exact: true }).click();
+  await modal.waitFor({ state: 'detached' });
+  await page.locator('.toast-progress').waitFor();
+  // Premier essai libéré : refusé par le schéma, la correction part et reste en attente.
+  await slowAi.release('/api/chat');
+  await page.locator('.toast', { hasText: 'refusé' }).waitFor({ timeout: 15000 });
+  await indicator.waitFor();
+  return indicator;
+}
+
+shot('ai-jobs', 'Génération par IA en tâche de fond : indicateur du rail et notifications', async (page) => {
+  await backgroundJob(page);
+  // Le chronomètre de la notification de progression a tourné quelques secondes.
+  await wait(2500);
+  await page.mouse.move(700, 600);
+  await wait(300);
+});
+
+shot('ai-job-dialog', 'La même tâche rouverte : étapes, chronomètre, journal des essais', async (page) => {
+  const indicator = await backgroundJob(page);
+  await indicator.click();
+  const modal = page.locator('.modal').first();
+  await modal.locator('.ai-job-title', { hasText: 'Essai 2 sur 3' }).waitFor({ timeout: 30000 });
+  await modal.locator('.ai-attempt-errors li').first().waitFor();
+  await wait(1200);
+  await page.mouse.move(5, 5);
+  await wait(300);
+  return modal;
+});
+
+/* ---------- Colonnes redimensionnables (dernière capture : la largeur reste mémorisée) ---------- */
+
+shot('panels', 'Colonnes latérales redimensionnables : l’inspecteur élargi, poignée survolée', async (page) => {
+  await open(page, '#/editeur/menus/shop');
+  await zoomIn(page);
+  await page.locator('.outline-list li', { hasText: 'buy' }).last().click();
+  await wait(300);
+  const handle = page.getByRole('separator').last();
+  await handle.focus();
+  // Au clavier : quatre pas de 32 px vers la gauche élargissent la colonne de droite.
+  for (let step = 0; step < 4; step++) await page.keyboard.press('Shift+ArrowLeft');
+  await page.evaluate(() => document.activeElement?.blur());
+  await handle.hover();
+  await wait(1200);
 });
 
 /* ---------- Optimisation ---------- */
@@ -975,6 +1055,7 @@ try {
   await vite?.close().catch(() => {});
   fakeProviders?.server.closeAllConnections();
   fakeProviders?.server.close();
+  await slowAi?.close().catch(() => {});
   for (const child of children) child.kill();
 }
 

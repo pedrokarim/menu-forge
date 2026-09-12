@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Menu Forge — custom Minecraft inventory studio</title>
-  <meta name="description" content="Draw custom Minecraft inventories pixel by pixel and open them in game: a local studio (desktop app or browser) and a Paper library, linked by an open JSON format.">
+  <title>Menu Forge: a studio for custom Minecraft inventories</title>
+  <meta name="description" content="Draw custom Minecraft inventories pixel by pixel and open them in game, on Java and Bedrock alike: a local studio, a Paper plugin and a Bedrock export, linked by an open JSON format.">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#111216">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="en_US">
-  <meta property="og:title" content="Menu Forge — custom Minecraft inventory studio">
-  <meta property="og:description" content="Draw your menus pixel by pixel; the chest title is composed for you, glyph by glyph.">
+  <meta property="og:title" content="Menu Forge: a studio for custom Minecraft inventories">
+  <meta property="og:description" content="Draw your menus pixel by pixel, for Java and Bedrock; the chest title is composed for you, glyph by glyph.">
   <meta property="og:url" content="https://pedrokarim.github.io/menu-forge/en/">
   <meta property="og:image" content="https://pedrokarim.github.io/menu-forge/assets/screens/menu-editor.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -25,7 +25,7 @@
   <script src="../assets/site.js" defer></script>
 </head>
 <body>
-<!-- ICONS --><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden"><symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M4 11v2h16v-2zm12 2v2h2v-2zm-2 2v2h2v-2zm-2 2v2h2v-2zm4-6V9h2v2z"/><path d="M14 15V7h2v8zm-2 2V5h2v12z"/></symbol><symbol id="i-article" viewBox="0 0 24 24"><path d="M8 2h12v2H8zM6 4h2v16H6zm14 0h2v16h-2zM4 20h16v2H4zm-2-9h2v9H2zm2-2h2v2H4zm6-3h8v2h-8zm0 4h8v2h-8zm0-2h2v2h-2zm6 0h2v2h-2zm-6 5h8v2h-8zm0 3h4v2h-4z"/></symbol><symbol id="i-blocks" viewBox="0 0 24 24"><path d="M15 1h6v2h-6zm-2 2h2v6h-2zm2 6h6v2h-6zm6-6h2v6h-2zM3 5h6v2H3zM1 7h2v14H1zm2 14h14v2H3zm14-6h2v6h-2zM3 13h14v2H3z"/><path d="M9 7h2v14H9z"/></symbol><symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h9v2H2zM0 19h11v2H0zM13 3h9v2h-9zm0 16h11v2H13zM11 5h2v18h-2zM0 5h2v14H0zm22 0h2v14h-2zm-7 2h5v2h-5zm0 4h5v2h-5zm0 4h2v2h-2z"/></symbol><symbol id="i-braces" viewBox="0 0 24 24"><path d="M6 4h4v2H6zm12 0h-4v2h4zM6 20h4v-2H6zm12 0h-4v-2h4zM4 6h2v5H4zm16 0h-2v5h2zM4 18h2v-5H4zm16 0h-2v-5h2zM2 11h2v2H2zm20 0h-2v2h2z"/></symbol><symbol id="i-braces-off" viewBox="0 0 24 24"><path d="M8 3h2v2H8zm10 0h-4v2h4zM6 21h4v-2H6zm12 0h-4v-2h4zM4 5h2v6H4zm16 0h-2v6h2zM4 19h2v-6H4zm16-4h-2v-2h2zM2 11h2v2H2zm20 0h-2v2h2zM2 3h2v2H2z"/><path d="M4 5h2v2H4zm2 2h2v2H6zm2 2h2v2H8zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2z"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M10 18H8v-2h2v2Zm-2-2H6v-2h2v2Zm4-2v2h-2v-2h2Zm-6 0H4v-2h2v2Zm8 0h-2v-2h2v2Zm2-2h-2v-2h2v2Zm2-2h-2V8h2v2Zm2-2h-2V6h2v2Z"/></symbol><symbol id="i-chest" viewBox="0 0 24 24"><path d="M4 4h16v2h-16zM2 6h2v12h-2zM20 6h2v12h-2zM2 18h20v2h-20zM4 10h6v2h-6zM14 10h6v2h-6zM10 8h4v6h-4z"/></symbol><symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M8 13v-2h2v2H8Zm2-2V9h2v2h-2Zm0 4v-2h2v2h-2Zm2-6V7h2v2h-2Zm0 8v-2h2v2h-2Zm2-10V5h2v2h-2Zm0 12v-2h2v2h-2Z"/></symbol><symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M16 13v-2h-2v2h2Zm-2-2V9h-2v2h2Zm0 4v-2h-2v2h2Zm-2-6V7h-2v2h2Zm0 8v-2h-2v2h2ZM10 7V5H8v2h2Zm0 12v-2H8v2h2Z"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="M7 19H5V17H7V19ZM19 19H17V17H19V19ZM9 15V17H7V15H9ZM17 17H15V15H17V17ZM11 15H9V13H11V15ZM15 15H13V13H15V15ZM13 13H11V11H13V13ZM11 11H9V9H11V11ZM15 11H13V9H15V11ZM9 9H7V7H9V9ZM17 9H15V7H17V9ZM7 7H5V5H7V7ZM19 7H17V5H19V7Z"/></symbol><symbol id="i-code" viewBox="0 0 24 24"><path d="M11 18H9v-4h2v4Zm-4-1H5v-2h2v2Zm12-2v2h-2v-2h2ZM5 15H3v-2h2v2Zm16 0h-2v-2h2v2Zm-8-1h-2v-4h2v4ZM3 13H1v-2h2v2Zm20 0h-2v-2h2v2ZM5 11H3V9h2v2Zm16 0h-2V9h2v2Zm-6-1h-2V6h2v4ZM7 9H5V7h2v2Zm12 0h-2V7h2v2Z"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><path d="M8 6h12v2H8zM4 2h12v2H4zm2 6h2v12H6zM2 4h2v12H2zm6 16h12v2H8zM20 8h2v12h-2zm-4-4h2v2h-2zM4 16h2v2H4z"/></symbol><symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 2h2v2h-2zM5 4h4v2h-4zM5 6h6v2h-6zM5 8h8v2h-8zM5 10h10v2h-10zM5 12h12v2h-12zM5 14h8v2h-8zM5 16h2v2h-2zM9 16h4v2h-4zM11 18h4v2h-4zM11 20h4v2h-4z"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4h-2v-4zm-2 4v2H5v-2zM5 15v4H3v-4zm8-12v14h-2V3z"/><path d="M7 11v2h10v-2zm2 2v2h2v-2zm4 0v2h2v-2z"/><path d="M15 11v2h2v-2z"/></symbol><symbol id="i-drag" viewBox="0 0 24 24"><path d="M11 21H9v-2h2v2Zm10 0h-2v-2h2v2ZM9 19H7V9h2v10Zm10-4h-2v2h-2v2h-2v-6h6v2Zm0 4h-2v-2h2v2ZM5 17H3v-2h2v2Zm0-4H3v-2h2v2Zm16-2h-2V9h2v2ZM5 9H3V7h2v2Zm14 0H9V7h10v2ZM5 5H3V3h2v2Zm4 0H7V3h2v2Zm4 0h-2V3h2v2Zm4 0h-2V3h2v2Z"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M16 20H8v-2h8v2Zm-8-2H4v-2h4v2Zm12 0h-4v-2h4v2ZM4 16H2v-2h2v2Zm10-6h-2v2h2v-2h2v4h-2v2h-4v-2H8v-4h2V8h4v2Zm8 6h-2v-2h2v2ZM2 14H0v-4h2v4Zm22 0h-2v-4h2v4ZM4 10H2V8h2v2Zm18 0h-2V8h2v2ZM8 8H4V6h4v2Zm12 0h-4V6h4v2Zm-4-2H8V4h8v2Z"/></symbol><symbol id="i-file" viewBox="0 0 24 24"><path d="M6 4H4v16h2zm10-2H6v2h10zm4 4h-2v14h2zm-2 14H6v2h12zM16 4h2v2h-2zm-4 0h2v6h-2z"/><path d="M12 8h6v2h-6zm-4 8h8v2H8zm0-4h8v2H8zm0-4h2v2H8z"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M4 4h6v2H4zm0 14h16v2H4zM20 8h2v10h-2zM2 6h2v12H2zm8 0h10v2H10z"/></symbol><symbol id="i-github" viewBox="0 0 24 24"><path d="M5 2h4v2H7v2H5V2Zm0 10H3V6h2v6Zm2 2H5v-2h2v2Zm2 2v-2H7v2H3v-2H1v2h2v2h4v4h2v-4h2v-2H9Zm0 0v2H7v-2h2Zm6-12v2H9V4h6Zm4 2h-2V4h-2V2h4v4Zm0 6V6h2v6h-2Zm-2 2v-2h2v2h-2Zm-2 2v-2h2v2h-2Zm0 2h-2v-2h2v2Zm0 0h2v4h-2v-4Z"/></symbol><symbol id="i-globe" viewBox="0 0 24 24"><path d="M6 2h12v2H6zm0 18h12v2H6zM4 4h2v2H4zm5 0h2v2H9zm0 14h2v2H9zm4 0h2v2h-2zM7 6h2v12H7zm8 0h2v12h-2zm-2-2h2v2h-2zm7 0h-2v2h2zM2 6h2v12H2zm20 0h-2v12h2zM4 18h2v2H4zm16 0h-2v2h2z"/><path d="M3 11h18v2H3z"/></symbol><symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 2h16v2H4zm0 18h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zM4 8h16v2H4zm0 6h16v2H4z"/><path d="M8 4h2v16H8zm6 0h2v16h-2z"/></symbol><symbol id="i-home" viewBox="0 0 24 24"><path d="M4 20h16v2H4zm16-10h2v10h-2zM2 10h2v10H2zm2-2h2v2H4zm2-2h2v2H6zm2-2h2v2H8zm2-2h4v2h-4zm4 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zM8 14h2v6H8zm2-2h4v2h-4zm4 2h2v6h-2z"/></symbol><symbol id="i-image" viewBox="0 0 24 24"><path d="M4 2h16v2H4zm0 18h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zm-4 8h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2zm-8 0h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2z"/><path d="M20 16h2v2h-2zM8 16h2v2H8zm-2 2h2v2H6zM8 6h2v2H8zM6 8h2v2H6zm2 2h2v2H8zm2-2h2v2h-2z"/></symbol><symbol id="i-info" viewBox="0 0 24 24"><path d="M4 2h16v2H4zm0 18h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zm-9 5h2V7h-2zm0 8h2v-6h-2z"/></symbol><symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M21 21H3v-2h18v2ZM3 19H1V5h2v14Zm20 0h-2V5h2v14Zm-5-2H6v-2h12v2Zm-9-4H7v-2h2v2Zm4 0h-2v-2h2v2Zm4 0h-2v-2h2v2ZM7 9H5V7h2v2Zm4 0H9V7h2v2Zm4 0h-2V7h2v2Zm4 0h-2V7h2v2Zm2-4H3V3h18v2Z"/></symbol><symbol id="i-laptop" viewBox="0 0 24 24"><path d="M3 18h18v-2h2v4H1v-4h2v2Zm2-4h14V6h2v10H3V6h2v8Zm14-8H5V4h14v2Z"/></symbol><symbol id="i-layout" viewBox="0 0 24 24"><path d="M20 20H4v-2h4v-8H4v8H2V6h2v2h16V6h2v12h-2v-8H10v8h10v2Zm0-14H4V4h16v2Z"/></symbol><symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 16H6V18H8V20H10V22H2V14H4V16ZM12 20H10V18H12V20ZM14 18H12V16H14V18ZM10 16H8V14H10V16ZM16 16H14V14H16V16ZM6 14H4V12H6V14ZM12 14H10V12H12V14ZM18 14H16V12H18V14ZM8 12H6V10H8V12ZM14 12H12V10H14V12ZM20 12H18V10H20V12ZM10 10H8V8H10V10ZM18 10H16V8H18V10ZM22 10H20V8H22V10ZM12 8H10V6H12V8ZM16 8H14V6H16V8ZM20 8H18V6H20V8ZM14 6H12V4H14V6ZM18 6H16V4H18V6ZM16 4H14V2H16V4Z"/></symbol><symbol id="i-play" viewBox="0 0 24 24"><path d="M15 11h-2V9h2zm0 4h-2v-2h2zm-2 2h-2v-2h2zm0-8h-2V7h2zm-2-2H9V5h2zM9 21H7V3h2zm6-8h2v-2h-2zm-6 4h2v2H9z"/></symbol><symbol id="i-robot" viewBox="0 0 24 24"><path d="M5 7h14v2H5zm0 12h14v2H5zM3 9h2v10H3zm16 0h2v10h-2zM1 13h2v2H1zm20 0h2v2h-2zM11 5h2v2h-2zM7 3h4v2H7zm1 9h2v4H8zm6 0h2v4h-2z"/></symbol><symbol id="i-server" viewBox="0 0 24 24"><path d="M6 7h4v2H6zm0 8h4v2H6zM2 5h2v14H2zm18 0h2v14h-2zM4 19h16v2H4zM4 3h16v2H4zm0 8h16v2H4z"/></symbol><symbol id="i-sliders" viewBox="0 0 24 24"><path d="M8 14H7v6H5v-6H2v-2h6v2Zm5 6h-2V10h2v10Zm9-2h-3v2h-2v-2h-1v-2h6v2Zm-3-4h-2V4h2v10ZM7 10H5V4h2v6Zm6-4h2v2H9V6h2V4h2v2Z"/></symbol><symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11 1h2v4h-2zm0 22h2v-4h-2zM9 5h2v4H9zm0 14h2v-4H9zm4-14h2v4h-2zm0 14h2v-4h-2zM5 9h4v2H5zm14 0h-4v2h4zM1 11h4v2H1zm22 0h-4v2h4zM5 13h4v2H5zm14 0h-4v2h4zm0-12h2v6h-2z"/><path d="M17 3h6v2h-6zM3 17h2v2H3zm-2 2h2v2H1zm2 2h2v2H3zm2-2h2v2H5z"/></symbol><symbol id="i-terminal" viewBox="0 0 24 24"><path d="M4 2h16v2H4zm0 18h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zM6 16h2v2H6zm2-2h2v2H8zm-2-2h2v2H6z"/></symbol><symbol id="i-text" viewBox="0 0 24 24"><path d="M13 21H11V5H5V3H19V5H13V21Z"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M19 21H5v-2h14v2ZM5 19H3v-4h2v4Zm16 0h-2v-4h2v4ZM13 5h2v2h2v2h-4v8h-2V9H7V7h2V5h2V3h2v2Z"/></symbol><symbol id="i-warning" viewBox="0 0 24 24"><path d="M2 10h2v2H2zm0 4h2v-2H2zm20-4h-2v2h2zm0 4h-2v-2h2zM4 8h2v2H4zm0 8h2v-2H4zm16-8h-2v2h2zm0 8h-2v-2h2zM6 6h2v2H6zm0 12h2v-2H6zM18 6h-2v2h2zm0 12h-2v-2h2zM8 4h2v2H8zm0 16h2v-2H8zm8-16h-2v2h2zm0 16h-2v-2h2zM10 2h2v2h-2zm0 20h2v-2h-2zm4-20h-2v2h2zm0 20h-2v-2h2zm-3-5h2v-2h-2zm0-4h2V7h-2z"/></symbol></svg><!-- /ICONS -->
+<!-- ICONS --><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden"><symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M4 11v2h16v-2zm12 2v2h2v-2zm-2 2v2h2v-2zm-2 2v2h2v-2zm4-6V9h2v2z"/><path d="M14 15V7h2v8zm-2 2V5h2v12z"/></symbol><symbol id="i-arrows-horizontal" viewBox="0 0 24 24"><path d="M13 13v-2h10v2zm6 2v-2h2v2zm-2 2v-2h2v2zm2-6V9h2v2z"/><path d="M17 15V7h2v8zm-6-2v-2H1v2zm-6 2v-2H3v2zm2 2v-2H5v2zm-2-6V9H3v2z"/><path d="M7 15V7H5v8z"/></symbol><symbol id="i-article" viewBox="0 0 24 24"><path d="M8 2h12v2H8zM6 4h2v16H6zm14 0h2v16h-2zM4 20h16v2H4zm-2-9h2v9H2zm2-2h2v2H4zm6-3h8v2h-8zm0 4h8v2h-8zm0-2h2v2h-2zm6 0h2v2h-2zm-6 5h8v2h-8zm0 3h4v2h-4z"/></symbol><symbol id="i-blocks" viewBox="0 0 24 24"><path d="M15 1h6v2h-6zm-2 2h2v6h-2zm2 6h6v2h-6zm6-6h2v6h-2zM3 5h6v2H3zM1 7h2v14H1zm2 14h14v2H3zm14-6h2v6h-2zM3 13h14v2H3z"/><path d="M9 7h2v14H9z"/></symbol><symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h9v2H2zM0 19h11v2H0zM13 3h9v2h-9zm0 16h11v2H13zM11 5h2v18h-2zM0 5h2v14H0zm22 0h2v14h-2zm-7 2h5v2h-5zm0 4h5v2h-5zm0 4h2v2h-2z"/></symbol><symbol id="i-braces-off" viewBox="0 0 24 24"><path d="M8 3h2v2H8zm10 0h-4v2h4zM6 21h4v-2H6zm12 0h-4v-2h4zM4 5h2v6H4zm16 0h-2v6h2zM4 19h2v-6H4zm16-4h-2v-2h2zM2 11h2v2H2zm20 0h-2v2h2zM2 3h2v2H2z"/><path d="M4 5h2v2H4zm2 2h2v2H6zm2 2h2v2H8zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2z"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M10 18H8v-2h2v2Zm-2-2H6v-2h2v2Zm4-2v2h-2v-2h2Zm-6 0H4v-2h2v2Zm8 0h-2v-2h2v2Zm2-2h-2v-2h2v2Zm2-2h-2V8h2v2Zm2-2h-2V6h2v2Z"/></symbol><symbol id="i-chest" viewBox="0 0 24 24"><path d="M4 4h16v2h-16zM2 6h2v12h-2zM20 6h2v12h-2zM2 18h20v2h-20zM4 10h6v2h-6zM14 10h6v2h-6zM10 8h4v6h-4z"/></symbol><symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M8 13v-2h2v2H8Zm2-2V9h2v2h-2Zm0 4v-2h2v2h-2Zm2-6V7h2v2h-2Zm0 8v-2h2v2h-2Zm2-10V5h2v2h-2Zm0 12v-2h2v2h-2Z"/></symbol><symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M16 13v-2h-2v2h2Zm-2-2V9h-2v2h2Zm0 4v-2h-2v2h2Zm-2-6V7h-2v2h2Zm0 8v-2h-2v2h2ZM10 7V5H8v2h2Zm0 12v-2H8v2h2Z"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="M7 19H5V17H7V19ZM19 19H17V17H19V19ZM9 15V17H7V15H9ZM17 17H15V15H17V17ZM11 15H9V13H11V15ZM15 15H13V13H15V15ZM13 13H11V11H13V13ZM11 11H9V9H11V11ZM15 11H13V9H15V11ZM9 9H7V7H9V9ZM17 9H15V7H17V9ZM7 7H5V5H7V7ZM19 7H17V5H19V7Z"/></symbol><symbol id="i-code" viewBox="0 0 24 24"><path d="M11 18H9v-4h2v4Zm-4-1H5v-2h2v2Zm12-2v2h-2v-2h2ZM5 15H3v-2h2v2Zm16 0h-2v-2h2v2Zm-8-1h-2v-4h2v4ZM3 13H1v-2h2v2Zm20 0h-2v-2h2v2ZM5 11H3V9h2v2Zm16 0h-2V9h2v2Zm-6-1h-2V6h2v4ZM7 9H5V7h2v2Zm12 0h-2V7h2v2Z"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><path d="M8 6h12v2H8zM4 2h12v2H4zm2 6h2v12H6zM2 4h2v12H2zm6 16h12v2H8zM20 8h2v12h-2zm-4-4h2v2h-2zM4 16h2v2H4z"/></symbol><symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 2h2v2h-2zM5 4h4v2h-4zM5 6h6v2h-6zM5 8h8v2h-8zM5 10h10v2h-10zM5 12h12v2h-12zM5 14h8v2h-8zM5 16h2v2h-2zM9 16h4v2h-4zM11 18h4v2h-4zM11 20h4v2h-4z"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4h-2v-4zm-2 4v2H5v-2zM5 15v4H3v-4zm8-12v14h-2V3z"/><path d="M7 11v2h10v-2zm2 2v2h2v-2zm4 0v2h2v-2z"/><path d="M15 11v2h2v-2z"/></symbol><symbol id="i-drag" viewBox="0 0 24 24"><path d="M11 21H9v-2h2v2Zm10 0h-2v-2h2v2ZM9 19H7V9h2v10Zm10-4h-2v2h-2v2h-2v-6h6v2Zm0 4h-2v-2h2v2ZM5 17H3v-2h2v2Zm0-4H3v-2h2v2Zm16-2h-2V9h2v2ZM5 9H3V7h2v2Zm14 0H9V7h10v2ZM5 5H3V3h2v2Zm4 0H7V3h2v2Zm4 0h-2V3h2v2Zm4 0h-2V3h2v2Z"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M16 20H8v-2h8v2Zm-8-2H4v-2h4v2Zm12 0h-4v-2h4v2ZM4 16H2v-2h2v2Zm10-6h-2v2h2v-2h2v4h-2v2h-4v-2H8v-4h2V8h4v2Zm8 6h-2v-2h2v2ZM2 14H0v-4h2v4Zm22 0h-2v-4h2v4ZM4 10H2V8h2v2Zm18 0h-2V8h2v2ZM8 8H4V6h4v2Zm12 0h-4V6h4v2Zm-4-2H8V4h8v2Z"/></symbol><symbol id="i-file" viewBox="0 0 24 24"><path d="M6 4H4v16h2zm10-2H6v2h10zm4 4h-2v14h2zm-2 14H6v2h12zM16 4h2v2h-2zm-4 0h2v6h-2z"/><path d="M12 8h6v2h-6zm-4 8h8v2H8zm0-4h8v2H8zm0-4h2v2H8z"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M4 4h6v2H4zm0 14h16v2H4zM20 8h2v10h-2zM2 6h2v12H2zm8 0h10v2H10z"/></symbol><symbol id="i-github" viewBox="0 0 24 24"><path d="M5 2h4v2H7v2H5V2Zm0 10H3V6h2v6Zm2 2H5v-2h2v2Zm2 2v-2H7v2H3v-2H1v2h2v2h4v4h2v-4h2v-2H9Zm0 0v2H7v-2h2Zm6-12v2H9V4h6Zm4 2h-2V4h-2V2h4v4Zm0 6V6h2v6h-2Zm-2 2v-2h2v2h-2Zm-2 2v-2h2v2h-2Zm0 2h-2v-2h2v2Zm0 0h2v4h-2v-4Z"/></symbol><symbol id="i-globe" viewBox="0 0 24 24"><path d="M6 2h12v2H6zm0 18h12v2H6zM4 4h2v2H4zm5 0h2v2H9zm0 14h2v2H9zm4 0h2v2h-2zM7 6h2v12H7zm8 0h2v12h-2zm-2-2h2v2h-2zm7 0h-2v2h2zM2 6h2v12H2zm20 0h-2v12h2zM4 18h2v2H4zm16 0h-2v2h2z"/><path d="M3 11h18v2H3z"/></symbol><symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 2h16v2H4zm0 18h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zM4 8h16v2H4zm0 6h16v2H4z"/><path d="M8 4h2v16H8zm6 0h2v16h-2z"/></symbol><symbol id="i-home" viewBox="0 0 24 24"><path d="M4 20h16v2H4zm16-10h2v10h-2zM2 10h2v10H2zm2-2h2v2H4zm2-2h2v2H6zm2-2h2v2H8zm2-2h4v2h-4zm4 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zM8 14h2v6H8zm2-2h4v2h-4zm4 2h2v6h-2z"/></symbol><symbol id="i-image" viewBox="0 0 24 24"><path d="M4 2h16v2H4zm0 18h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zm-4 8h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2zm-8 0h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2z"/><path d="M20 16h2v2h-2zM8 16h2v2H8zm-2 2h2v2H6zM8 6h2v2H8zM6 8h2v2H6zm2 2h2v2H8zm2-2h2v2h-2z"/></symbol><symbol id="i-info" viewBox="0 0 24 24"><path d="M4 2h16v2H4zm0 18h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zm-9 5h2V7h-2zm0 8h2v-6h-2z"/></symbol><symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M21 21H3v-2h18v2ZM3 19H1V5h2v14Zm20 0h-2V5h2v14Zm-5-2H6v-2h12v2Zm-9-4H7v-2h2v2Zm4 0h-2v-2h2v2Zm4 0h-2v-2h2v2ZM7 9H5V7h2v2Zm4 0H9V7h2v2Zm4 0h-2V7h2v2Zm4 0h-2V7h2v2Zm2-4H3V3h18v2Z"/></symbol><symbol id="i-laptop" viewBox="0 0 24 24"><path d="M3 18h18v-2h2v4H1v-4h2v2Zm2-4h14V6h2v10H3V6h2v8Zm14-8H5V4h14v2Z"/></symbol><symbol id="i-layout" viewBox="0 0 24 24"><path d="M20 20H4v-2h4v-8H4v8H2V6h2v2h16V6h2v12h-2v-8H10v8h10v2Zm0-14H4V4h16v2Z"/></symbol><symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 16H6V18H8V20H10V22H2V14H4V16ZM12 20H10V18H12V20ZM14 18H12V16H14V18ZM10 16H8V14H10V16ZM16 16H14V14H16V16ZM6 14H4V12H6V14ZM12 14H10V12H12V14ZM18 14H16V12H18V14ZM8 12H6V10H8V12ZM14 12H12V10H14V12ZM20 12H18V10H20V12ZM10 10H8V8H10V10ZM18 10H16V8H18V10ZM22 10H20V8H22V10ZM12 8H10V6H12V8ZM16 8H14V6H16V8ZM20 8H18V6H20V8ZM14 6H12V4H14V6ZM18 6H16V4H18V6ZM16 4H14V2H16V4Z"/></symbol><symbol id="i-play" viewBox="0 0 24 24"><path d="M15 11h-2V9h2zm0 4h-2v-2h2zm-2 2h-2v-2h2zm0-8h-2V7h2zm-2-2H9V5h2zM9 21H7V3h2zm6-8h2v-2h-2zm-6 4h2v2H9z"/></symbol><symbol id="i-robot" viewBox="0 0 24 24"><path d="M5 7h14v2H5zm0 12h14v2H5zM3 9h2v10H3zm16 0h2v10h-2zM1 13h2v2H1zm20 0h2v2h-2zM11 5h2v2h-2zM7 3h4v2H7zm1 9h2v4H8zm6 0h2v4h-2z"/></symbol><symbol id="i-server" viewBox="0 0 24 24"><path d="M6 7h4v2H6zm0 8h4v2H6zM2 5h2v14H2zm18 0h2v14h-2zM4 19h16v2H4zM4 3h16v2H4zm0 8h16v2H4z"/></symbol><symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11 1h2v4h-2zm0 22h2v-4h-2zM9 5h2v4H9zm0 14h2v-4H9zm4-14h2v4h-2zm0 14h2v-4h-2zM5 9h4v2H5zm14 0h-4v2h4zM1 11h4v2H1zm22 0h-4v2h4zM5 13h4v2H5zm14 0h-4v2h4zm0-12h2v6h-2z"/><path d="M17 3h6v2h-6zM3 17h2v2H3zm-2 2h2v2H1zm2 2h2v2H3zm2-2h2v2H5z"/></symbol><symbol id="i-text" viewBox="0 0 24 24"><path d="M13 21H11V5H5V3H19V5H13V21Z"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M19 21H5v-2h14v2ZM5 19H3v-4h2v4Zm16 0h-2v-4h2v4ZM13 5h2v2h2v2h-4v8h-2V9H7V7h2V5h2V3h2v2Z"/></symbol><symbol id="i-warning" viewBox="0 0 24 24"><path d="M2 10h2v2H2zm0 4h2v-2H2zm20-4h-2v2h2zm0 4h-2v-2h2zM4 8h2v2H4zm0 8h2v-2H4zm16-8h-2v2h2zm0 8h-2v-2h2zM6 6h2v2H6zm0 12h2v-2H6zM18 6h-2v2h2zm0 12h-2v-2h2zM8 4h2v2H8zm0 16h2v-2H8zm8-16h-2v2h2zm0 16h-2v-2h2zM10 2h2v2h-2zm0 20h2v-2h-2zm4-20h-2v2h2zm0 20h-2v-2h2zm-3-5h2v-2h-2zm0-4h2V7h-2z"/></symbol></svg><!-- /ICONS -->
 
 <a class="skip-link" href="#content">Skip to content</a>
 
@@ -38,12 +38,12 @@
     <nav class="nav" aria-label="Page sections">
       <ul>
         <li><a href="#features">Features</a></li>
-        <li><a href="#gallery">Gallery</a></li>
-        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#generator">Generator</a></li>
+        <li><a href="#ai">AI</a></li>
         <li><a href="#bedrock">Bedrock</a></li>
+        <li><a href="#gallery">Gallery</a></li>
         <li><a href="#get-started">Get started</a></li>
-        <li><a href="#documentation">Documentation</a></li>
-        <li><a href="#notices">Notices</a></li>
+        <li><a href="docs/">Documentation</a></li>
       </ul>
     </nav>
     <div class="topbar-end">
@@ -60,7 +60,7 @@
 
 <main id="content">
 
-  <!-- ---------- Héros ---------- -->
+  <!-- ---------- Hero ---------- -->
   <section id="home" class="hero" aria-labelledby="hero-title">
     <div class="wrap hero-grid">
       <div>
@@ -68,33 +68,33 @@
         <h1 id="hero-title">Game menus, <span class="accent">drawn pixel by pixel.</span></h1>
         <p class="lead">
           Menu Forge is a local studio for drawing custom Minecraft inventories—tabs, modals, colored buttons,
-          paginated lists—and a Paper library that opens them in game. You draw; the studio composes the chest
-          title, glyph by glyph, without a single offset computed by hand.
-          On Bedrock, the same menus and dedicated forms go out as JSON UI to the native mc-rs server.
+          paginated lists—and opening them in game, on Java and Bedrock alike. Start from one of 22 examples,
+          refine it to the pixel, try the clicks: the studio composes the chest title glyph by glyph, without a
+          single offset computed by hand.
         </p>
         <div class="actions">
           <a class="button primary" href="#get-started">
             <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg> Get started
           </a>
-          <a class="button" href="https://github.com/pedrokarim/menu-forge">
-            <svg class="icon" aria-hidden="true"><use href="#i-github"></use></svg> View on GitHub
+          <a class="button" href="docs/">
+            <svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg> Documentation
           </a>
         </div>
         <ul class="facts">
           <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Desktop app or browser</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Java and Bedrock</li>
           <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Open JSON format</li>
           <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Paper plugin with an API</li>
-          <li><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg> Java and Bedrock</li>
         </ul>
         <p class="status">
           <svg class="icon" aria-hidden="true"><use href="#i-warning"></use></svg>
-          <span>Young project under active development: no published release yet, build from source.</span>
+          <span>A young project under active development: there is no published release yet, so you build from source. The studio's interface and the documentation are in French.</span>
         </p>
       </div>
       <figure class="hero-visual">
         <div class="frame">
           <img src="../assets/screens/menu-editor.png" width="1440" height="900"
-               alt="The menu editor: in the middle, a tabbed shop drawn on the chest grid; on the left, the list of layers, texts and slots; on the right, the inspector of the selected &quot;Acheter&quot; (Buy) button.">
+               alt="The menu editor: in the middle, a tabbed shop drawn on the chest grid; on the left, the list of layers, texts and slots; on the right, the inspector of the selected “Acheter” (Buy) button.">
         </div>
         <div class="tip hero-tip" aria-hidden="true">
           <p class="tip-title">Shop</p>
@@ -105,156 +105,359 @@
     </div>
   </section>
 
-  <!-- ---------- Fonctionnalités ---------- -->
+  <!-- ---------- Features ---------- -->
   <section id="features" class="section" aria-labelledby="features-title">
     <div class="wrap">
       <div class="section-head">
         <h2 id="features-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-sparkles"></use></svg> What Menu Forge does</h2>
         <p class="section-lead">
-          Everything it takes to make a vanilla chest look like a real mod interface, without ever opening a
+          Everything it takes to make a vanilla chest look like a real modded interface, without ever opening a
           font editor or counting pixels by hand.
         </p>
       </div>
-      <div class="grid cols-3">
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-grid"></use></svg></span>
-          <h3>Pixel-exact canvas</h3>
-          <p>Snapped to the slot grid, over a "slots only" or vanilla chest background, with zoom and snapping.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-sparkles"></use></svg></span>
-          <h3>Generated textures</h3>
-          <p>Beveled panels, buttons, cells, veils and flat fills at the right size—no PNG to draw to get started.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-layout"></use></svg></span>
-          <h3>Interface generator</h3>
-          <p>A shop, a grid, a modal, a paginated list or tabs, in the Deepslate, mc-rs or "dark with accent" style: a complete menu in a few fields, with a preview where tabs and pages can be clicked.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-robot"></use></svg></span>
-          <h3>AI generation</h3>
-          <p>Optional: a texture or an interface described in a few words, with eleven providers, online or on your machine. Nothing is sent until you enable one, keys stay in the system keychain and online services bill each generation; the output is snapped to the grid and the palette, or validated against the schema.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-text"></use></svg></span>
-          <h3>Dynamic texts</h3>
-          <p>Variables (<code>{viewer.name}</code>, <code>{page.number}</code>…) aligned left, center or right, measured with the game's own advances.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-article"></use></svg></span>
-          <h3>Pixel font</h3>
-          <p>Drawn for Menu Forge: without a vanilla pack plugged in, in-game texts are shown with the same advances as in game, with no Mojang asset.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-cursor"></use></svg></span>
-          <h3>Areas and actions</h3>
-          <p>Buttons, paginated lists, inputs, decorations; on click: open, go back, change state, play a sound, run a command.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-eye"></use></svg></span>
-          <h3>States and conditions</h3>
-          <p>Tabs, pages, flags: every layer and every slot can depend on the state, with a preview of each case.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-chest"></use></svg></span>
-          <h3>Live composed title</h3>
-          <p>The studio shows, token by token, what the library will write into the title—using the same algorithm.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-image"></use></svg></span>
-          <h3>Free mode</h3>
-          <p>Callouts, key hints, badges: assets exported as PNG and as a glyph, ready to drop into any text.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-pencil"></use></svg></span>
-          <h3>Pixel editor</h3>
-          <p>Pencil, bucket, shapes, selection, lasso, wand, layers, symmetry, zoom up to ×64: your interface textures, drawn pixel by pixel and exported as PNG.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-drag"></use></svg></span>
-          <h3>Editing gestures</h3>
-          <p>Multi-selection, copy / paste, align and distribute, groups, lock; rename or duplicate a document, drop a PNG from the file explorer.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-braces-off"></use></svg></span>
-          <h3>No JSON required</h3>
-          <p>Click actions, condition trees, state variables and MiniMessage items: everything is edited in the inspector, with a readable summary.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-play"></use></svg></span>
-          <h3>&quot;Try&quot; mode</h3>
-          <p>Click a slot: its actions run as in game (tabs, pages, opened menus), a log follows them, and the document stays untouched.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-blocks"></use></svg></span>
-          <h3>Components</h3>
-          <p>A pager or a back button drawn once, included in several menus, offset or prefixed, and resolved identically by the library.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-upload"></use></svg></span>
-          <h3>One-shortcut export</h3>
-          <p><span class="nowrap"><kbd>Ctrl</kbd>+<kbd>E</kbd></span> writes menus and textures to the plugin's folder; the ZIP pack is a test pack, identical byte for byte to the library's.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-keyboard"></use></svg></span>
-          <h3>Keyboard first</h3>
-          <p>Tools, moves by the pixel or by the slot, undo / redo, zoom: everything has a shortcut, and <kbd>?</kbd> lists them.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-server"></use></svg></span>
-          <h3>Paper library</h3>
-          <p>The MenuForge plugin handles sessions, pagination and actions, generates the pack fonts and opens up to your server through an API. Born for Enderium, which wires its actions, requirements and pack into it through an adapter, it works with any Paper server.</p>
-        </article>
+
+      <div class="feature-group">
+        <h3 class="group-title">Draw</h3>
+        <div class="grid cols-3">
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-grid"></use></svg></span>
+            <h4>Pixel-exact canvas</h4>
+            <p>Snapped to the slot grid, over a “slots only” or vanilla chest background, with zoom and snapping.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-sparkles"></use></svg></span>
+            <h4>Generated textures</h4>
+            <p>Panels, buttons, slots, tabs and progress bars in three style families—no PNG to draw to get started.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-text"></use></svg></span>
+            <h4>Dynamic texts</h4>
+            <p>Variables (<code>{viewer.name}</code>, <code>{page.number}</code>…) aligned left, center or right, measured with the game's own advances.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-article"></use></svg></span>
+            <h4>Pixel font</h4>
+            <p>Drawn for Menu Forge: with no vanilla pack plugged in, game texts use the same advances as in game, with no Mojang asset at all.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-pencil"></use></svg></span>
+            <h4>Pixel editor</h4>
+            <p>Pencil, bucket, shapes, selection, lasso, magic wand, layers, symmetry, zoom up to ×64: your textures, exported as PNG.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-image"></use></svg></span>
+            <h4>Free mode</h4>
+            <p>Callouts, key hints, badges: assets exported as PNG and as a glyph, ready to drop into any text.</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="feature-group">
+        <h3 class="group-title">Bring the menu to life</h3>
+        <div class="grid cols-3">
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-cursor"></use></svg></span>
+            <h4>Areas and actions</h4>
+            <p>Buttons, paginated lists, inputs, decorations; on click: open, go back, change state, play a sound, run a command.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-eye"></use></svg></span>
+            <h4>State and conditions</h4>
+            <p>Tabs, pages, flags: every layer and every slot can depend on the state, with a preview of each case.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-braces-off"></use></svg></span>
+            <h4>No JSON required</h4>
+            <p>Click actions, condition trees, state variables and MiniMessage items: everything is edited in the inspector.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-play"></use></svg></span>
+            <h4>Try mode</h4>
+            <p>Click a slot: its actions run as they would in game, a log follows them, and the document never changes.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-blocks"></use></svg></span>
+            <h4>Components</h4>
+            <p>A pager or a back button drawn once, included in several menus, and resolved identically by the library.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-chest"></use></svg></span>
+            <h4>Live composed title</h4>
+            <p>The studio shows, token by token, what the library will write into the title—with the same algorithm.</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="feature-group">
+        <h3 class="group-title">Work fast</h3>
+        <div class="grid cols-3">
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-drag"></use></svg></span>
+            <h4>Editing gestures</h4>
+            <p>Multi-selection, copy and paste, align and distribute, groups, locking; drag a PNG straight from the file explorer.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-keyboard"></use></svg></span>
+            <h4>Keyboard first</h4>
+            <p>A shortcut for every gesture, one-key zoom (<kbd>Z</kbd>, <kbd>+</kbd>, <kbd>-</kbd>, <span class="nowrap"><kbd>Shift</kbd>+<kbd>1</kbd></span>), and <kbd>?</kbd> lists them all.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-arrows-horizontal"></use></svg></span>
+            <h4>Resizable columns</h4>
+            <p>The side columns of all four editors widen with the mouse or the keyboard, and the studio remembers them.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-layout"></use></svg></span>
+            <h4>Nothing overflows</h4>
+            <p>From 1024 × 600 up to the largest screen, texts wrap instead of being cut; a layout checker verifies it on every test run.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-upload"></use></svg></span>
+            <h4>One-shortcut export</h4>
+            <p><span class="nowrap"><kbd>Ctrl</kbd>+<kbd>E</kbd></span> writes menus and textures into the plugin's folder; the test ZIP pack is identical, byte for byte, to the library's.</p>
+          </article>
+          <article class="card feature">
+            <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-server"></use></svg></span>
+            <h4>Paper library</h4>
+            <p>The MenuForge plugin handles sessions, pages and actions, generates the pack's fonts and opens up to your server through an API. Born for Enderium, it works with any Paper server.</p>
+          </article>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ---------- Galerie ---------- -->
-  <section id="gallery" class="section alt" aria-labelledby="gallery-title">
+  <!-- ---------- Interface generator ---------- -->
+  <section id="generator" class="section alt" aria-labelledby="generator-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="generator-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-grid"></use></svg> Interface generator</h2>
+        <p class="section-lead">
+          A complete menu in a few settings, or one of the 22 examples in the gallery: layers, slot areas,
+          actions and state are created for you, then edited like any other menu.
+        </p>
+      </div>
+
+      <div class="split">
+        <div class="prose">
+          <h3>Five types, three families</h3>
+          <p>
+            A shop, a simple grid, a confirmation modal, a paginated list or a tab bar; chest rows, number and
+            layout of the buttons; the Deepslate (beveled), mc-rs (dark, rounded) or “dark with accent” (flat)
+            family, and its accent color. The preview follows every setting, and clicking a tab or an arrow
+            changes its state, just like in game.
+          </p>
+          <h3>A gallery of 22 examples</h3>
+          <p>
+            “Voir les exemples” (See the examples), on the home screen, opens the gallery: filters by type and
+            family, thumbnails rendered live by the generator and never stored as images. One click loads an
+            example, “Personnaliser” (Customize) lets you tweak it, a double click creates the menu.
+          </p>
+          <h3>Ordinary menus</h3>
+          <p>
+            There is nothing special about the created menu: pixel-exact generated textures (background, slots,
+            buttons, lit variants), slot areas wired to their actions (tabs, pages, back, close), texts and state
+            variables. The texture generator can also draw each layer on its own.
+          </p>
+          <p><a href="../docs/generator.html" hreflang="fr">Read the generator page and the list of examples (in French)</a></p>
+        </div>
+
+        <div class="tip token-panel">
+          <p class="tip-title">Example gallery</p>
+          <p class="tip-hint">22 ready-made presets: one click to load, a double click to create.</p>
+          <ol class="token-list">
+            <li class="token-glyph">Shop · 6 examples</li>
+            <li class="token-glyph">Simple grid · 4 examples</li>
+            <li class="token-glyph">Confirmation modal · 4 examples</li>
+            <li class="token-glyph">Paginated list · 3 examples</li>
+            <li class="token-glyph">Tab bar · 5 examples</li>
+            <li class="token-text">Deepslate · mc-rs · dark with accent</li>
+          </ol>
+        </div>
+      </div>
+
+      <figure class="figure">
+        <div class="frame">
+          <img src="../assets/screens/interface-examples.png" width="1120" height="852" loading="lazy"
+               alt="The interface generator's example gallery: filters by type and family, thumbnails rendered live, the “Marché” (Market) example selected.">
+        </div>
+        <figcaption>In the studio: the example gallery, filtered by type and style family.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ---------- AI generation ---------- -->
+  <section id="ai" class="section" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="ai-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-robot"></use></svg> AI generation</h2>
+        <p class="section-lead">
+          Optional: describe a texture or an interface in a few words, with eleven providers, online or on your
+          own machine. Generation runs in the background, and its result is constrained before you review it.
+        </p>
+      </div>
+
+      <div class="split">
+        <div class="prose">
+          <h3>Nothing leaves without you</h3>
+          <p>
+            No provider is contacted until you enable it in the settings, and API keys go into the system
+            keychain, never into the settings file. Online services bill every generation; ComfyUI, Automatic1111
+            and Ollama run on your machine.
+          </p>
+          <h3>A constrained result</h3>
+          <p>
+            A texture is snapped back to the pixel grid and an enforced palette, with its background removed; an
+            interface is validated against the format's schema and the library's rules, and its errors are sent
+            back to the model, five attempts at most. The result opens in the editor, for you to review before
+            saving.
+          </p>
+          <h3>In the background</h3>
+          <p>
+            Closing the dialog does not stop a generation. Animated notifications follow its phase, read live
+            from the backend; an indicator in the rail counts running generations; reopening the dialog shows the
+            steps, a timer and the log of attempts. “Annuler la génération” (Cancel generation) stops it for good.
+          </p>
+          <p><a href="../docs/ai.html" hreflang="fr">Read the AI generation page (in French)</a></p>
+        </div>
+
+        <div class="tip token-panel">
+          <p class="tip-title">Eleven providers</p>
+          <p class="tip-hint">Enabled one by one; checked against simulated providers, not yet with real keys.</p>
+          <ol class="token-list">
+            <li class="token-glyph">Online · OpenAI, Google Gemini, Anthropic, Mistral, Stability AI, fal, Replicate</li>
+            <li class="token-glyph">On this machine · ComfyUI, Automatic1111, Ollama</li>
+            <li class="token-glyph">Command line · Codex CLI</li>
+          </ol>
+        </div>
+      </div>
+
+      <figure class="figure">
+        <div class="frame">
+          <img src="../assets/screens/ai-jobs.png" width="1440" height="900" loading="lazy"
+               alt="An interface generation running in the background in the menu editor: at the bottom of the rail, the indicator of one running generation; at the bottom right, the progress notification with its timer, then the notification of the first rejected attempt.">
+        </div>
+        <figcaption>While you keep working: the rail indicator, the progress and the rejected attempt (a simulated provider on the machine).</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ---------- Java and Bedrock ---------- -->
+  <section id="bedrock" class="section alt" aria-labelledby="bedrock-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="bedrock-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-layout"></use></svg> Java and Bedrock</h2>
+        <p class="section-lead">
+          One studio, both editions of the game. On Java, the visuals ride on the chest title; on Bedrock, on a
+          server form drawn with JSON&nbsp;UI.
+        </p>
+      </div>
+
+      <div class="grid cols-2">
+        <article class="card feature">
+          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-chest"></use></svg></span>
+          <h3>Java: the Paper plugin</h3>
+          <p>The MenuForge plugin opens a vanilla chest whose title carries the visuals as font glyphs; it generates the pack's fonts and handles sessions, pages and actions.</p>
+        </article>
+        <article class="card feature">
+          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-layout"></use></svg></span>
+          <h3>Bedrock: the <span class="nowrap">mc-rs</span> server</h3>
+          <p>“Export for Bedrock” writes a resource pack (JSON&nbsp;UI layouts, textures) and a runtime descriptor, <code>runtime.json</code>; the native mc-rs server sends the forms and runs the clicks.</p>
+        </article>
+      </div>
+
+      <div class="split">
+        <div class="prose">
+          <h3>Bedrock forms</h3>
+          <p>
+            A menu type of its own, designed for the Bedrock client: a title, some text and buttons, shown in one
+            of the eight layouts of the server's <code>mcrs_ui</code> pack. Each button has its text, a subtitle, a
+            role (banner, special button), an icon and its click actions; a “sent if” condition hides it depending
+            on the state or the player's flags.
+          </p>
+          <p>
+            The icon comes from the workspace (imported, drawn in the pixel editor, taken from a library), from a
+            game texture referenced by its path (<code>textures/items/diamond</code>) and never copied, or from a web
+            address. The preview follows the geometry of the pack's layouts, and Try mode runs the actions just as
+            the server does.
+          </p>
+          <p>
+            Chest menus go to Bedrock too: the exporter generates a JSON&nbsp;UI layout for them, with a grid of
+            buttons aligned on the chest slots.
+          </p>
+          <p>
+            On mc-rs, <code>/mf list</code> lists the menus, <code>/mf open &lt;id&gt;</code> opens one and
+            <code>/mf reload</code> reloads the export without restarting the server.
+          </p>
+          <p>
+            <a href="../docs/guide.html#4-un-premier-formulaire-bedrock" hreflang="fr">Follow the step-by-step guide</a>
+            or <a href="../docs/bedrock.html" hreflang="fr">read the contract between the exporter and the server</a> (in French)
+          </p>
+        </div>
+
+        <div class="tip token-panel">
+          <p class="tip-title">Eight layouts</p>
+          <p class="tip-hint">Picked at creation, changeable later; the title flag routes the client.</p>
+          <ol class="token-list">
+            <li class="token-glyph">grid · §m§a · large tiles, three per row</li>
+            <li class="token-glyph">left_button · §m§b · buttons on the left</li>
+            <li class="token-glyph">bottom_button · §m§c · buttons at the bottom</li>
+            <li class="token-glyph">image_grid · §m§d · titled thumbnails</li>
+            <li class="token-glyph">square_image · §m§e · one square image</li>
+            <li class="token-glyph">motd · §m§f · narrow column, scrolling text</li>
+            <li class="token-glyph">store · §m§0 · tabs and products</li>
+            <li class="token-glyph">wrapped · §m§1 · recap, scrolling visuals</li>
+          </ol>
+        </div>
+      </div>
+
+      <figure class="figure">
+        <div class="frame">
+          <img src="../assets/screens/bedrock-form.png" width="1440" height="900" loading="lazy"
+               alt="The Bedrock form editor: the layout and the button list on the left, the grid preview in the middle, the inspector of the selected button and its icon on the right.">
+        </div>
+        <figcaption>In the studio: the layout and buttons, a preview true to the pack, the inspector of the selected button.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ---------- Gallery ---------- -->
+  <section id="gallery" class="section" aria-labelledby="gallery-title">
     <div class="wrap">
       <div class="section-head">
         <h2 id="gallery-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-image"></use></svg> Gallery</h2>
         <p class="section-lead">
-          Screenshots produced by a script, on a demo workspace made only of textures generated or drawn by the studio.
-          The AI generation screenshots use simulated providers on the machine. The studio's interface is in French.
-          Click to enlarge; the arrow keys move between screenshots.
+          Screenshots produced by a script, on a demo workspace made only of textures generated or drawn by the
+          studio; the AI ones use providers simulated on the machine. The studio's interface is in French. Click
+          to enlarge; the arrow keys move from one screenshot to the next.
         </p>
       </div>
       <ul class="gallery">
         <li>
           <a class="shot" href="../assets/screens/home.png">
             <span class="shot-media"><img src="../assets/screens/home.png" width="1440" height="900" loading="lazy"
-              alt="The studio home screen: four quick actions and the workspace's recent documents, with thumbnails."></span>
-            <span class="shot-caption"><strong>Home</strong> Quick actions and recent documents, with thumbnails.</span>
+              alt="The studio's home screen: six quick actions, the example gallery and AI generation at the top, then recent documents with their thumbnails."></span>
+            <span class="shot-caption"><strong>Home</strong> Quick actions, example gallery and recent documents.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/menu-editor.png">
             <span class="shot-media"><img src="../assets/screens/menu-editor.png" width="1440" height="900" loading="lazy"
-              alt="The menu editor: a tabbed shop, the Buy button selected with its inspector."></span>
-            <span class="shot-caption"><strong>Menu editor</strong> Layers, texts, slot areas and inspector.</span>
-          </a>
-        </li>
-        <li>
-          <a class="shot" href="../assets/screens/bedrock-form.png">
-            <span class="shot-media"><img src="../assets/screens/bedrock-form.png" width="1440" height="900" loading="lazy"
-              alt="The Bedrock form editor: the layout and the button list on the left, the grid preview in the middle, the selected button's inspector and its icon on the right."></span>
-            <span class="shot-caption"><strong>Bedrock form</strong> Layout, buttons, icons and a preview true to the pack.</span>
-          </a>
-        </li>
-        <li>
-          <a class="shot" href="../assets/screens/interface-generator.png">
-            <span class="shot-media"><img src="../assets/screens/interface-generator.png" width="1120" height="716" loading="lazy"
-              alt="The interface generator: a tab bar in the &quot;dark with accent&quot; style, its fields on the left and its live preview on the right."></span>
-            <span class="shot-caption"><strong>Interface generator</strong> Five kinds, three style families, live preview.</span>
+              alt="The menu editor: a tabbed shop, the “Acheter” (Buy) button selected and its inspector."></span>
+            <span class="shot-caption"><strong>Menu editor</strong> Layers, texts, slot areas and the inspector.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/interface-examples.png">
             <span class="shot-media"><img src="../assets/screens/interface-examples.png" width="1120" height="852" loading="lazy"
-              alt="The interface generator's example gallery: filters by kind and family, thumbnails rendered live, the &quot;Marché&quot; example selected."></span>
+              alt="The interface generator's example gallery: filters by type and family, thumbnails rendered live, the “Marché” (Market) example selected."></span>
             <span class="shot-caption"><strong>Example gallery</strong> 22 ready-made interfaces, loaded in one click.</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/interface-generator.png">
+            <span class="shot-media"><img src="../assets/screens/interface-generator.png" width="1120" height="716" loading="lazy"
+              alt="The interface generator: a tab bar in the “dark with accent” style, its settings on the left and its live preview on the right."></span>
+            <span class="shot-caption"><strong>Interface generator</strong> Five types, three style families, live preview.</span>
           </a>
         </li>
         <li>
@@ -262,6 +465,55 @@
             <span class="shot-media"><img src="../assets/screens/generated-menu.png" width="1440" height="900" loading="lazy"
               alt="A shop created by the generator in the mc-rs style, open in the editor: item grid, pagination, close and back buttons."></span>
             <span class="shot-caption"><strong>Generated menu</strong> Ordinary layers and slots, ready to edit.</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/bedrock-form.png">
+            <span class="shot-media"><img src="../assets/screens/bedrock-form.png" width="1440" height="900" loading="lazy"
+              alt="The Bedrock form editor: the layout and the button list on the left, the grid preview in the middle, the inspector of the selected button and its icon on the right."></span>
+            <span class="shot-caption"><strong>Bedrock form</strong> Layout, buttons, icons and a preview true to the pack.</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/bedrock-layouts.png">
+            <span class="shot-media"><img src="../assets/screens/bedrock-layouts.png" width="760" height="796" loading="lazy"
+              alt="The “Nouveau menu” (New menu) dialog: the generator, the templates, then the eight Bedrock form layouts, with the grid selected."></span>
+            <span class="shot-caption"><strong>Eight layouts</strong> Picked at creation, changeable later.</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/ai-jobs.png">
+            <span class="shot-media"><img src="../assets/screens/ai-jobs.png" width="1440" height="900" loading="lazy"
+              alt="An interface generation running in the background: the rail indicator, the progress notification and the notification of the rejected attempt."></span>
+            <span class="shot-caption"><strong>AI in the background</strong> Rail indicator and notifications (simulated provider).</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/ai-job-dialog.png">
+            <span class="shot-media"><img src="../assets/screens/ai-job-dialog.png" width="760" height="584" loading="lazy"
+              alt="The generation dialog reopened during the correction: the phase in plain words, the timer, the step bar and the log of attempts, with the error of the first one."></span>
+            <span class="shot-caption"><strong>Tracked live</strong> Steps, timer and log of attempts.</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/ai-interface.png">
+            <span class="shot-media"><img src="../assets/screens/ai-interface.png" width="760" height="694" loading="lazy"
+              alt="The “Générer une interface par IA” (Generate an interface with AI) dialog: a first attempt rejected, fixed by the model on the second, and the menu preview."></span>
+            <span class="shot-caption"><strong>Interface by AI</strong> Validated by the schema, fixed on the second attempt (simulated provider).</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/ai-texture.png">
+            <span class="shot-media"><img src="../assets/screens/ai-texture.png" width="760" height="652" loading="lazy"
+              alt="The “Générer une texture par IA” (Generate a texture with AI) dialog: an emerald returned by a simulated local provider, then the same one snapped to 16 × 16 and the Menu Forge palette, background removed."></span>
+            <span class="shot-caption"><strong>Texture by AI</strong> Pixel grid and enforced palette (simulated provider).</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/ai-settings.png">
+            <span class="shot-media"><img src="../assets/screens/ai-settings.png" width="1440" height="1180" loading="lazy"
+              alt="The settings, AI section: eleven providers, all disabled, with the OpenAI card expanded and no key."></span>
+            <span class="shot-caption"><strong>AI settings</strong> Nothing is sent until enabled; keys live in the keychain.</span>
           </a>
         </li>
         <li>
@@ -274,119 +526,91 @@
         <li>
           <a class="shot" href="../assets/screens/multi-select.png">
             <span class="shot-media"><img src="../assets/screens/multi-select.png" width="1440" height="900" loading="lazy"
-              alt="Four tabs selected on the canvas and in the list; the inspector sums up the selection and offers to align and distribute."></span>
-            <span class="shot-caption"><strong>Multi-selection</strong> Align and distribute, to the selection or to the canvas.</span>
+              alt="Four tabs selected on the canvas and in the list; the inspector summarizes the selection and offers to align and distribute."></span>
+            <span class="shot-caption"><strong>Multi-selection</strong> Align and distribute, to the selection or the canvas.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/visual-editors.png">
             <span class="shot-media"><img src="../assets/screens/visual-editors.png" width="1440" height="1180" loading="lazy"
-              alt="The inspector of the Buy button: two click actions (a sound, open the confirmation) and an enabled condition built as a tree."></span>
+              alt="The inspector of the “Acheter” (Buy) button: two click actions (a sound, opening the confirmation) and an enabled-when condition tree."></span>
             <span class="shot-caption"><strong>No JSON</strong> Click actions and conditions, in the inspector.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/try-mode.png">
             <span class="shot-media"><img src="../assets/screens/try-mode.png" width="1440" height="900" loading="lazy"
-              alt="&quot;Try&quot; mode: the confirmation opened from the shop, the stack of both menus and the log of triggered actions."></span>
-            <span class="shot-caption"><strong>Try</strong> Clicks run as in game, the log follows them.</span>
+              alt="Try mode: the confirmation opened from the shop, the stack of two menus and the log of triggered actions."></span>
+            <span class="shot-caption"><strong>Try</strong> Clicks run as in game, and the log follows them.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/components.png">
             <span class="shot-media"><img src="../assets/screens/components.png" width="1440" height="900" loading="lazy"
-              alt="The profile and its instance of the &quot;Barre de retour&quot; (back bar) component: elements tagged as component in the list, prefix and offset in the inspector."></span>
+              alt="The profile and its instance of the “Barre de retour” (Back bar) component: elements tagged “composant” in the list, prefix and offset in the inspector."></span>
             <span class="shot-caption"><strong>Components</strong> Drawn once, included in several menus.</span>
+          </a>
+        </li>
+        <li>
+          <a class="shot" href="../assets/screens/panels.png">
+            <span class="shot-media"><img src="../assets/screens/panels.png" width="1440" height="900" loading="lazy"
+              alt="The menu editor with the inspector column widened; the handle's tooltip explains that it can be dragged, moved with the keyboard or reset with a double click."></span>
+            <span class="shot-caption"><strong>Resizable columns</strong> Drag the handle or use the keyboard; the width is kept.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/export.png">
             <span class="shot-media"><img src="../assets/screens/export.png" width="1920" height="1000" loading="lazy"
-              alt="The editor after an export to the plugin (message in the toolbar) and the canvas context menu with both exports."></span>
-            <span class="shot-caption"><strong>Export</strong> To the plugin (Ctrl+E) or as a test ZIP pack.</span>
+              alt="The editor after an export to the plugin (message in the toolbar) and the canvas context menu with its three exports."></span>
+            <span class="shot-caption"><strong>Export</strong> To the plugin, as a test ZIP pack, or for Bedrock.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/modal-editor.png">
             <span class="shot-media"><img src="../assets/screens/modal-editor.png" width="1440" height="900" loading="lazy"
-              alt="A confirmation modal in the editor: dark veil, centered panel, Yes and No buttons."></span>
+              alt="A confirmation modal in the editor: a dark veil, a centered panel, and Oui (Yes) and Non (No) buttons."></span>
             <span class="shot-caption"><strong>Modal</strong> Veil, centered panel and buttons wired to actions.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/menu-canvas.png">
             <span class="shot-media"><img src="../assets/screens/menu-canvas.png" width="576" height="714" loading="lazy"
-              alt="Close-up of the shop with areas hidden: the menu as the player will see it, above their inventory."></span>
+              alt="A close-up of the shop with areas hidden: the menu as the player will see it, above their inventory."></span>
             <span class="shot-caption"><strong>As in game</strong> Areas hidden, the menu above the inventory.</span>
-          </a>
-        </li>
-        <li>
-          <a class="shot" href="../assets/screens/title-composition.png">
-            <span class="shot-media"><img src="../assets/screens/title-composition.png" width="1013" height="810" loading="lazy"
-              alt="The shop and, next to it, the list of tokens of the composed title: offsets, layer glyphs with their ascent and advance, texts."></span>
-            <span class="shot-caption"><strong>Composed title</strong> Every offset, every glyph, every text.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/texture-generator.png">
             <span class="shot-media"><img src="../assets/screens/texture-generator.png" width="760" height="742" loading="lazy"
               alt="The texture generator: style, size, color and slot cells of a beveled panel, with its preview."></span>
-            <span class="shot-caption"><strong>Generator</strong> A beveled panel and its cells, in a few fields.</span>
-          </a>
-        </li>
-        <li>
-          <a class="shot" href="../assets/screens/ai-texture.png">
-            <span class="shot-media"><img src="../assets/screens/ai-texture.png" width="760" height="664" loading="lazy"
-              alt="The &quot;Générer une texture&quot; (generate a texture) dialog: an emerald returned by a simulated local provider, then snapped to 16 × 16 and the Menu Forge palette, background removed."></span>
-            <span class="shot-caption"><strong>AI texture</strong> Pixel grid and fixed palette (simulated provider).</span>
-          </a>
-        </li>
-        <li>
-          <a class="shot" href="../assets/screens/ai-interface.png">
-            <span class="shot-media"><img src="../assets/screens/ai-interface.png" width="760" height="558" loading="lazy"
-              alt="The &quot;Générer une interface&quot; (generate an interface) dialog: a first attempt rejected with the error's path, fixed by the model on the second, and the menu preview."></span>
-            <span class="shot-caption"><strong>AI interface</strong> Validated against the schema, fixed on the second attempt (simulated provider).</span>
-          </a>
-        </li>
-        <li>
-          <a class="shot" href="../assets/screens/ai-settings.png">
-            <span class="shot-media"><img src="../assets/screens/ai-settings.png" width="1440" height="1180" loading="lazy"
-              alt="The settings, AI section: eleven providers, all disabled, and the OpenAI card expanded, with no key."></span>
-            <span class="shot-caption"><strong>AI</strong> Nothing is sent until enabled, keys in the keychain.</span>
+            <span class="shot-caption"><strong>Texture generator</strong> A beveled panel and its cells, in a few fields.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/asset-editor.png">
             <span class="shot-media"><img src="../assets/screens/asset-editor.png" width="1440" height="900" loading="lazy"
-              alt="The asset editor: a help callout made of a logo, two frames and three lines of text, with its export panel."></span>
+              alt="The asset editor: a help callout made of a logo, two frames and three lines of text, with its export."></span>
             <span class="shot-caption"><strong>Free mode</strong> A help callout exported as PNG and as a glyph.</span>
           </a>
         </li>
         <li>
           <a class="shot" href="../assets/screens/shortcuts.png">
             <span class="shot-media"><img src="../assets/screens/shortcuts.png" width="1440" height="900" loading="lazy"
-              alt="The keyboard shortcuts cheat sheet, grouped by context: navigation, menu editor, asset editor, canvas."></span>
-            <span class="shot-caption"><strong>Shortcuts</strong> The cheat sheet, opened with the "?" key.</span>
-          </a>
-        </li>
-        <li>
-          <a class="shot" href="../assets/screens/settings.png">
-            <span class="shot-media"><img src="../assets/screens/settings.png" width="1440" height="900" loading="lazy"
-              alt="The settings screen: workspace, editor preferences, export to the plugin."></span>
-            <span class="shot-caption"><strong>Settings</strong> Workspace, editor, export to the plugin.</span>
+              alt="The keyboard shortcut cheat sheet in seven groups: navigation, selection, the menu, Bedrock form, asset and pixel editors, and the canvas."></span>
+            <span class="shot-caption"><strong>Shortcuts</strong> The cheat sheet, opened with the “?” key.</span>
           </a>
         </li>
       </ul>
     </div>
   </section>
 
-  <!-- ---------- Comment ça marche ---------- -->
-  <section id="how-it-works" class="section" aria-labelledby="how-title">
+  <!-- ---------- How it works ---------- -->
+  <section id="how-it-works" class="section alt" aria-labelledby="how-title">
     <div class="wrap">
       <div class="section-head">
         <h2 id="how-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-info"></use></svg> How it works</h2>
         <p class="section-lead">
-          The "modern" menus on servers are not mods: they are vanilla chests whose title contains images.
+          The “modern” menus you see on servers are not mods: they are vanilla chests whose title holds images.
           Menu Forge takes care of the whole chain.
         </p>
       </div>
@@ -395,17 +619,17 @@
         <li class="card step">
           <span class="slot-icon" aria-hidden="true">1</span>
           <h3>Draw</h3>
-          <p>In the studio, from a template or the interface generator: layers, texts, slot areas, states and actions, without writing any JSON.</p>
+          <p>In the studio, from an example, a template or the generator: layers, texts, slot areas, state and actions, without writing any JSON.</p>
         </li>
         <li class="card step">
           <span class="slot-icon" aria-hidden="true">2</span>
           <h3>Export</h3>
-          <p><span class="nowrap"><kbd>Ctrl</kbd>+<kbd>E</kbd></span>: <code>*.menu.json</code> files and their PNGs—readable, versionable, documented—in the plugin's folder.</p>
+          <p><span class="nowrap"><kbd>Ctrl</kbd>+<kbd>E</kbd></span>: <code>*.menu.json</code> files and their PNGs—readable, versionable, documented—into the plugin's folder.</p>
         </li>
         <li class="card step">
           <span class="slot-icon" aria-hidden="true">3</span>
           <h3>Open in game</h3>
-          <p>The library generates the pack fonts and opens the menu in a vanilla chest, with its slots and actions.</p>
+          <p>The library generates the pack's fonts and opens the menu in a vanilla chest, with its slots and actions.</p>
         </li>
       </ol>
 
@@ -413,148 +637,69 @@
         <div class="prose">
           <h3>Under the hood</h3>
           <p>
-            The chest texture is replaced by a "slots only" image: the frame disappears, the slot cells stay.
-            Everything else is written into the chest's <strong>title</strong>, with a font where every character
-            is an image.
+            The chest texture is replaced by a “slots only” image: the frame disappears, the slot cells stay.
+            Everything else is written into the chest's <strong>title</strong>, with a font in which every
+            character is an image.
           </p>
           <p>
-            For each visible layer, a negative or positive space moves the cursor to the right x position, then
+            For each visible layer, a negative or positive space moves the cursor to the right x coordinate, then
             the layer's glyph is drawn at the height set by its <code>ascent</code>. The catch: Minecraft then
             advances by the image's last opaque column plus two, not by its width. Menu Forge crops every layer
-            and measures that advance from the pixels, in the studio as in the library.
+            and measures that advance from the pixels, in the studio and in the library alike.
           </p>
           <div class="formulas">
             <p class="formula"><code>ascent = 13 &minus; y</code><span>puts the top of the image at <code>y</code></span></p>
             <p class="formula"><code>advance = last opaque column + 2</code><span>not the PNG's width</span></p>
           </div>
           <p>
-            Slots remain real slots, and the title is drawn below the items: a button is a layer plus a slot at
-            the same place, usually holding an invisible item.
+            Slots remain real slots, and the title is drawn beneath the items: a button is a layer plus a slot
+            placed at the same spot, often holding an invisible item.
           </p>
           <p>
             The studio composes the title and generates the fonts with the same algorithm as the library: a
-            shared fixture checks that both produce the same fonts, byte for byte, and the same titles. What
-            the studio shows is what players get.
+            shared fixture checks that both produce the same fonts, byte for byte, and the same titles. What the
+            studio shows is what players will see.
           </p>
-          <p><a href="https://github.com/pedrokarim/menu-forge/blob/main/docs/rendering.md">Read the full rendering model, measured and validated in game (in French)</a></p>
+          <p><a href="../docs/rendering.html" hreflang="fr">Read the full rendering model, measured and validated in game (in French)</a></p>
         </div>
 
         <div class="tip token-panel">
-          <p class="tip-title">The shop's title</p>
-          <p class="tip-hint">The first tokens, as the studio shows them (in French).</p>
-          <ol class="token-list" lang="fr">
-            <li class="token-shift">décalage &minus;8</li>
-            <li class="token-glyph">background · x&nbsp;0 · ascent&nbsp;13 · avance&nbsp;177</li>
-            <li class="token-shift">décalage &minus;170</li>
-            <li class="token-glyph">tab_blocks · x&nbsp;7 · ascent&nbsp;&minus;4 · avance&nbsp;19</li>
-            <li class="token-shift">décalage &minus;1</li>
-            <li class="token-glyph">tab_tools · x&nbsp;25 · ascent&nbsp;&minus;4 · avance&nbsp;19</li>
-            <li class="token-shift">décalage &minus;73</li>
+          <p class="tip-title">Shop title</p>
+          <p class="tip-hint">The first tokens, as the studio lists them (its interface is in French).</p>
+          <ol class="token-list">
+            <li class="token-shift">offset &minus;8</li>
+            <li class="token-glyph">background · x&nbsp;0 · ascent&nbsp;13 · advance&nbsp;177</li>
+            <li class="token-shift">offset &minus;170</li>
+            <li class="token-glyph">tab_blocks · x&nbsp;7 · ascent&nbsp;&minus;4 · advance&nbsp;19</li>
+            <li class="token-shift">offset &minus;1</li>
+            <li class="token-glyph">tab_tools · x&nbsp;25 · ascent&nbsp;&minus;4 · advance&nbsp;19</li>
+            <li class="token-shift">offset &minus;73</li>
             <li class="token-glyph">tab_blocks_active · x&nbsp;7 · ascent&nbsp;&minus;4</li>
             <li class="token-shift">…</li>
-            <li class="token-text">texte «&nbsp;Boutique&nbsp;» · ascent&nbsp;7 · largeur&nbsp;42</li>
-            <li class="token-text">texte «&nbsp;1250&nbsp;» · ascent&nbsp;&minus;9 · largeur&nbsp;24</li>
+            <li class="token-text">text “Boutique” · ascent&nbsp;7 · width&nbsp;42</li>
+            <li class="token-text">text “1250” · ascent&nbsp;&minus;9 · width&nbsp;24</li>
           </ol>
         </div>
       </div>
 
       <figure class="figure">
         <div class="frame">
-          <img src="../assets/screens/title-composition.png" width="1013" height="810" loading="lazy"
-               alt="The shop in the studio and, on the right, the full list of tokens of its composed title.">
+          <img src="../assets/screens/title-composition.png" width="1013" height="829" loading="lazy"
+               alt="The shop in the studio and, on the right, the full list of its composed title's tokens.">
         </div>
-        <figcaption>In the studio: the canvas and, on the right, the title composed for the displayed state.</figcaption>
+        <figcaption>In the studio: the canvas and, on the right, the composed title for the displayed state.</figcaption>
       </figure>
     </div>
   </section>
 
-  <!-- ---------- Java et Bedrock ---------- -->
-  <section id="bedrock" class="section alt" aria-labelledby="bedrock-title">
-    <div class="wrap">
-      <div class="section-head">
-        <h2 id="bedrock-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-layout"></use></svg> Java and Bedrock</h2>
-        <p class="section-lead">
-          One studio, both editions of the game. On Java, the visuals ride in the chest's title; on Bedrock, in a
-          server form drawn with JSON UI.
-        </p>
-      </div>
-
-      <div class="grid cols-2">
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-chest"></use></svg></span>
-          <h3>Java: the Paper plugin</h3>
-          <p>The MenuForge plugin opens a vanilla chest whose title carries the visuals as font glyphs; it generates the pack fonts and handles sessions, pages and actions.</p>
-        </article>
-        <article class="card feature">
-          <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-layout"></use></svg></span>
-          <h3>Bedrock: the <span class="nowrap">mc-rs</span> server</h3>
-          <p>"Export for Bedrock" writes a resource pack (JSON UI layouts, textures) and a runtime descriptor, <code>runtime.json</code>; the native mc-rs server sends the forms and runs the clicks.</p>
-        </article>
-      </div>
-
-      <div class="split">
-        <div class="prose">
-          <h3>Bedrock forms</h3>
-          <p>
-            A menu type of its own, made for the Bedrock client: a title, a text and buttons, shown in one of the
-            eight layouts of the server's <code>mcrs_ui</code> pack. Each button has its text, a subtitle, a role
-            (banner, special button), an icon and its click actions; a "Sent if" condition hides it depending on
-            the state or the player's flags.
-          </p>
-          <p>
-            The icon comes from the workspace (imported, drawn in the pixel editor, picked from a library), from a
-            game texture referenced by its path (<code>textures/items/diamond</code>)—never copied—or from a web
-            address. The preview follows the geometry of the pack's layouts, and "Try" mode runs the actions the
-            way the server does.
-          </p>
-          <p>
-            Chest menus go to Bedrock too: the exporter generates a JSON UI layout for each of them, with a button
-            grid aligned on the chest's slots.
-          </p>
-          <p>
-            On mc-rs, <code>/mf list</code> lists the menus, <code>/mf open &lt;id&gt;</code> opens one and
-            <code>/mf reload</code> reloads the export without restarting the server.
-          </p>
-          <p>
-            <a href="https://github.com/pedrokarim/menu-forge/blob/main/docs/bedrock.md">Read the contract between the exporter and the server</a>
-            or <a href="https://github.com/pedrokarim/menu-forge/blob/main/docs/guide.md">follow the getting-started guide</a> (in French)
-          </p>
-        </div>
-
-        <div class="tip token-panel">
-          <p class="tip-title">Eight layouts</p>
-          <p class="tip-hint">Picked at creation, changeable later; the title's flag routes the client.</p>
-          <ol class="token-list">
-            <li class="token-glyph">grid · §m§a · large tiles, three per row</li>
-            <li class="token-glyph">left_button · §m§b · buttons on the left</li>
-            <li class="token-glyph">bottom_button · §m§c · buttons at the bottom</li>
-            <li class="token-glyph">image_grid · §m§d · titled thumbnails</li>
-            <li class="token-glyph">square_image · §m§e · one square image</li>
-            <li class="token-glyph">motd · §m§f · column, scrolling text</li>
-            <li class="token-glyph">store · §m§0 · tabs and products</li>
-            <li class="token-glyph">wrapped · §m§1 · recap, scrolling visuals</li>
-          </ol>
-        </div>
-      </div>
-
-      <figure class="figure">
-        <div class="frame">
-          <img src="../assets/screens/bedrock-form.png" width="1440" height="900" loading="lazy"
-               alt="The Bedrock form editor: the layout and the button list on the left, the grid preview in the middle, the selected button's inspector and its icon on the right.">
-        </div>
-        <figcaption>In the studio: the layout and the buttons, a preview true to the pack, the selected button's inspector.</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <!-- ---------- Démarrer ---------- -->
+  <!-- ---------- Get started ---------- -->
   <section id="get-started" class="section" aria-labelledby="start-title">
     <div class="wrap">
       <div class="section-head">
         <h2 id="start-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-download"></use></svg> Get started</h2>
         <p class="section-lead">
-          No published release yet: build from source. Requirements: Node&nbsp;24, Rust stable (1.95 or later),
-          WebView2 on Windows (bundled with Windows&nbsp;11) and a JDK&nbsp;21 for the library.
+          No published release yet: you build from source. Requirements: Node&nbsp;24, stable Rust (1.95 or later),
+          WebView2 on Windows (included in Windows&nbsp;11) and JDK&nbsp;21 for the library.
         </p>
       </div>
 
@@ -599,7 +744,7 @@
             <span class="slot-icon"><svg class="icon lg" aria-hidden="true"><use href="#i-server"></use></svg></span>
             <h3>Paper plugin</h3>
           </div>
-          <p>MenuForge reads the exported menus, generates the pack fonts and opens the menus in game. Paper&nbsp;1.20.6 and later, Java&nbsp;21.</p>
+          <p>MenuForge reads the exported menus, generates the pack's fonts and opens the menus in game. Paper&nbsp;1.20.6 and later, Java&nbsp;21.</p>
           <div class="code">
             <pre id="cmd-plugin"><code><span class="line">cd menu-forge/lib</span>
 <span class="line">./gradlew build</span></code></pre>
@@ -608,12 +753,17 @@
             </button>
           </div>
           <p>
-            Drop <code>MenuForge-&lt;version&gt;.jar</code> into <code>plugins/</code>, the menus exported by the
-            studio <span class="nowrap">(<kbd>Ctrl</kbd>+<kbd>E</kbd>)</span> into <code>plugins/MenuForge/workspace/</code>, then merge the generated pack into your server's pack.
+            Drop <code>MenuForge-&lt;version&gt;.jar</code> into <code>plugins/</code>, the menus exported by the studio
+            <span class="nowrap">(<kbd>Ctrl</kbd>+<kbd>E</kbd>)</span> into <code>plugins/MenuForge/workspace/</code>, then merge the generated pack into your server's.
           </p>
         </article>
       </div>
       <p id="copy-status" class="visually-hidden" aria-live="polite"></p>
+      <div class="section-foot">
+        <a class="button primary" href="../docs/guide.html" hreflang="fr">
+          <svg class="icon" aria-hidden="true"><use href="#i-play"></use></svg> Follow the getting-started guide (in French)
+        </a>
+      </div>
     </div>
   </section>
 
@@ -622,105 +772,106 @@
     <div class="wrap">
       <div class="section-head">
         <h2 id="docs-title" class="section-title"><svg class="icon lg" aria-hidden="true"><use href="#i-book"></use></svg> Documentation</h2>
-        <p class="section-lead">The documentation lives in the repository, next to the code it describes. It is written in French.</p>
+        <p class="section-lead">
+          The whole documentation can be read on this website. Its pages are written in French, like the studio;
+          the English index summarizes each of them.
+        </p>
       </div>
       <ul class="grid cols-2" style="margin: 0; padding: 0; list-style: none;">
         <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/guide.md">
+          <a class="card doc-link" href="../docs/guide.html" hreflang="fr">
             <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-play"></use></svg></span>
-            <span><strong>Getting-started guide</strong><span>A first Java menu and a first Bedrock form, from creation to opening in game.</span></span>
+            <span><strong>Getting-started guide</strong><span>A first Java menu and a first Bedrock form, from creation to opening them in game.</span></span>
             <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
           </a>
         </li>
         <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/rendering.md">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-chest"></use></svg></span>
-            <span><strong>Rendering model</strong><span>Coordinates, <code>ascent</code>, advance, known pitfalls.</span></span>
-            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
-          </a>
-        </li>
-        <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/format.md">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-code"></use></svg></span>
-            <span><strong>Menu format</strong><span>Layers, texts, slots, state, conditions, actions, templates.</span></span>
-            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
-          </a>
-        </li>
-        <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/bedrock.md">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-layout"></use></svg></span>
-            <span><strong>Menu Forge on Bedrock</strong><span>Export, <code>runtime.json</code>, forms and layouts, server-side execution.</span></span>
-            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
-          </a>
-        </li>
-        <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/assets.md">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg></span>
-            <span><strong>Asset format</strong><span>Free mode: boxes, images, texts, export as a glyph.</span></span>
-            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
-          </a>
-        </li>
-        <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/pixels.md">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg></span>
-            <span><strong>Pixel image format</strong><span>Layers, PNG export, the editor's tools and shortcuts.</span></span>
-            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
-          </a>
-        </li>
-        <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/ai.md">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-robot"></use></svg></span>
-            <span><strong>AI generation</strong><span>Providers, keys, what is sent, costs, constraints; verified with simulated providers, not yet with real keys.</span></span>
-            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
-          </a>
-        </li>
-        <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/menu.schema.json">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-braces"></use></svg></span>
-            <span><strong>JSON schemas</strong><span>Menus and assets (<code>asset.schema.json</code>): validate a hand-written or generated file.</span></span>
-            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
-          </a>
-        </li>
-        <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/screens.md">
+          <a class="card doc-link" href="../docs/screens.html" hreflang="fr">
             <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg></span>
-            <span><strong>Application screens</strong><span>Navigation, home, editor, libraries, settings.</span></span>
+            <span><strong>Studio screens</strong><span>Home, editors, libraries, settings, columns and notifications.</span></span>
             <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
           </a>
         </li>
         <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/studio/README.md">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-terminal"></use></svg></span>
-            <span><strong>Studio</strong><span>Run it, build the installer, local API.</span></span>
+          <a class="card doc-link" href="../docs/shortcuts.html" hreflang="fr">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-keyboard"></use></svg></span>
+            <span><strong>Keyboard shortcuts</strong><span>Every shortcut, grouped as in the studio's cheat sheet.</span></span>
             <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
           </a>
         </li>
         <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/lib/README.md">
+          <a class="card doc-link" href="../docs/generator.html" hreflang="fr">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-grid"></use></svg></span>
+            <span><strong>Interface generator</strong><span>Five types, three style families, 22 examples, generated textures.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
+        <li>
+          <a class="card doc-link" href="../docs/ai.html" hreflang="fr">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-robot"></use></svg></span>
+            <span><strong>AI generation</strong><span>Providers, keys, what is sent, constraints, background jobs and notifications.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
+        <li>
+          <a class="card doc-link" href="../docs/format.html" hreflang="fr">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-code"></use></svg></span>
+            <span><strong>Menu format</strong><span>Layers, texts, slots, state, conditions, actions, templates, Bedrock forms.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
+        <li>
+          <a class="card doc-link" href="../docs/rendering.html" hreflang="fr">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-chest"></use></svg></span>
+            <span><strong>Java rendering model</strong><span>Coordinates, <code>ascent</code>, advance, the pixel font, known pitfalls.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
+        <li>
+          <a class="card doc-link" href="../docs/export.html" hreflang="fr">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg></span>
+            <span><strong>Exporting and installing</strong><span>The studio's three exports and server-side installation, Java and Bedrock.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
+        <li>
+          <a class="card doc-link" href="../docs/bedrock.html" hreflang="fr">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-layout"></use></svg></span>
+            <span><strong>Menu Forge on Bedrock</strong><span>Export, <code>runtime.json</code>, forms and layouts, execution by the server.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
+        <li>
+          <a class="card doc-link" href="../docs/lib.html" hreflang="fr">
             <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-server"></use></svg></span>
-            <span><strong>Library and plugin</strong><span>Installation, commands, configuration, extension points.</span></span>
+            <span><strong>Java library and Paper plugin</strong><span>Installation, commands, configuration, extension points.</span></span>
             <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
           </a>
         </li>
         <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/roadmap.md">
+          <a class="card doc-link" href="../docs/pixels.html" hreflang="fr">
+            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg></span>
+            <span><strong>Pixel editor</strong><span>Layers, tools, PNG export and the image format.</span></span>
+            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </a>
+        </li>
+        <li>
+          <a class="card doc-link" href="../docs/roadmap.html" hreflang="fr">
             <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-folder"></use></svg></span>
-            <span><strong>Roadmap</strong><span>What is done, what is verified, and what comes next.</span></span>
-            <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
-          </a>
-        </li>
-        <li>
-          <a class="card doc-link" href="https://github.com/pedrokarim/menu-forge/blob/main/docs/discord.md">
-            <span class="slot-icon"><svg class="icon" aria-hidden="true"><use href="#i-sliders"></use></svg></span>
-            <span><strong>Discord Rich Presence</strong><span>Optional, can be turned off, sends nothing else.</span></span>
+            <span><strong>Roadmap</strong><span>What is done, what has been verified, and what comes next.</span></span>
             <svg class="icon arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
           </a>
         </li>
       </ul>
+      <div class="section-foot">
+        <a class="button primary" href="docs/">
+          <svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg> Open the documentation index
+        </a>
+      </div>
     </div>
   </section>
 
-  <!-- ---------- Mentions ---------- -->
+  <!-- ---------- Notices ---------- -->
   <section id="notices" class="section" aria-labelledby="legal-title">
     <div class="wrap">
       <div class="section-head">
@@ -732,7 +883,7 @@
           <table class="credits">
             <caption class="visually-hidden">Third-party components and their licenses</caption>
             <thead>
-              <tr><th scope="col">Component</th><th scope="col">Use</th><th scope="col">License</th></tr>
+              <tr><th scope="col">Component</th><th scope="col">Used for</th><th scope="col">License</th></tr>
             </thead>
             <tbody>
               <tr><td><a href="https://github.com/halfmage/pixelarticons">Pixelarticons</a></td><td>Icons</td><td>MIT</td></tr>
@@ -750,20 +901,19 @@
       <div class="legal">
         <p>
           <strong>Project license</strong>: Menu Forge is released under the
-          <a href="https://github.com/pedrokarim/menu-forge/blob/main/LICENSE">MIT license</a>, © 2026 Karim (pedrokarim). The third-party
-          components above keep their own licenses.
+          <a href="https://github.com/pedrokarim/menu-forge/blob/main/LICENSE">MIT</a> license, © 2026 Karim (pedrokarim).
+          The third-party components above keep their own licenses.
         </p>
         <p>
           Menu Forge is not affiliated with or endorsed by Mojang; Minecraft is a trademark of Mojang AB. The
-          repository contains no Minecraft asset: the game font and third-party packs are only read from the
+          repository contains no Minecraft assets: the game's font and third-party packs are only read from the
           user's machine and remain the property of their authors.
         </p>
         <p>
-          The screenshots on this site are produced on a demo workspace made only of textures generated or drawn
-          by the studio; in-game text is shown with Menu Forge's own pixel font, drawn for the project. The AI generation screenshots use simulated providers on the machine, with no
-          service and no key. Fonts are
-          self-hosted with their licenses; this site loads nothing from any other domain and
-          sets no cookies.
+          The screenshots on this website are produced on a demo workspace made only of textures generated or
+          drawn by the studio, and in-game texts are written with Menu Forge's pixel font, drawn for the project.
+          The AI screenshots use providers simulated on the machine, with no service and no key. Fonts are
+          self-hosted with their licenses; this website loads nothing from another domain and sets no cookies.
         </p>
       </div>
     </div>
@@ -777,7 +927,7 @@
       <img src="../assets/logo.svg" alt="" width="24" height="24">
       <span>Menu Forge</span>
     </a>
-    <p>Minecraft inventory studio built on font glyphs, made for Enderium. MIT license.</p>
+    <p>A Minecraft inventory studio built on font glyphs, made for Enderium. MIT license.</p>
     <a href="https://github.com/pedrokarim/menu-forge">github.com/pedrokarim/menu-forge</a>
   </div>
 </footer>
