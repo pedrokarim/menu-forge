@@ -228,7 +228,7 @@ les assets tiers restent sur ce poste.
 |---|---|
 | Espace de travail | espace ouvert au démarrage |
 | Éditeur | zoom à l’ouverture (« Ajuster » par défaut), grille de pixels, confirmations |
-| Export vers le plugin | dossier cible (« Ressources d’enderium-core »), espace de noms, `pack_format` ([`export.md`](export.md)) |
+| Export vers le plugin | dossier cible (« Dossier du serveur Java (ressources du plugin) »), espace de noms, `pack_format` ([`export.md`](export.md)) |
 | Export pour Bedrock | dossier du serveur Bedrock, qui reçoit `pack/` et `runtime.json` |
 | Discord | Rich Presence, identifiant d’application, nom du document affiché ou non ([`discord.md`](discord.md)) |
 | IA | une fiche par fournisseur : activer, clé d’API rangée dans le trousseau du système, modèles, adresse, test de connexion ; chargée à la demande ([`ai.md`](ai.md)) |

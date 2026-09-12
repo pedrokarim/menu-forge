@@ -11,7 +11,7 @@ dossier n’est pas réglé, l’export correspondant est refusé avec un messag
 
 | Section | Réglage | Rôle |
 |---|---|---|
-| Export vers le plugin | Ressources d’enderium-core | Dossier cible de l’export vers le plugin, quel que soit le serveur : l’export écrit dans son sous-dossier `menuforge/` |
+| Export vers le plugin | Dossier du serveur Java (ressources du plugin) | Ressources du plugin qui ouvre les menus, quel que soit le serveur Java (souvent `src/main/resources`) : l’export écrit dans son sous-dossier `menuforge/` |
 | Export vers le plugin | Espace de noms | Espace de noms des polices et textures du pack ZIP (`menuforge` par défaut) |
 | Export vers le plugin | `pack_format` | Écrit dans `pack.mcmeta` : 32 pour 1.20.5 et 1.20.6, 34 pour 1.21, 46 pour 1.21.4 (par défaut) |
 | Export pour Bedrock | Dossier d’export Bedrock | Dossier du serveur Bedrock qui reçoit le pack et `runtime.json` ; pour mc-rs, `menu_forge/export` |

@@ -87,8 +87,8 @@ l’édition.
 ### 3.4 Enregistrer et exporter
 
 1. **Paramètres** (`Ctrl+4`), section **Export vers le plugin** : choisir le
-   dossier cible (champ « Ressources d’enderium-core »), l’espace de noms et
-   le `pack_format` de la version du serveur.
+   dossier cible (champ « Dossier du serveur Java (ressources du plugin) »),
+   l’espace de noms et le `pack_format` de la version du serveur.
 2. `Ctrl+S` enregistre le menu ; `Ctrl+E` exporte tous les menus coffre de
    l’espace dans `<dossier>/menuforge/` (`menus/` et `textures/`).
 

@@ -26,6 +26,12 @@ const DEFAULT_DISCORD: DiscordSettings = { enabled: true, clientId: null, showDo
 /** Application Discord « Menu Forge », utilisée tant qu’aucun autre identifiant n’est saisi (même valeur que le backend). */
 const MENU_FORGE_CLIENT_ID = '1370756359037124698';
 
+/**
+ * Dossier de l’export Java, quel que soit le serveur. La clé de réglage garde
+ * son nom d’origine (`export.enderiumResources`) pour ne pas casser les réglages existants.
+ */
+const JAVA_EXPORT_LABEL = 'Dossier du serveur Java (ressources du plugin)';
+
 /** Pastille d’état de la connexion à Discord. */
 function presenceBadge(discord: DiscordSettings, status: PresenceStatus | null): { label: string; className: string } {
   if (!discord.enabled) return { label: 'désactivée', className: 'badge' };
@@ -167,8 +173,8 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
   };
 
   const browseResources = async () => {
-    const chosen = await pickFolder('Dossier des ressources d’enderium-core', settings?.export.enderiumResources ?? undefined);
-    if (chosen) await save({ export: { enderiumResources: chosen } }, 'Dossier des ressources');
+    const chosen = await pickFolder(JAVA_EXPORT_LABEL, settings?.export.enderiumResources ?? undefined);
+    if (chosen) await save({ export: { enderiumResources: chosen } }, 'Dossier du serveur Java');
   };
 
   const browseBedrock = async () => {
@@ -270,20 +276,21 @@ export function SettingsScreen({ pill, app, settings, activeWorkspace, onPatch, 
           Export vers le plugin
         </h2>
         <div className="card setting-list">
-          <SettingRow title="Ressources d’enderium-core" text={
+          <SettingRow title={JAVA_EXPORT_LABEL} text={
               <>
-                Le dossier <code>core/src/main/resources</code> du plugin.
+                Les ressources du plugin qui ouvre les menus, quel que soit le serveur Java (souvent{' '}
+                <code>src/main/resources</code>){NBSP}: l’export écrit dans son sous-dossier <code>menuforge/</code>.
                 <PathEcho path={exportSettings.enderiumResources} />
               </>
             }
           >
             <CommitInput
               mono
-              label="Ressources d’enderium-core"
+              label={JAVA_EXPORT_LABEL}
               value={exportSettings.enderiumResources ?? ''}
               placeholder="Non défini"
               onCommit={(value) =>
-                void save({ export: { enderiumResources: value.trim() === '' ? null : value.trim() } }, 'Dossier des ressources')
+                void save({ export: { enderiumResources: value.trim() === '' ? null : value.trim() } }, 'Dossier du serveur Java')
               }
             />
             {isTauri && (

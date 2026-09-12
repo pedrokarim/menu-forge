@@ -31,7 +31,7 @@ export const tests = [
     async run(t) {
       const { page } = t;
       await open(t, '#/parametres');
-      const field = page.getByLabel('Ressources d’enderium-core', { exact: true });
+      const field = page.getByLabel('Dossier du serveur Java (ressources du plugin)', { exact: true });
       await field.fill(t.env.exportDir);
       await field.press('Enter');
       await t.waitFor(async () => (await api(t, '/settings')).export.enderiumResources === t.env.exportDir, 'dossier enregistré dans les réglages');
