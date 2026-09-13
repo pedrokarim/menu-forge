@@ -62,6 +62,45 @@ Les textures générées sont écrites sous `textures/generated/<menu>/`. Chaque
 couche garde ses paramètres dans la clé `generator` : « Modifier la texture
 générée… » la rouvre dans le générateur de textures.
 
+### Règles de mise en page
+
+- **Icônes des boutons d’une case.** Un libellé ne tient pas dans 16 px : le
+  bouton porte une icône pixel peinte dans sa texture (clé `icon`), dans la
+  couleur de son libellé. Croix pour « Fermer », flèche de retour pour
+  « Retour », sac pour « Tout vendre », bourse pour « Mon solde », point
+  d’interrogation pour « Aide », chevrons pour les pages, chiffre 1 à 9 pour
+  les actions génériques « Action N ». Le nom complet reste celui de l’item
+  invisible, affiché au survol en jeu. En « sombre à accent », « Fermer »
+  garde son carré à croix, toujours rouge, quel que soit l’accent.
+- **Libellés.** Au moins 4 px de marge intérieure de chaque côté. Un choix de
+  modale prend la largeur qu’il lui faut (« Confirmer » et « Plus tard » :
+  quatre cases), et les choix gardent la même largeur quand la rangée le
+  permet.
+- **Contraste.** Libellés et icônes atteignent un contraste d’au moins 3:1
+  (seuil WCAG des composants d’interface) sur le corps de leur bouton : la
+  couleur de la famille si elle suffit, sinon une couleur claire ou foncée
+  selon la luminance du fond. L’onglet actif mc-rs écrit son libellé dans
+  l’accent éclairci, jamais dans l’accent pur sur sa propre teinte.
+- **Centrage.** Les cases sont entières : quand il reste un nombre impair de
+  colonnes libres, « Centrés » et « Répartis » ouvrent une colonne vide au
+  milieu du groupe, pour que les marges de gauche et de droite restent
+  égales.
+- **Numéro de page.** En haut à droite s’il tient à côté du titre ; sinon
+  dans la plus longue suite de cases libres de la barre du bas ; sinon le
+  titre est raccourci au dernier mot entier, suivi de « … ». Il n’est jamais
+  omis. En boutique « sombre à accent », le titre et la cartouche se centrent
+  dans le bandeau, sous le store.
+- **Fond mc-rs.** Opaque, pour masquer entièrement les cases du coffre
+  vanilla ; ses coins ne retirent qu’un pixel, là où la fenêtre vanilla est
+  déjà transparente, si bien que son cadre ne dépasse plus.
+
+Le générateur ne redessine que la partie coffre, par le titre du coffre :
+l’inventaire du joueur, en dessous, reste celui du jeu (gris clair). Le
+couvrir est possible (un fond qui descend jusqu’au bas de la fenêtre, avec
+ses propres cases), mais le libellé « Inventaire » que le jeu écrit par-dessus
+en gris foncé deviendrait illisible sur un fond sombre : c’est un choix à
+faire menu par menu, dans l’éditeur.
+
 ## Galerie d’exemples
 
 L’onglet **Exemples** propose 22 interfaces toutes faites, filtrables par
@@ -108,10 +147,6 @@ disposition).
 Les réglages vivent dans `studio/src/model/interfaceExamples.ts` ; `npm test`
 vérifie que chaque exemple donne un menu valide pour le schéma.
 
-Défauts connus, reproduits tels quels par les exemples en attendant une
-décision : les boutons d’une case n’ont pas de libellé, et le fond de la
-famille mc-rs est translucide.
-
 ## Générateur de textures
 
 « Générer une texture… » (section Couches de la colonne de gauche, menu
@@ -124,6 +159,10 @@ progression) :
 | Deepslate | panneau biseauté, bouton, cellule de slot, voile de modale, aplat |
 | mc-rs | panneau sombre et arrondi, bordure seule, bouton plat à trois états, bouton en relief, bande or ou orange, case creusée, grille de chargement |
 | Sombre à accent | fenêtre plate, case creusée, onglet, bouton plat, bouton fermer, store rayé, ligne de liste, cartouche de valeur, barre de progression |
+
+Tous les styles acceptent une **icône** pixel centrée dans le corps du
+bouton (croix, retour, sac, bourse, aide, chevrons, chiffres 1 à 9), claire
+ou foncée selon le fond, ou dans la couleur choisie.
 
 Un panneau peut dessiner les **cellules des slots** d’une zone de la grille,
 dans le style de son choix. La texture ne dépend que de ses paramètres : le
