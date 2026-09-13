@@ -2,9 +2,9 @@
 
 Menu Forge draws custom Minecraft inventories and opens them in game, on Java
 (Paper plugin) and on Bedrock (mc-rs server) alike. This page is the index of
-the documentation, in English. The pages themselves are written in French,
-like the studio's interface: each summary below says what a page covers, so
-you know where to look.
+the documentation, in English. The getting-started guide is translated into
+English; the other pages are written in French, like the studio's interface:
+each summary below says what a page covers, so you know where to look.
 
 The same documentation, with a French index, is also in the repository
 ([`docs/README.md`](README.md)).
@@ -13,7 +13,7 @@ The same documentation, with a French index, is also in the repository
 
 | Page | What it covers |
 |---|---|
-| [Getting-started guide](guide.md) | Installing the studio, then a first Java menu and a first Bedrock form, all the way into the game |
+| [Getting-started guide](guide.en.md) | Installing the studio, then a first Java menu and a first Bedrock form, all the way into the game |
 
 ## Using the studio
 
