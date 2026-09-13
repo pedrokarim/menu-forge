@@ -47,6 +47,25 @@ export type ButtonState = 'normal' | 'hover' | 'pressed';
 /** Style des cellules de slots dessinées dans une texture générée. */
 export type CellStyle = 'cell' | 'mcrs_slot' | 'dark_slot';
 
+/** Icône pixel peinte dans une texture de bouton (cf. `pixelIcons.ts`). */
+export type PixelIcon =
+  | 'close'
+  | 'back'
+  | 'sell'
+  | 'balance'
+  | 'help'
+  | 'prev'
+  | 'next'
+  | 'digit_1'
+  | 'digit_2'
+  | 'digit_3'
+  | 'digit_4'
+  | 'digit_5'
+  | 'digit_6'
+  | 'digit_7'
+  | 'digit_8'
+  | 'digit_9';
+
 /** Paramètres d’une texture générée par le studio (métadonnée ignorée par la lib). */
 export interface GeneratorSpec {
   style: GeneratorStyle;
@@ -74,6 +93,10 @@ export interface GeneratorSpec {
   tile?: number;
   /** Sombre à accent : remplissage d’une barre de progression, en pour cent. */
   progress?: number;
+  /** Icône pixel centrée dans le corps du bouton, tous styles. */
+  icon?: PixelIcon;
+  /** Couleur de l’icône (sinon claire ou foncée selon `color`). */
+  iconColor?: string;
 }
 
 /**

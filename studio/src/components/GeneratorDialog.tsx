@@ -11,6 +11,7 @@ import {
   defaultAccent,
   defaultBorderColor,
   defaultCellColor,
+  defaultIconColor,
   imageToCanvas,
   paramNumber,
   renderGeneratorImage,
@@ -18,6 +19,7 @@ import {
   styleParams,
 } from '../model/textureRender';
 import type { StyleFamilyId } from '../model/textureRender';
+import { PIXEL_ICONS, PIXEL_ICON_LABELS, isPixelIcon } from '../model/pixelIcons';
 import { Icon } from '../ui/Icon';
 import { Field, FieldError, Modal, NumberField } from './fields';
 import './generator.css';
@@ -52,6 +54,8 @@ function keepCells(next: GeneratorSpec, current: GeneratorSpec): GeneratorSpec {
   if (current.cells) spec.cells = current.cells;
   if (current.cellColor) spec.cellColor = current.cellColor;
   if (current.cellStyle) spec.cellStyle = current.cellStyle;
+  if (current.icon) spec.icon = current.icon;
+  if (current.iconColor) spec.iconColor = current.iconColor;
   return spec;
 }
 
@@ -308,6 +312,38 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
               )}
             </fieldset>
           )}
+          <div className="field-row">
+            <Field label="Icône">
+              <select
+                value={spec.icon ?? ''}
+                onChange={(event) => {
+                  const next = { ...spec };
+                  if (event.target.value && isPixelIcon(event.target.value)) next.icon = event.target.value;
+                  else {
+                    delete next.icon;
+                    delete next.iconColor;
+                  }
+                  setSpec(next);
+                }}
+              >
+                <option value="">Aucune</option>
+                {PIXEL_ICONS.map((icon) => (
+                  <option key={icon} value={icon}>
+                    {PIXEL_ICON_LABELS[icon]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {spec.icon && (
+              <Field label="Couleur de l’icône">
+                <input
+                  type="color"
+                  value={(spec.iconColor ?? defaultIconColor(spec.color)).slice(0, 7)}
+                  onChange={(event) => setSpec({ ...spec, iconColor: event.target.value })}
+                />
+              </Field>
+            )}
+          </div>
           <label className="checkbox">
             <input
               type="checkbox"

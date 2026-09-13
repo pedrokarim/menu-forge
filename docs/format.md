@@ -157,6 +157,17 @@ sucre d’orge), `dark_badge` (cartouche de valeur à contour d’accent),
 | `tile` | Largeur des bandes du store (4 par défaut) |
 | `progress` | Remplissage de la barre, de 0 à 100 (60 par défaut) |
 
+Deux clés valent pour tous les styles, d’abord pour les boutons d’une case,
+trop étroits pour un libellé :
+
+| Clé | Rôle |
+|---|---|
+| `icon` | Icône pixel centrée dans le corps du bouton (hors ombre portée) : `close`, `back`, `sell`, `balance`, `help`, `prev`, `next`, `digit_1` à `digit_9` |
+| `iconColor` | Couleur de l’icône ; absente, elle est claire, ou foncée sur un fond clair |
+
+Une icône claire reçoit l’ombre d’un pixel de la police vanilla (même
+couleur au quart), en bas à droite.
+
 ## Textes (`texts`)
 
 | Clé | Rôle |

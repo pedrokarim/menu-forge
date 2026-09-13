@@ -23,6 +23,52 @@ export const lighten = (color: Rgba, amount: number) => mix(color, 255, amount);
 /** Assombrit vers le noir (`amount` de 0 à 1), alpha inchangé. */
 export const darken = (color: Rgba, amount: number) => mix(color, 0, amount);
 
+/** `#rrggbb` d’une couleur (alpha ignoré). */
+export function toHex(color: Rgba): string {
+  return `#${[color.r, color.g, color.b].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** Couleur `top` posée sur un fond opaque `bottom` (résultat opaque). */
+export function composite(top: Rgba, bottom: Rgba): Rgba {
+  const alpha = top.a / 255;
+  const blend = (a: number, b: number) => Math.round(a * alpha + b * (1 - alpha));
+  return { r: blend(top.r, bottom.r), g: blend(top.g, bottom.g), b: blend(top.b, bottom.b), a: 255 };
+}
+
+/** Luminance relative WCAG 2 (0 = noir, 1 = blanc). */
+export function relativeLuminance(color: Rgba): number {
+  const linear = (value: number) => {
+    const channel = value / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linear(color.r) + 0.7152 * linear(color.g) + 0.0722 * linear(color.b);
+}
+
+/** Rapport de contraste WCAG 2 entre deux couleurs (de 1 à 21). */
+export function contrastRatio(a: string, b: string): number {
+  const first = relativeLuminance(parseColor(a));
+  const second = relativeLuminance(parseColor(b));
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+}
+
+/**
+ * Contraste minimal d’un libellé ou d’une icône sur son bouton : 3:1, le seuil
+ * WCAG des composants d’interface et du grand texte (la police vanilla est
+ * affichée au moins ×2).
+ */
+export const MIN_LABEL_CONTRAST = 3;
+
+/**
+ * Couleur lisible sur `background` : `preferred` s’il atteint `minimum`, sinon
+ * la plus contrastée de `preferred` et des `alternatives` (une claire, une foncée).
+ */
+export function readableColor(background: string, preferred: string, alternatives: readonly string[], minimum = MIN_LABEL_CONTRAST): string {
+  if (contrastRatio(background, preferred) >= minimum) return preferred;
+  return [preferred, ...alternatives].reduce((best, candidate) =>
+    contrastRatio(background, candidate) > contrastRatio(background, best) ? candidate : best,
+  );
+}
+
 interface BevelOptions {
   border?: Rgba;
   light: Rgba;

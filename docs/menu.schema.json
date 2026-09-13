@@ -238,7 +238,12 @@
         "state": { "enum": ["normal", "hover", "pressed"], "description": "mc-rs : état dessiné d’un bouton." },
         "shadow": { "type": "integer", "minimum": 0, "maximum": 32, "description": "mc-rs : hauteur de l’ombre portée." },
         "tile": { "type": "integer", "minimum": 2, "maximum": 64, "description": "mc-rs : côté des cases de la grille ; sombre à accent : largeur des bandes du store." },
-        "progress": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Sombre à accent : remplissage d’une barre de progression, en pour cent." }
+        "progress": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Sombre à accent : remplissage d’une barre de progression, en pour cent." },
+        "icon": {
+          "enum": ["close", "back", "sell", "balance", "help", "prev", "next", "digit_1", "digit_2", "digit_3", "digit_4", "digit_5", "digit_6", "digit_7", "digit_8", "digit_9"],
+          "description": "Icône pixel centrée dans le corps du bouton (tous styles)."
+        },
+        "iconColor": { "type": "string", "description": "Couleur de l’icône (sinon claire ou foncée selon le fond)." }
       }
     },
     "layer": {

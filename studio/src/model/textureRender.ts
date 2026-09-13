@@ -1,9 +1,10 @@
 import { encodePng } from '../export/png';
 import type { RgbaImage } from '../export/image';
 import { DARK_COLORS, DARK_PARAMS, DARK_PRESETS, DARK_STYLE_LABELS, darkNumber, isDarkStyle, paintDarkStyle } from './darkStyles';
-import { GENERATOR_PRESETS, PANEL_STYLE_LABELS, paintPanelStyle } from './generator';
+import { GENERATOR_PRESETS, PANEL_STYLE_LABELS, paintPanelStyle, readableColor } from './generator';
 import { SLOT_SIZE, chestCell } from './geometry';
-import type { Point } from './geometry';
+import type { Point, Rect } from './geometry';
+import { isPixelIcon, paintIcon } from './pixelIcons';
 import { DEFAULT_TILE, MCRS_COLORS, MCRS_PARAMS, MCRS_PRESETS, MCRS_STYLE_LABELS, isMcrsStyle, mcrsNumber, paintMcrsStyle } from './mcrs';
 import type { CellStyle, GeneratorSpec, GeneratorStyle } from './menu';
 import { createImage, rasterPainter } from './painter';
@@ -57,7 +58,30 @@ export function renderGeneratorImage(spec: GeneratorSpec, origin: Point): RgbaIm
       }
     }
   }
+  if (spec.icon && isPixelIcon(spec.icon)) {
+    const body = buttonBody(spec);
+    paintIcon(painter, spec.icon, body.x, body.y, body.width, body.height, spec.iconColor ?? defaultIconColor(spec.color));
+  }
   return image;
+}
+
+/** Icône sans couleur imposée : claire, ou foncée sur un fond clair. */
+export function defaultIconColor(background: string): string {
+  return readableColor(background, '#f8f8f8', ['#202020']);
+}
+
+/**
+ * Corps visible d’un bouton, où l’icône se centre : sans l’ombre portée des
+ * boutons mc-rs, et abaissé quand le bouton en relief est pressé.
+ */
+export function buttonBody(spec: GeneratorSpec): Rect {
+  const { style, width, height } = spec;
+  if (style === 'mcrs_raised' || style === 'mcrs_button') {
+    const depth = Math.min(mcrsNumber(style, spec, 'shadow'), height - (style === 'mcrs_raised' ? 2 : 1));
+    const top = style === 'mcrs_raised' && spec.state === 'pressed' ? depth : 0;
+    return { x: 0, y: top, width, height: height - depth };
+  }
+  return { x: 0, y: 0, width, height };
 }
 
 export function renderGeneratorPng(spec: GeneratorSpec, origin: Point): Promise<Uint8Array> {
