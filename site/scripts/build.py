@@ -5,9 +5,11 @@
   (`#i-<nom>`) : pixelarticons (MIT, lues dans studio/node_modules/pixelarticons/svg) ou
   dessins maison sur la même grille 24 × 24, repris de studio/src/ui/Icon.tsx.
 - Pages de documentation : chaque Markdown de DOC_PAGES (docs/*.md, lib/README.md,
-  studio/README.md) devient site/docs/<page>.html, au style du site ; docs/README.en.md devient
-  l’index anglais, site/en/docs/index.html. Les schémas JSON sont publiés à côté des pages.
-  Ces pages sont générées : ni versionnées, ni à retoucher à la main.
+  studio/README.md) devient site/docs/<page>.html, au style du site. Chaque traduction de
+  TRANSLATIONS (docs/README.en.md pour l’index, docs/<page>.en.md) devient
+  site/en/docs/<page>.html, avec la navigation anglaise : son menu latéral mène aux pages
+  françaises non traduites, marquées « (in French) ». Les schémas JSON sont publiés à côté des
+  pages. Ces pages sont générées : ni versionnées, ni à retoucher à la main.
 - Les attributs width / height des captures (assets/screens/*.png) sont alignés sur la taille
   réelle des PNG (pas de décalage au chargement).
 - Vérifications : tout lien interne (accueil, documentation, captures) mène à un fichier qui
@@ -118,7 +120,38 @@ DOC_GROUPS = [
     ("Du studio au serveur", ["export", "lib", "bedrock"]),
     ("Le projet", ["roadmap", "studio", "discord"]),
 ]
-EN_INDEX = "docs/README.en.md"
+# Pages traduites en anglais : nom de la page → source anglaise, publiée sous en/docs/<page>.html.
+TRANSLATIONS = {
+    "index": "docs/README.en.md",
+    "guide": "docs/guide.en.md",
+}
+# Libellés anglais du menu latéral, pour toutes les pages (traduites ou non).
+EN_LABELS = {
+    "index": "Contents",
+    "guide": "Getting-started guide",
+    "screens": "Studio screens",
+    "shortcuts": "Keyboard shortcuts",
+    "generator": "Interface generator",
+    "ai": "AI generation",
+    "pixels": "Pixel editor",
+    "assets": "Free mode (assets)",
+    "format": "Menu format",
+    "rendering": "Java rendering model",
+    "export": "Exporting and installing",
+    "lib": "Java library and Paper plugin",
+    "bedrock": "Menu Forge on Bedrock",
+    "roadmap": "Roadmap",
+    "studio": "Developing the studio",
+    "discord": "Discord Rich Presence",
+}
+# Titres anglais des groupes de DOC_GROUPS, dans le même ordre.
+EN_GROUPS = [
+    "Getting started",
+    "Using the studio",
+    "Formats and rendering",
+    "From the studio to the server",
+    "The project",
+]
 # Publiés tels quels à côté des pages : une adresse stable pour "$schema".
 DOC_FILES = ["docs/menu.schema.json", "docs/asset.schema.json"]
 # Icônes des pages de documentation, reprises du sprite de la page d’accueil.
@@ -136,7 +169,7 @@ TEXT = {
         "github": "Code source sur GitHub",
         "menu": "Pages de la documentation",
         "toc": "Sur cette page",
-        "source": "Source",
+        "source": "Source&nbsp;:",
         "edit": "Proposer une modification",
         "previous": "Page précédente",
         "next": "Page suivante",
@@ -158,8 +191,11 @@ TEXT = {
         "github": "Source code on GitHub",
         "menu": "Documentation pages",
         "toc": "On this page",
-        "source": "Source",
+        "source": "Source:",
         "edit": "Suggest an edit",
+        "in_french": "(in French)",
+        "french_version": "Version française",
+        "french_index": "Sommaire en français",
         "previous": "Previous page",
         "next": "Next page",
         "footer": "A Minecraft inventory studio built on font glyphs, made for Enderium. MIT license.",
@@ -606,16 +642,22 @@ def describe(page: Page, body: str) -> str:
     return text
 
 
-def doc_menu(page: Page, pages: dict[str, Page]) -> str:
+def doc_menu(page: Page, fr_pages: dict[str, Page], en_pages: dict[str, Page]) -> str:
+    """Menu latéral. En anglais, une page non traduite mène à la page française, marquée comme telle."""
     text = TEXT[page.lang]
+    english = page.lang == "en"
     groups = []
-    for title, names in DOC_GROUPS:
+    for (title, names), en_title in zip(DOC_GROUPS, EN_GROUPS):
         links = []
         for name in names:
-            target = pages[name]
-            current = ' aria-current="page"' if target is page else ""
-            links.append(f'<li><a href="{relative(target.out_path, page.out_path.parent)}"{current}>{html.escape(target.label)}</a></li>')
-        groups.append(f'<p class="doc-group">{html.escape(title)}</p><ul>{"".join(links)}</ul>')
+            target = en_pages.get(name, fr_pages[name]) if english else fr_pages[name]
+            attributes = ' aria-current="page"' if target is page else ""
+            label = html.escape(EN_LABELS[name] if english else target.label)
+            if target.lang != page.lang:
+                attributes += f' hreflang="{target.lang}"'
+                label += f' <span class="doc-lang">{text["in_french"]}</span>'
+            links.append(f'<li><a href="{relative(target.out_path, page.out_path.parent)}"{attributes}>{label}</a></li>')
+        groups.append(f'<p class="doc-group">{html.escape(en_title if english else title)}</p><ul>{"".join(links)}</ul>')
     return (
         f'<aside class="doc-sidebar" aria-label="{text["menu"]}"><details class="doc-menu" open>'
         f'<summary>{text["menu"]}</summary>{"".join(groups)}</details></aside>'
@@ -632,7 +674,8 @@ def doc_toc(page: Page) -> str:
 
 
 def doc_pager(page: Page, pages: dict[str, Page]) -> str:
-    order = [name for _, names in DOC_GROUPS for name in names]
+    """Page précédente et suivante, parmi les pages de la même langue (`pages`), dans l’ordre du menu."""
+    order = [name for _, names in DOC_GROUPS for name in names if name in pages]
     if page.name not in order:
         return ""
     position = order.index(page.name)
@@ -677,68 +720,59 @@ def viewer(lang: str) -> str:
 """
 
 
-def doc_html(page: Page, body: str, pages: dict[str, Page], icons: str) -> str:
+def page_url(page: Page) -> str:
+    """Adresse publique d’une page ; un index s’écrit comme son dossier."""
+    path = relative(page.out_path, SITE_DIR)
+    return f"{SITE_URL}/{path[: -len('index.html')] if path.endswith('index.html') else path}"
+
+
+def doc_html(page: Page, body: str, fr_pages: dict[str, Page], en_pages: dict[str, Page], icons: str) -> str:
     lang = page.lang
     text = TEXT[lang]
     base = page.out_path.parent
     assets = relative(SITE_DIR / "assets", base)
     home = relative(SITE_DIR, base) + "/"
-    docs_index = relative((DOCS_OUT_EN if lang == "en" else DOCS_OUT) / "index.html", base)
-    fr_index, en_index = DOCS_OUT / "index.html", DOCS_OUT_EN / "index.html"
+    # Les deux versions de la page ; sans traduction, EN mène à l’index anglais.
+    fr_page, en_page = fr_pages[page.name], en_pages.get(page.name)
+    en_target = en_page or en_pages["index"]
     if lang == "fr":
+        en_tip = "" if en_page else ' data-tip="Documentation index in English"'
         switch = (
-            f'<a href="{relative(fr_index, base)}" hreflang="fr" lang="fr" aria-current="page" aria-label="Français">FR</a>'
-            f'<a href="{relative(en_index, base)}" hreflang="en" lang="en" aria-label="English" data-tip="Documentation index in English">EN</a>'
+            f'<a href="{relative(fr_page.out_path, base)}" hreflang="fr" lang="fr" aria-current="page" aria-label="Français">FR</a>'
+            f'<a href="{relative(en_target.out_path, base)}" hreflang="en" lang="en" aria-label="English"{en_tip}>EN</a>'
         )
-        nav_items = [
-            (home, text["home"], False),
-            (docs_index, text["docs"], page.name == "index"),
-            (relative(DOCS_OUT / "guide.html", base), text["guide"], page.name == "guide"),
-            (relative(DOCS_OUT / "shortcuts.html", base), text["shortcuts"], page.name == "shortcuts"),
-        ]
-        canonical = f"{SITE_URL}/{relative(page.out_path, SITE_DIR)}"
-        alternate = (
-            f'<link rel="alternate" hreflang="fr" href="{SITE_URL}/docs/">\n'
-            f'  <link rel="alternate" hreflang="en" href="{SITE_URL}/en/docs/">'
-            if page.name == "index"
-            else ""
-        )
-        sidebar = doc_menu(page, pages)
-        layout = "doc-layout"
     else:
+        fr_tip = TEXT["en"]["french_index" if page.name == "index" else "french_version"]
         switch = (
-            f'<a href="{relative(fr_index, base)}" hreflang="fr" lang="fr" aria-label="Français" data-tip="Sommaire en français">FR</a>'
-            f'<a href="{relative(en_index, base)}" hreflang="en" lang="en" aria-current="page" aria-label="English">EN</a>'
+            f'<a href="{relative(fr_page.out_path, base)}" hreflang="fr" lang="fr" aria-label="Français" data-tip="{fr_tip}">FR</a>'
+            f'<a href="{relative(page.out_path, base)}" hreflang="en" lang="en" aria-current="page" aria-label="English">EN</a>'
         )
-        nav_items = [
-            (home, text["home"], False),
-            (docs_index, text["docs"], True),
-            (relative(DOCS_OUT / "guide.html", base), text["guide"], False),
-            (relative(DOCS_OUT / "shortcuts.html", base), text["shortcuts"], False),
-        ]
-        canonical = f"{SITE_URL}/en/docs/"
-        alternate = (
-            f'<link rel="alternate" hreflang="fr" href="{SITE_URL}/docs/">\n'
-            f'  <link rel="alternate" hreflang="en" href="{SITE_URL}/en/docs/">'
-        )
-        sidebar = ""
-        layout = "doc-layout single"
-    nav_parts = []
-    for position, (href, label, current) in enumerate(nav_items):
-        attributes = ' aria-current="page"' if current else ""
-        # Depuis l’index anglais, le guide et les raccourcis sont des pages en français.
-        if lang == "en" and position > 1:
-            attributes += ' hreflang="fr"'
-        nav_parts.append(f'<li><a href="{href}"{attributes}>{label}</a></li>')
+    alternate = (
+        f'<link rel="alternate" hreflang="fr" href="{page_url(fr_page)}">\n'
+        f'  <link rel="alternate" hreflang="en" href="{page_url(en_page)}">'
+        if en_page
+        else ""
+    )
+    # Barre du haut : en anglais, une page non traduite mène à la version française (hreflang).
+    nav_parts = [f'<li><a href="{home}">{text["home"]}</a></li>']
+    for name, label in (("index", text["docs"]), ("guide", text["guide"]), ("shortcuts", text["shortcuts"])):
+        target = en_pages.get(name, fr_pages[name]) if lang == "en" else fr_pages[name]
+        attributes = ' aria-current="page"' if target is page else ""
+        if target.lang != lang:
+            attributes += f' hreflang="{target.lang}"'
+        nav_parts.append(f'<li><a href="{relative(target.out_path, base)}"{attributes}>{label}</a></li>')
     nav = "".join(nav_parts)
+    canonical = page_url(page)
+    sidebar = doc_menu(page, fr_pages, en_pages)
+    layout = "doc-layout"
     title = f"{page.title} – {text['title_suffix']}" if page.name != "index" else text["title_suffix"]
     source = ""
     if page.source:
         source = (
-            f'<p class="doc-source">{text["source"]}&nbsp;: <a href="{GITHUB}/blob/main/{page.source}"><code>{page.source}</code></a>'
+            f'<p class="doc-source">{text["source"]} <a href="{GITHUB}/blob/main/{page.source}"><code>{page.source}</code></a>'
             f' · <a href="{GITHUB}/edit/main/{page.source}">{text["edit"]}</a></p>'
         )
-    pager = doc_pager(page, pages) if lang == "fr" else ""
+    pager = doc_pager(page, en_pages if lang == "en" else fr_pages)
     return f"""<!doctype html>
 <html lang="{lang}">
 <head>
@@ -818,11 +852,18 @@ def insert_toc(page: Page, body: str) -> str:
 
 def build_docs() -> list[Page]:
     pages = {name: Page(name, source, label, DOCS_OUT / f"{name}.html", "fr") for name, source, label in DOC_PAGES}
-    by_source = {page.source: page for page in pages.values()}
     grouped = [name for _, names in DOC_GROUPS for name in names]
     if sorted(grouped) != sorted(pages):
         raise BuildError("DOC_GROUPS et DOC_PAGES ne listent pas les mêmes pages")
-    english = Page("index", EN_INDEX, "Documentation", DOCS_OUT_EN / "index.html", "en")
+    if sorted(EN_LABELS) != sorted(pages) or len(EN_GROUPS) != len(DOC_GROUPS):
+        raise BuildError("EN_LABELS et EN_GROUPS doivent couvrir toutes les pages et tous les groupes")
+    if "index" not in TRANSLATIONS or not set(TRANSLATIONS) <= set(pages):
+        raise BuildError("TRANSLATIONS doit contenir l’index et ne traduire que des pages de DOC_PAGES")
+    en_pages = {
+        name: Page(name, source, EN_LABELS[name], DOCS_OUT_EN / f"{name}.html", "en")
+        for name, source in TRANSLATIONS.items()
+    }
+    by_source = {page.source: page for page in [*pages.values(), *en_pages.values()]}
     icons = doc_sprite()
 
     for directory in (DOCS_OUT, DOCS_OUT_EN):
@@ -833,7 +874,7 @@ def build_docs() -> list[Page]:
         shutil.copyfile(REPO_DIR / file, DOCS_OUT / Path(file).name)
 
     rendered = []
-    for page in [*pages.values(), english]:
+    for page in [*pages.values(), *en_pages.values()]:
         markdown = (REPO_DIR / page.source).read_text(encoding="utf-8")
         body = Renderer(page, by_source).blocks(markdown.replace("\r\n", "\n").split("\n"))
         if not page.headings or page.headings[0][0] != 1:
@@ -842,7 +883,7 @@ def build_docs() -> list[Page]:
         page.description = describe(page, body)
         rendered.append((page, insert_toc(page, body)))
     for page, body in rendered:
-        page.html = doc_html(page, body, pages, icons)
+        page.html = doc_html(page, body, pages, en_pages, icons)
         page.out_path.write_text(page.html, encoding="utf-8", newline="\n")
     print(f"documentation : {len(rendered)} pages dans {relative(DOCS_OUT, REPO_DIR)}/ et {relative(DOCS_OUT_EN, REPO_DIR)}/")
     return [page for page, _ in rendered]

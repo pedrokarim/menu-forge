@@ -1280,8 +1280,11 @@ h3 {
   gap: 40px;
 }
 
-.doc-layout.single {
-  grid-template-columns: minmax(0, 1fr);
+/* Menu anglais : une colonne plus large, pour que « (in French) » tienne sur la ligne du libellé. */
+@media (min-width: 1001px) {
+  html[lang='en'] .doc-layout {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 1000px) {
@@ -1394,6 +1397,13 @@ h3 {
   color: var(--ds-gold);
   background: var(--ds-sel-bg);
   box-shadow: inset 3px 0 0 var(--ds-gold);
+}
+
+/* Menu anglais : une page encore en français le dit, en retrait, sans se couper au milieu. */
+.doc-lang {
+  font-size: 13px;
+  color: var(--ds-faint);
+  white-space: nowrap;
 }
 
 /* Texte d’une page : mêmes jetons que le reste du site, une colonne de lecture bornée. */

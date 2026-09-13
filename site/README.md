@@ -10,7 +10,7 @@ en français et en anglais ; la documentation est générée depuis `docs/`.
 | `index.html` | Accueil en français : fonctionnalités, générateur, IA, Java et Bedrock, galerie, fonctionnement, démarrage, documentation, mentions |
 | `en/index.html` | Le même accueil en anglais, lié à la version française (sélecteur de langue, `hreflang`) |
 | `docs/` | **Généré, non versionné** : une page HTML par document (`docs/*.md`, `lib/README.md`, `studio/README.md`) et les schémas JSON |
-| `en/docs/` | **Généré, non versionné** : l’index anglais de la documentation, depuis `docs/README.en.md` |
+| `en/docs/` | **Généré, non versionné** : la documentation anglaise, une page par traduction (`docs/README.en.md` devient `index.html`, `docs/guide.en.md` devient `guide.html`) |
 | `assets/site.css` | Styles : mêmes jetons que `studio/src/index.css` |
 | `assets/site.js` | Visionneuse des captures, boutons « Copier », section courante, menu des pages de documentation |
 | `assets/fonts/` | Polices auto-hébergées (Pixelify Sans, Atkinson Hyperlegible, JetBrains Mono) et leurs licences SIL OFL 1.1 |
@@ -55,9 +55,35 @@ publication (push sur `main` qui touche `site/`, `docs/`, `lib/README.md` ou
 pages générées n’ont pas à être versionnées.
 
 **Ajouter une page de documentation** : écrire `docs/<nom>.md`, qui commence
-par un titre `#` ; l’ajouter à `DOC_PAGES` et à un groupe de `DOC_GROUPS`
-dans `build.py`, puis au sommaire `docs/README.md` et à son pendant anglais
-`docs/README.en.md`.
+par un titre `#` ; l’ajouter à `DOC_PAGES` (avec son libellé anglais) et à un
+groupe de `DOC_GROUPS` dans `build.py`, puis au sommaire `docs/README.md` et à
+son pendant anglais `docs/README.en.md`.
+
+### Documentation anglaise
+
+Une page traduite s’écrit à côté de l’originale, sous le même nom suivi de
+`.en` (`docs/guide.en.md` pour `docs/guide.md`), et se déclare dans
+`TRANSLATIONS` de `build.py`. Elle est publiée sous `en/docs/<page>.html`,
+avec la navigation anglaise :
+
+| Adresse | Source |
+|---|---|
+| `en/docs/` | `docs/README.en.md`, l’index anglais |
+| `en/docs/guide.html` | `docs/guide.en.md` |
+
+- **Menu latéral anglais** : les mêmes groupes que le menu français, sous leurs
+  libellés anglais (`EN_LABELS`, `EN_GROUPS`). Une page traduite mène à sa
+  version anglaise ; une page qui ne l’est pas mène à la page française,
+  marquée « (in French) » et `hreflang="fr"`.
+- **Sélecteur de langue** : sur une page traduite, FR et EN relient les deux
+  versions de la même page (et `<link rel="alternate" hreflang>` les
+  déclare) ; sur une page sans traduction, EN mène à l’index anglais.
+- **Liens** : dans une page anglaise, un lien vers `guide.en.md` mène à la
+  page anglaise, un lien vers `screens.md` à la page française. Les liens et
+  les ancres des pages anglaises sont vérifiés comme les autres : un lien mort
+  bloque la publication.
+- **Page précédente, page suivante** : parcourent les seules pages traduites,
+  dans l’ordre du menu.
 
 ## Prévisualiser
 
