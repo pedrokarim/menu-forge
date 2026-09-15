@@ -144,7 +144,9 @@ export function EditorTabs({ tabs, active, sessions, onActivate, onClose, onSave
                   onClick={() => onActivate(tab.key)}
                 >
                   <Icon name={MODE_ICONS[tab.mode]} />
-                  <span className="editor-tab-label" data-audit-ellipsis>{label}</span>
+                  <span className="editor-tab-label" data-audit-ellipsis data-tooltip-text={label}>
+                    {label}
+                  </span>
                 </button>
               </Tooltip>
               <button

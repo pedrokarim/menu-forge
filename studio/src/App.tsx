@@ -311,18 +311,24 @@ export default function App() {
   /* ---------- Adresse ↔ onglets ---------- */
 
   // Onglet affiché → adresse (sans empiler l’historique) ; l’adresse ainsi écrite n’ouvre rien en retour.
+  // Sans onglet affiché, l’adresse demandée reste telle quelle (elle ouvrira son onglet).
   const writtenHash = useRef('');
   useEffect(() => {
-    if (screen !== 'editor' || sessionFor === null) return;
-    const next: Route = { screen: 'editor', mode: activeTab?.mode ?? 'menus', id: activeTab?.id ?? null };
+    if (screen !== 'editor' || sessionFor === null || !activeTab) return;
+    const next: Route = { screen: 'editor', mode: activeTab.mode, id: activeTab.id };
     writtenHash.current = routeHash(next);
     navigate(next, true);
+    // `activeTab` suit ses champs : seuls le type et le document comptent.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, sessionFor, activeTab?.mode, activeTab?.id]);
 
   // Adresse → onglets (accueil, Précédent / Suivant, lien) : le document demandé s’ouvre dans son onglet.
   const currentHash = route ? routeHash(route) : '';
   useEffect(() => {
+    // Adresse déjà remplacée par l’onglet affiché (rendu en retard d’un tour) : rien à ouvrir, sinon
+    // l’adresse périmée et l’onglet se renverraient la balle sans fin.
     if (!route || route.screen !== 'editor' || sessionFor === null || currentHash === writtenHash.current) return;
+    if (currentHash !== window.location.hash) return;
     writtenHash.current = currentHash;
     const { mode, id } = route;
     // oxlint-disable-next-line react/set-state-in-effect

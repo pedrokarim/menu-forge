@@ -8,6 +8,7 @@ import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 import { overlayOpen } from '../ui/overlay';
 import { askUnsaved } from '../ui/dialogs';
+import { showToast } from '../ui/toasts';
 import type { GeneratorResult } from '../components/GeneratorDialog';
 import { Inspector } from '../components/Inspector';
 import { MenuCanvas } from '../components/MenuCanvas';
@@ -1265,8 +1266,9 @@ export function EditorScreen({
       const trashed = await trashWithConfirmation(type, source.id, source.name, preferences.confirmDelete);
       if (!trashed) return;
       await refreshWorkspace();
+      // L’onglet se ferme : la confirmation passe par une notification, visible depuis l’onglet suivant.
       onDocumentTrashed(modeOf(type), source.id);
-      setStatus(`« ${source.id} » mis à la corbeille : ${trashed.trashed}`);
+      showToast({ variant: 'success', title: `«${NBSP}${source.id}${NBSP}» mis à la corbeille`, message: trashed.trashed });
     } catch (error) {
       setStatus(`Échec de la mise à la corbeille : ${errorMessage(error)}`);
     }
