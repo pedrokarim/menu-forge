@@ -6,8 +6,8 @@ import { programsIn } from '../shader/glsl';
 import type { ShaderFile } from '../shader/glsl';
 import { ShaderRenderer } from '../shader/renderer';
 import type { RenderResult } from '../shader/renderer';
-import { DEFAULT_INPUTS, SCENES } from '../shader/scenes';
-import type { SceneBitmap, SceneId, SceneInputs } from '../shader/scenes';
+import { CHART_SIZES, CHART_STYLES, CHART_STYLE_LABELS, DEFAULT_INPUTS, SCENES } from '../shader/scenes';
+import type { ChartSizeId, ChartStyleId, SceneBitmap, SceneId, SceneInputs } from '../shader/scenes';
 import { NBSP } from '../lib/format';
 import { ScreenFrame } from '../shell/ScreenFrame';
 import { askUnsaved } from '../ui/dialogs';
@@ -71,7 +71,7 @@ interface ShaderSession {
 let sessionCounter = 0;
 
 function exampleSession(example: ShaderExample): ShaderSession {
-  const files = exampleFiles(example.id);
+  const files = exampleFiles(example.folder ?? example.id);
   sessionCounter += 1;
   return {
     key: `shader-${sessionCounter}`,
@@ -80,7 +80,7 @@ function exampleSession(example: ShaderExample): ShaderSession {
     original: files,
     program: example.program,
     sceneId: example.scene,
-    inputs: { ...DEFAULT_INPUTS, color: example.color ?? DEFAULT_INPUTS.color },
+    inputs: { ...DEFAULT_INPUTS, color: example.color ?? DEFAULT_INPUTS.color, ...example.inputs },
     editing: example.open,
     animate: example.animate ?? false,
   };
@@ -423,6 +423,34 @@ export function ShaderLabScreen({ pill, active = true }: { pill: ReactNode; acti
                       value={inputs.columns}
                       onChange={(event) => setInputs((current) => ({ ...current, columns: Number(event.target.value) || 1 }))}
                     />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Style</span>
+                    <select
+                      aria-label="Style de courbe"
+                      value={inputs.chartStyle}
+                      onChange={(event) => setInputs((current) => ({ ...current, chartStyle: event.target.value as ChartStyleId }))}
+                    >
+                      {CHART_STYLES.map((style) => (
+                        <option key={style} value={style}>
+                          {CHART_STYLE_LABELS[style]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Taille</span>
+                    <select
+                      aria-label="Taille du graphe"
+                      value={inputs.chartSize}
+                      onChange={(event) => setInputs((current) => ({ ...current, chartSize: event.target.value as ChartSizeId }))}
+                    >
+                      {(Object.keys(CHART_SIZES) as ChartSizeId[]).map((size) => (
+                        <option key={size} value={size}>
+                          {CHART_SIZES[size].label}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                 </>
               )}

@@ -250,7 +250,7 @@ les assets tiers restent sur ce poste.
 
 ## Shaders
 
-Exécute les shaders « core » d’un pack, ou l’un des six exemples intégrés
+Exécute les shaders « core » d’un pack, ou l’un des exemples intégrés
 et commentés, sur une scène d’essai (courbe, portrait, quad libre), avec un
 éditeur qui recompile à la frappe et ramène
 les erreurs à leur fichier et leur ligne ([`shaders.md`](shaders.md)).

@@ -37,12 +37,16 @@ comprendre un shader existant et à mettre au point une technique d’interface
 | Noir et blanc | libre | un calcul de couleur pixel par pixel (luminosité perçue) |
 | Vague animée | libre | lire la texture à côté, d’un décalage qui suit `GameTime` |
 | Déclencheur par couleur | libre | la technique des serveurs : une teinte précise (`#FFFD01`) active un effet, toute autre teinte garde le rendu normal |
-| Courbe de prix (Enderium) | courbe | un graphe de menu dont chaque colonne porte ses valeurs dans sa teinte |
+| Courbe de prix (Enderium) | courbe | un graphe de menu dont chaque colonne porte ses valeurs dans sa teinte ; six styles au choix dans la scène |
+| Histogramme (Enderium) | courbe | une barre par colonne, verte si elle monte par rapport à la précédente |
+| Chandeliers (Enderium) | courbe | ouverture, fermeture, plus haut et plus bas sur 6 bits chacun, corps et mèche |
+| Prix et volume (Enderium) | courbe, taille large | le prix en haut, le volume en barres discrètes en bas |
+| Mini-courbe (Enderium) | courbe, taille mini | 50 × 12 px pour une ligne de liste : trait fin, ni grille ni point |
 | Portrait du profil (Enderium) | portrait | un buste en 3D calculé par lancer de rayons dans la skin |
 
 Les fichiers sont dans `studio/src/shader/examples/<id>/`, rangés comme dans
 un pack ; la liste et les textes, dans `studio/src/shader/examples.ts`. Les
-deux derniers exemples reprennent les includes d’Enderium, qui s’en sert en
+exemples « Enderium » reprennent les includes d’Enderium, qui s’en sert en
 jeu.
 
 Les modifications restent dans le studio : le fichier du disque ne change pas.
@@ -57,7 +61,7 @@ avec elle. **Animer `GameTime`** fait avancer le temps du jeu (un cycle de
 
 | Scène | Programme essayé | Ce qui est dessiné |
 |---|---|---|
-| Courbe | `core/item` | une zone de 158 × 82 px découpée en colonnes (24 par défaut) ; chaque colonne porte deux valeurs de la série dans sa couleur de sommet (11 bits chacune, tendance, dernière colonne) et pointe dans l’atlas vers une texture « champ » 256 × 256 (rouge = x, vert = y, bleu 167, alpha 251) |
+| Courbe | `core/item` | une zone découpée en colonnes (24 par défaut) : chaque colonne porte ses données dans sa couleur de sommet et pointe dans l’atlas vers une texture « champ » 256 × 256 (rouge = x, vert = y, bleu = 167 + style, alpha 251) ; **style** (aire, ligne, mini-courbe, histogramme, chandeliers, prix et volume) et **taille** (grand 158 × 82, large 158 × 34, moyen 73 × 27, mini 50 × 12) au choix, codage identique à Enderium |
 | Portrait | `core/entity` | la face avant d’une tête de joueur de 68 × 70 px, chapeau devant ; skin 64 × 64 par défaut ou fournie |
 | Libre | celui du dossier | un quad de 128 × 128 px, coordonnées de texture de 0 à 1 sur une image fournie (damier par défaut), couleur de sommet réglable |
 
