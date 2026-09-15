@@ -157,12 +157,33 @@ sucre d’orge), `dark_badge` (cartouche de valeur à contour d’accent),
 | `tile` | Largeur des bandes du store (4 par défaut) |
 | `progress` | Remplissage de la barre, de 0 à 100 (60 par défaut) |
 
+Famille « Marché » (dessinée par le studio, palette de « sombre à accent ») :
+les éléments des écrans d’économie. `market_price` (étiquette de prix : cartouche
+creusée, pièce dorée en dégradé à gauche, place du montant à droite),
+`market_chart` (cadre de graphe : grille en pointillé tous les `tile` px depuis
+le bas, repères à gauche, ligne de base à l’accent ; le fond sur lequel un
+shader trace une courbe), `market_stepper` (sélecteur de quantité : boutons
+− et + aux deux bouts, creux au milieu), `market_search` (champ de recherche à
+loupe ; actif : cadre et loupe à l’accent, curseur), `market_depth` (ligne de
+carnet d’ordres : barre de profondeur depuis la droite, verte pour l’achat,
+rouge pour la vente), `market_listing` (carte d’annonce : bande de rareté à
+l’accent, case de l’objet, séparateur), `market_timer` (temps restant :
+horloge et barre fine en bas).
+
+| Clé | Rôle pour « Marché » |
+|---|---|
+| `borderColor` | Cadre (séparateur pour `market_depth`) |
+| `accent` | Pièce du prix, champ actif, carte choisie, temps restant (or `#f0b429`) ; ligne de base du graphe, barre de profondeur (vert `#58d000`) ; boutons pressés du sélecteur (`#e83820`) |
+| `state` | `hover` ou `pressed` : champ de recherche actif, carte choisie ; pour le sélecteur, cadres (survol) ou boutons (pressé) à l’accent |
+| `tile` | Pas de la grille du graphe (12 par défaut) |
+| `progress` | Profondeur de l’ordre (60 par défaut), part du temps qui reste (40 par défaut) |
+
 Deux clés valent pour tous les styles, d’abord pour les boutons d’une case,
 trop étroits pour un libellé :
 
 | Clé | Rôle |
 |---|---|
-| `icon` | Icône pixel centrée dans le corps du bouton (hors ombre portée) : `close`, `back`, `sell`, `balance`, `help`, `prev`, `next`, `digit_1` à `digit_9` |
+| `icon` | Icône pixel centrée dans le corps du bouton (hors ombre portée) : `close`, `back`, `sell`, `balance`, `help`, `prev`, `next`, `digit_1` à `digit_9`, et pour l’économie `coin`, `trend_up`, `trend_down`, `trend_flat`, `search`, `clock`, `plus`, `minus`, `check`, `sort`, `filter`, `chart`, `auction`, `withdraw` |
 | `iconColor` | Couleur de l’icône ; absente, elle est claire, ou foncée sur un fond clair |
 
 Une icône claire reçoit l’ombre d’un pixel de la police vanilla (même

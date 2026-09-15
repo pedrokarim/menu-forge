@@ -24,7 +24,7 @@ import { Icon } from '../ui/Icon';
 import { Field, FieldError, Modal, NumberField } from './fields';
 import './generator.css';
 
-/** Modèles des trois familles, dans l’ordre du sélecteur (Deepslate, mc-rs, sombre à accent). */
+/** Modèles des familles, dans l’ordre du sélecteur (Deepslate, mc-rs, sombre à accent, Marché). */
 const ALL_PRESETS = STYLE_FAMILY_ORDER.flatMap((family) => PRESETS_BY_FAMILY[family]);
 
 /** Rang du premier modèle de chaque famille dans `ALL_PRESETS`. */
@@ -39,12 +39,14 @@ const PARAMS_LEGEND: Record<StyleFamilyId, string> = {
   deepslate: '',
   mcrs: 'Paramètres mc-rs',
   dark: `Paramètres «${NBSP}sombre à accent${NBSP}»`,
+  market: 'Paramètres Marché',
 };
 
 function borderColorLabel(style: GeneratorStyle): string {
   if (style === 'mcrs_grid') return 'Couleur des lignes';
   if (style === 'dark_awning') return 'Seconde bande';
   if (style === 'dark_close') return 'Couleur de la croix';
+  if (style === 'market_depth') return 'Couleur du séparateur';
   return 'Couleur de bordure';
 }
 
@@ -243,7 +245,7 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
                 )}
                 {params.includes('tile') && (
                   <NumberField
-                    label={spec.style === 'dark_awning' ? 'Largeur des bandes (px)' : 'Côté des cases (px)'}
+                    label={spec.style === 'dark_awning' ? 'Largeur des bandes (px)' : spec.style === 'market_chart' ? 'Pas de la grille (px)' : 'Côté des cases (px)'}
                     value={paramNumber(spec.style, spec, 'tile')}
                     min={2}
                     max={64}
@@ -252,7 +254,7 @@ export function GeneratorDialog({ mode, initial, rows, takenIds, onCancel, onCon
                 )}
                 {params.includes('progress') && (
                   <NumberField
-                    label="Progression (%)"
+                    label={spec.style === 'market_depth' ? 'Profondeur (%)' : spec.style === 'market_timer' ? 'Temps restant (%)' : 'Progression (%)'}
                     value={paramNumber(spec.style, spec, 'progress')}
                     min={0}
                     max={100}

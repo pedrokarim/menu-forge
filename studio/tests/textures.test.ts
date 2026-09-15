@@ -6,6 +6,7 @@ import type { RgbaImage } from '../src/export/image.ts';
 import { decodePng } from '../src/export/png.ts';
 import { DARK_PRESETS, DARK_STYLES } from '../src/model/darkStyles.ts';
 import { GENERATOR_PRESETS, lighten, parseColor } from '../src/model/generator.ts';
+import { MARKET_PRESETS, MARKET_STYLES } from '../src/model/marketStyles.ts';
 import { MCRS_COLORS, MCRS_PRESETS, MCRS_STYLES, roundedSpan } from '../src/model/mcrs.ts';
 import type { GeneratorSpec } from '../src/model/menu.ts';
 import { renderGeneratorImage, renderGeneratorPng } from '../src/model/textureRender.ts';
@@ -194,6 +195,40 @@ test('chaque style « sombre à accent » a un modèle ; les libellés des modè
     assert.ok(render(preset.spec).data.some((value, index) => index % 4 === 3 && value > 0), `${style} n’est pas vide`);
   }
   const labels = [...GENERATOR_PRESETS, ...MCRS_PRESETS, ...DARK_PRESETS].map((preset) => preset.label);
+  assert.equal(new Set(labels).size, labels.length);
+});
+
+test('Marché : pièce du prix, ligne de base du graphe, profondeur, sélecteur, recherche, carte, temps restant', () => {
+  const hollow = '#101018';
+  const price = render({ style: 'market_price', width: 40, height: 12, color: hollow });
+  const coin = pixel(price, 5, 7);
+  assert.ok(coin[0] > 180 && coin[1] > 110 && coin[2] < 90, `pièce dorée : ${coin}`);
+  assert.deepEqual(pixel(price, 30, 6), [16, 16, 24, 255], 'place du montant, vide');
+  const chart = render({ style: 'market_chart', width: 40, height: 30, color: hollow, tile: 8, accent: '#58d000' });
+  assert.deepEqual(pixel(chart, 20, 28), [62, 146, 0, 255], 'ligne de base : accent assombri de 30 %');
+  assert.notDeepEqual(pixel(chart, 3, 20), [16, 16, 24, 255], 'pointillé de la grille 8 px au-dessus de la base');
+  const depth = render({ style: 'market_depth', width: 20, height: 8, color: hollow, accent: '#e83820', progress: 50 });
+  assert.deepEqual(pixel(depth, 4, 3), [16, 16, 24, 255], 'à gauche : fond');
+  assert.ok(pixel(depth, 15, 3)[0] > 60, 'à droite : barre rouge');
+  const stepper = render({ style: 'market_stepper', width: 48, height: 16, color: hollow, state: 'pressed', accent: '#58d000' });
+  assert.deepEqual(pixel(stepper, 3, 3), [88, 208, 0, 255], 'pressé : boutons à l’accent');
+  assert.deepEqual(pixel(stepper, 24, 8), [16, 16, 24, 255], 'milieu creux');
+  const search = render({ style: 'market_search', width: 60, height: 14, color: hollow, state: 'hover', accent: '#f0b429' });
+  assert.deepEqual(pixel(search, 30, 0), [240, 180, 41, 255], 'actif : cadre à l’accent');
+  const listing = render({ style: 'market_listing', width: 80, height: 24, color: '#282830', accent: '#b070ff' });
+  assert.deepEqual(pixel(listing, 1, 12), [176, 112, 255, 255], 'bande de rareté');
+  const timer = render({ style: 'market_timer', width: 40, height: 12, color: hollow, progress: 50, accent: '#f0b429' });
+  assert.deepEqual(pixel(timer, 10, 10), [240, 180, 41, 255], 'temps restant rempli');
+  assert.notDeepEqual(pixel(timer, 30, 10), [240, 180, 41, 255], 'au-delà : rail');
+});
+
+test('chaque style Marché a un modèle et dessine quelque chose ; libellés uniques', () => {
+  for (const style of MARKET_STYLES) {
+    const preset = MARKET_PRESETS.find((candidate) => candidate.spec.style === style);
+    assert.ok(preset, `modèle pour ${style}`);
+    assert.ok(render(preset.spec).data.some((value, index) => index % 4 === 3 && value > 0), `${style} n’est pas vide`);
+  }
+  const labels = [...GENERATOR_PRESETS, ...MCRS_PRESETS, ...DARK_PRESETS, ...MARKET_PRESETS].map((preset) => preset.label);
   assert.equal(new Set(labels).size, labels.length);
 });
 

@@ -39,7 +39,17 @@ export type DarkStyle =
   | 'dark_badge'
   | 'dark_progress';
 
-export type GeneratorStyle = PanelStyle | McrsStyle | DarkStyle;
+/** Famille « Marché » : éléments des écrans d’économie, dans la palette de « sombre à accent ». */
+export type MarketStyle =
+  | 'market_price'
+  | 'market_chart'
+  | 'market_stepper'
+  | 'market_search'
+  | 'market_depth'
+  | 'market_listing'
+  | 'market_timer';
+
+export type GeneratorStyle = PanelStyle | McrsStyle | DarkStyle | MarketStyle;
 
 /** État dessiné d’un bouton mc-rs (le coffre n’a pas de survol : l’état sert aux variantes de couche). */
 export type ButtonState = 'normal' | 'hover' | 'pressed';
@@ -64,7 +74,21 @@ export type PixelIcon =
   | 'digit_6'
   | 'digit_7'
   | 'digit_8'
-  | 'digit_9';
+  | 'digit_9'
+  | 'coin'
+  | 'trend_up'
+  | 'trend_down'
+  | 'trend_flat'
+  | 'search'
+  | 'clock'
+  | 'plus'
+  | 'minus'
+  | 'check'
+  | 'sort'
+  | 'filter'
+  | 'chart'
+  | 'auction'
+  | 'withdraw';
 
 /** Paramètres d’une texture générée par le studio (métadonnée ignorée par la lib). */
 export interface GeneratorSpec {

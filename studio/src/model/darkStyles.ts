@@ -89,7 +89,7 @@ export function darkNumber(style: DarkStyle, options: DarkOptions, param: 'borde
 const opaque = (color: Rgba): Rgba => ({ ...color, a: 255 });
 
 /** Cadre net d’épaisseur `thickness`, côtés choisis (le bas peut rester ouvert). */
-function frame(
+export function frame(
   painter: Painter,
   x: number,
   y: number,

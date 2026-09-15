@@ -159,9 +159,12 @@ progression) :
 | Deepslate | panneau biseauté, bouton, cellule de slot, voile de modale, aplat |
 | mc-rs | panneau sombre et arrondi, bordure seule, bouton plat à trois états, bouton en relief, bande or ou orange, case creusée, grille de chargement |
 | Sombre à accent | fenêtre plate, case creusée, onglet, bouton plat, bouton fermer, store rayé, ligne de liste, cartouche de valeur, barre de progression |
+| Marché | étiquette de prix à pièce, cadre de graphe, sélecteur de quantité, champ de recherche, ligne de carnet d’ordres, carte d’annonce, temps restant ; modèles en plusieurs tailles, pastilles de hausse et de baisse, boutons acheter, enchérir et retrait |
 
 Tous les styles acceptent une **icône** pixel centrée dans le corps du
-bouton (croix, retour, sac, bourse, aide, chevrons, chiffres 1 à 9), claire
+bouton (croix, retour, sac, bourse, aide, chevrons, chiffres 1 à 9, et pour
+l’économie pièce, hausse, baisse, stable, loupe, horloge, plus, moins, coche,
+tri, filtre, histogramme, maillet d’enchère, boîte de retrait), claire
 ou foncée selon le fond, ou dans la couleur choisie.
 
 Un panneau peut dessiner les **cellules des slots** d’une zone de la grille,

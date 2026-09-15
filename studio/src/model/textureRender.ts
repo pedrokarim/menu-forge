@@ -5,6 +5,7 @@ import { GENERATOR_PRESETS, PANEL_STYLE_LABELS, paintPanelStyle, readableColor }
 import { SLOT_SIZE, chestCell } from './geometry';
 import type { Point, Rect } from './geometry';
 import { isPixelIcon, paintIcon } from './pixelIcons';
+import { MARKET_PARAMS, MARKET_PRESETS, MARKET_STYLE_LABELS, isMarketStyle, marketAccent, marketNumber, paintMarketStyle } from './marketStyles';
 import { DEFAULT_TILE, MCRS_COLORS, MCRS_PARAMS, MCRS_PRESETS, MCRS_STYLE_LABELS, isMcrsStyle, mcrsNumber, paintMcrsStyle } from './mcrs';
 import type { CellStyle, GeneratorSpec, GeneratorStyle } from './menu';
 import { createImage, rasterPainter } from './painter';
@@ -29,6 +30,7 @@ export function paintGeneratorStyle(
 ) {
   if (isMcrsStyle(style)) paintMcrsStyle(painter, style, x, y, width, height, color, spec);
   else if (isDarkStyle(style)) paintDarkStyle(painter, style, x, y, width, height, color, spec);
+  else if (isMarketStyle(style)) paintMarketStyle(painter, style, x, y, width, height, color, spec);
   else paintPanelStyle(painter, style, x, y, width, height, color);
 }
 
@@ -106,31 +108,35 @@ export function imageToCanvas(image: RgbaImage): HTMLCanvasElement {
 
 /* Familles de styles (dialogue du générateur de textures) */
 
-export type StyleFamilyId = 'deepslate' | 'mcrs' | 'dark';
+export type StyleFamilyId = 'deepslate' | 'mcrs' | 'dark' | 'market';
 
-export const STYLE_FAMILY_ORDER: readonly StyleFamilyId[] = ['deepslate', 'mcrs', 'dark'];
+export const STYLE_FAMILY_ORDER: readonly StyleFamilyId[] = ['deepslate', 'mcrs', 'dark', 'market'];
 
 export const STYLE_FAMILY_NAMES: Record<StyleFamilyId, string> = {
   deepslate: 'Deepslate',
   mcrs: 'mc-rs',
   dark: 'Sombre à accent',
+  market: 'Marché',
 };
 
 export const STYLE_LABELS: Record<StyleFamilyId, Readonly<Record<string, string>>> = {
   deepslate: PANEL_STYLE_LABELS,
   mcrs: MCRS_STYLE_LABELS,
   dark: DARK_STYLE_LABELS,
+  market: MARKET_STYLE_LABELS,
 };
 
 export const PRESETS_BY_FAMILY: Record<StyleFamilyId, ReadonlyArray<{ label: string; spec: GeneratorSpec }>> = {
   deepslate: GENERATOR_PRESETS,
   mcrs: MCRS_PRESETS,
   dark: DARK_PRESETS,
+  market: MARKET_PRESETS,
 };
 
 export function styleFamily(style: GeneratorStyle): StyleFamilyId {
   if (isMcrsStyle(style)) return 'mcrs';
   if (isDarkStyle(style)) return 'dark';
+  if (isMarketStyle(style)) return 'market';
   return 'deepslate';
 }
 
@@ -140,6 +146,7 @@ export type StyleParam = 'radius' | 'borderWidth' | 'borderColor' | 'accent' | '
 export function styleParams(style: GeneratorStyle): readonly StyleParam[] {
   if (isMcrsStyle(style)) return MCRS_PARAMS[style];
   if (isDarkStyle(style)) return DARK_PARAMS[style];
+  if (isMarketStyle(style)) return MARKET_PARAMS[style];
   return [];
 }
 
@@ -155,15 +162,17 @@ export function paramNumber(
     return mcrsNumber(style, spec, param);
   }
   if (isDarkStyle(style)) return param === 'radius' ? 0 : darkNumber(style, spec, param);
+  if (isMarketStyle(style)) return param === 'radius' || param === 'shadow' ? 0 : marketNumber(style, spec, param);
   return 0;
 }
 
 export function defaultAccent(style: GeneratorStyle): string {
+  if (isMarketStyle(style)) return marketAccent(style);
   return isDarkStyle(style) ? DARK_COLORS.accent : MCRS_COLORS.gold;
 }
 
 /** Couleur proposée quand on personnalise la bordure (ou la seconde bande, ou la croix). */
 export function defaultBorderColor(style: GeneratorStyle): string {
   if (style === 'dark_awning' || style === 'dark_close') return DARK_COLORS.text;
-  return isDarkStyle(style) ? DARK_COLORS.frame : MCRS_COLORS.panelBorder;
+  return isDarkStyle(style) || isMarketStyle(style) ? DARK_COLORS.frame : MCRS_COLORS.panelBorder;
 }

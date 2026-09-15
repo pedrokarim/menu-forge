@@ -223,7 +223,7 @@
       "description": "Paramètres d’une texture générée par le studio (métadonnée libre, ignorée par la lib ; forme écrite par le studio ci-dessous).",
       "properties": {
         "style": {
-          "enum": ["panel", "button", "cell", "veil", "flat", "mcrs_panel", "mcrs_border", "mcrs_button", "mcrs_raised", "mcrs_strip", "mcrs_slot", "mcrs_grid", "dark_panel", "dark_slot", "dark_tab", "dark_button", "dark_close", "dark_awning", "dark_row", "dark_badge", "dark_progress"]
+          "enum": ["panel", "button", "cell", "veil", "flat", "mcrs_panel", "mcrs_border", "mcrs_button", "mcrs_raised", "mcrs_strip", "mcrs_slot", "mcrs_grid", "dark_panel", "dark_slot", "dark_tab", "dark_button", "dark_close", "dark_awning", "dark_row", "dark_badge", "dark_progress", "market_price", "market_chart", "market_stepper", "market_search", "market_depth", "market_listing", "market_timer"]
         },
         "width": { "type": "integer", "minimum": 1 },
         "height": { "type": "integer", "minimum": 1 },
@@ -237,10 +237,10 @@
         "accent": { "type": "string", "description": "mc-rs : accent des états survol et pressé." },
         "state": { "enum": ["normal", "hover", "pressed"], "description": "mc-rs : état dessiné d’un bouton." },
         "shadow": { "type": "integer", "minimum": 0, "maximum": 32, "description": "mc-rs : hauteur de l’ombre portée." },
-        "tile": { "type": "integer", "minimum": 2, "maximum": 64, "description": "mc-rs : côté des cases de la grille ; sombre à accent : largeur des bandes du store." },
-        "progress": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Sombre à accent : remplissage d’une barre de progression, en pour cent." },
+        "tile": { "type": "integer", "minimum": 2, "maximum": 64, "description": "mc-rs : côté des cases de la grille ; sombre à accent : largeur des bandes du store ; Marché : pas de la grille du graphe." },
+        "progress": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Sombre à accent : remplissage d’une barre de progression ; Marché : profondeur d’un ordre, temps restant ; en pour cent." },
         "icon": {
-          "enum": ["close", "back", "sell", "balance", "help", "prev", "next", "digit_1", "digit_2", "digit_3", "digit_4", "digit_5", "digit_6", "digit_7", "digit_8", "digit_9"],
+          "enum": ["close", "back", "sell", "balance", "help", "prev", "next", "digit_1", "digit_2", "digit_3", "digit_4", "digit_5", "digit_6", "digit_7", "digit_8", "digit_9", "coin", "trend_up", "trend_down", "trend_flat", "search", "clock", "plus", "minus", "check", "sort", "filter", "chart", "auction", "withdraw"],
           "description": "Icône pixel centrée dans le corps du bouton (tous styles)."
         },
         "iconColor": { "type": "string", "description": "Couleur de l’icône (sinon claire ou foncée selon le fond)." }
