@@ -152,6 +152,9 @@ function layoutForm() {
 
 /** Infobulle d’un bouton de la barre (le pointeur reste dessus jusqu’à l’audit). */
 const hoverTooltip = (name) => async (page) => {
+  // Le pointeur quitte d’abord la page : resté au même endroit d’un rechargement à l’autre, il
+  // n’entrerait pas sur le bouton et l’infobulle ne s’ouvrirait pas.
+  await page.mouse.move(0, 0);
   await page.getByRole('button', { name, exact: true }).first().hover();
   await page.locator('[role="tooltip"]').waitFor();
 };

@@ -1,5 +1,5 @@
 /**
- * Navigation : rail d’écrans, adresse, raccourcis (Ctrl+1…5, Ctrl+O, « ? »),
+ * Navigation : rail d’écrans, adresse, raccourcis (Ctrl+1…6, Ctrl+O, « ? »),
  * disposition AZERTY (lettres lues sur la touche produite, chiffres sur la
  * touche physique), taille minimale de la fenêtre (1024 × 600).
  */
@@ -13,6 +13,7 @@ const hashOf = (page) => page.evaluate(() => window.location.hash);
 const RAIL = [
   ['Éditeur', /^#\/editeur\/menus/],
   ['Bibliothèques', /^#\/bibliotheques$/],
+  ['Shaders', /^#\/shaders$/],
   ['Paramètres', /^#\/parametres$/],
   ['À propos', /^#\/a-propos$/],
   ['Accueil', /^#\/accueil$/],
@@ -53,8 +54,8 @@ export const tests = [
     async run(t) {
       const { page } = t;
       await open(t, '#/accueil');
-      const expected = [/^#\/accueil$/, /^#\/editeur\//, /^#\/bibliotheques$/, /^#\/parametres$/, /^#\/a-propos$/];
-      for (const digit of [2, 3, 4, 5, 1]) {
+      const expected = [/^#\/accueil$/, /^#\/editeur\//, /^#\/bibliotheques$/, /^#\/shaders$/, /^#\/parametres$/, /^#\/a-propos$/];
+      for (const digit of [2, 3, 4, 5, 6, 1]) {
         await page.keyboard.press(`Control+${digit}`);
         await expectHash(t, expected[digit - 1], `Ctrl+${digit}`);
       }
@@ -64,6 +65,7 @@ export const tests = [
         ['"', 3],
         ["'", 4],
         ['(', 5],
+        ['-', 6],
         ['&', 1],
       ];
       for (const [key, digit] of azerty) {
@@ -131,7 +133,7 @@ export const tests = [
       await dispatchKey(page, { key: 'y', code: 'KeyY', ctrlKey: true });
       await t.waitEqual(() => inspectorNumber(page, 'x'), x + 1, 'AZERTY Ctrl+Y rétablit');
       await dispatchKey(page, { key: 'a', code: 'KeyQ', ctrlKey: true });
-      await t.waitFor(async () => /\d+ éléments sélectionnés/.test(await textOf(page.locator('.statusbar-meta'))), 'AZERTY Ctrl+A sélectionne tout');
+      await t.waitFor(async () => /\d+ éléments sélectionnés/.test(await textOf(page.locator('.statusbar-meta').first())), 'AZERTY Ctrl+A sélectionne tout');
       await dispatchKey(page, { key: 'Escape', code: 'Escape' });
       await t.waitEqual(() => inspectorPill(page), 'menu · shop', 'Échap désélectionne');
       // Ctrl+0 (touche du 0, « à » en AZERTY) : zoom « Ajuster ».

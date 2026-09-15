@@ -145,7 +145,7 @@ export const tests = [
         t.check(sample.width > 0 && sample.height > 0, `${creation.id}${' '}: PNG lisible`);
         if (creation.rows) t.equal(menu.container.rows, creation.rows, `${creation.id}${' '}: ${creation.rows} lignes`);
         if (creation.accent) t.check(JSON.stringify(menu).includes(creation.accent), `${creation.id}${' '}: couleur d’accent reprise`);
-        t.equal(await page.getByLabel('Menu ouvert').inputValue(), creation.id, `${creation.id}${' '}: ouvert dans l’éditeur`);
+        await t.waitEqual(() => page.getByLabel('Menu ouvert').first().inputValue(), creation.id, `${creation.id}${' '}: ouvert dans l’éditeur`);
       }
     },
   },
@@ -218,8 +218,8 @@ export const tests = [
       const menu = readJson(workspacePath(t, 'menus', 'e2e_hotel.menu.json'));
       t.equal([menu.name, menu.container.rows], ['Hôtel des ventes du royaume', 4], 'e2e_hotel : nom de l’exemple, lignes retouchées');
       t.check(JSON.stringify(menu).includes('#d04545'), 'e2e_hotel : accent de l’exemple');
-      const opened = page.getByLabel('Menu ouvert');
-      t.equal(await opened.inputValue(), 'e2e_hotel', 'e2e_hotel : ouvert dans l’éditeur');
+      const opened = page.getByLabel('Menu ouvert').first();
+      await t.waitEqual(() => opened.inputValue(), 'e2e_hotel', 'e2e_hotel : ouvert dans l’éditeur');
 
       // Double-clic, puis « Utiliser cet exemple » : création directe, identifiants uniques.
       const created = [];

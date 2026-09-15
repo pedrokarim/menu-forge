@@ -248,6 +248,17 @@ function slug(text) {
 
 async function runTest(context, env, scenario, test) {
   const page = await context.newPage();
+  // Chaque test part sans onglets rouverts : la session de l’espace (stockage local, partagé par le
+  // contexte) est effacée au premier chargement de la page, pas lors d’un rechargement pendant le test.
+  await page.addInitScript(() => {
+    try {
+      if (window.sessionStorage.getItem('menu-forge.e2e-started')) return;
+      window.sessionStorage.setItem('menu-forge.e2e-started', '1');
+      for (const key of Object.keys(window.localStorage)) if (key.startsWith('menu-forge.session:')) window.localStorage.removeItem(key);
+    } catch {
+      // about:blank : pas de stockage, rien à effacer.
+    }
+  });
   const t = createTestContext({ page, env, name: test.name });
   const started = Date.now();
   let failure = null;

@@ -120,7 +120,8 @@ export async function auditLayout(page, options = {}) {
 
       // Texte coupé par des points de suspension : le passage à la ligne est la règle. Seule exception,
       // une bande d’une seule ligne (barre d’état, pied de toile) marquée `data-audit-ellipsis`, et
-      // encore : le texte entier doit se lire au survol (`title`).
+      // encore : le texte entier doit se lire au survol (`title`, ou l’infobulle du studio qui porte ce
+      // texte : `data-tooltip-text`).
       if (style.textOverflow === 'ellipsis' && element.scrollWidth > element.clientWidth + TOLERANCE && style.overflowX !== 'visible') {
         const full = (element.textContent ?? '').trim();
         if (full && !element.closest('[data-audit-ellipsis]')) {
@@ -128,7 +129,7 @@ export async function auditLayout(page, options = {}) {
           reported.add(element);
           continue;
         }
-        if (full && !element.closest('[title]')) {
+        if (full && !element.closest('[title], [data-tooltip-text]')) {
           push(`${describe(element)} coupé sans infobulle (${element.scrollWidth} px pour ${element.clientWidth} px)`);
           reported.add(element);
           continue;

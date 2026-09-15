@@ -70,7 +70,7 @@ export const tests = [
         t.check(layer.texture.startsWith('generated/e2e_liste/'), `texture générée rattachée au menu (${layer.id})`);
         t.check(existsSync(workspacePath(t, 'textures', ...layer.texture.split('/'))), `texture générée cuite sur le disque (${layer.texture})`);
       }
-      t.equal(await page.getByLabel('Menu ouvert').inputValue(), 'e2e_liste', 'le menu créé est ouvert');
+      await t.waitEqual(() => page.getByLabel('Menu ouvert').first().inputValue(), 'e2e_liste', 'le menu créé est ouvert');
 
       await page.getByRole('button', { name: 'Nouveau', exact: true }).click();
       await dialog.getByRole('radio', { name: /^Vierge/ }).click();
@@ -81,7 +81,7 @@ export const tests = [
       const blank = readJson(workspacePath(t, 'menus', 'e2e_vierge.menu.json'));
       t.equal(blank.container, { type: 'chest', rows: 3 }, 'coffre de trois lignes');
       t.equal(blank.layers, [], 'aucune couche');
-      t.check(((await page.locator('.statusbar-meta').textContent()) ?? '').includes('176 × 168 px'), 'barre d’état : 176 × 168 px');
+      t.check(((await page.locator('.statusbar-meta').first().textContent()) ?? '').includes('176 × 168 px'), 'barre d’état : 176 × 168 px');
     },
   },
   {

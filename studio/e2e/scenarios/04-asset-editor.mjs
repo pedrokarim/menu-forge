@@ -4,7 +4,7 @@
  * disque.
  */
 import { existsSync } from 'node:fs';
-import { inspectorField, inspectorNumber, modal, open, readJson, readPng, textOf, waitStatus, workspacePath } from '../lib/studio.mjs';
+import { closeOtherTabs, inspectorField, inspectorNumber, modal, open, readJson, readPng, textOf, waitStatus, workspacePath } from '../lib/studio.mjs';
 import { pixelAt } from '../lib/png.mjs';
 
 export const title = 'Éditeur d’assets';
@@ -14,12 +14,13 @@ const assetStatus = (page) => page.locator('.asset-editor .asset-status');
 
 /** Point de la page au centre d’un pixel de l’asset (marge de 24 px autour de la toile). */
 async function assetCanvas(page, width) {
-  const box = await page.locator('canvas.asset-canvas').boundingBox();
+  const box = await page.locator('canvas.asset-canvas').first().boundingBox();
   const zoom = (box.width - 48) / width;
   return { zoom, at: (x, y) => ({ x: box.x + 24 + (x + 0.5) * zoom, y: box.y + 24 + (y + 0.5) * zoom }) };
 }
 
-const listNames = (page) => page.locator('.asset-editor .outline-list .outline-name').allTextContents();
+// L’éditeur de l’onglet affiché vient en premier dans la page (les onglets cachés suivent).
+const listNames = (page) => page.locator('.asset-editor').first().locator('.outline-list .outline-name').allTextContents();
 const listRow = (page, name) =>
   page.locator('.asset-editor .outline-list .outline-item').filter({ has: page.locator('.outline-name', { hasText: new RegExp(`^${name}$`) }) }).first();
 
@@ -29,7 +30,7 @@ export const tests = [
     async run(t) {
       const { page } = t;
       await open(t, '#/editeur/assets/help_banner');
-      t.equal(await page.getByLabel('Asset ouvert').inputValue(), 'help_banner', 'asset ouvert par l’adresse');
+      await t.waitEqual(() => page.getByLabel('Asset ouvert').first().inputValue(), 'help_banner', 'asset ouvert par l’adresse');
       t.equal(await listNames(page), ['text', 'text_box', 'logo', 'logo_box'], 'éléments, du dessus vers le dessous');
       t.check((await textOf(page.locator('.asset-snippet').first())).startsWith('help_banner:'), 'extrait de glyphe prêt à copier');
       t.equal(await textOf(page.locator('.asset-snippet').nth(1)), '<glyph:help_banner>', 'usage dans un texte');
@@ -48,8 +49,9 @@ export const tests = [
       await inspectorField(page, 'Hauteur', '.modal').fill('32');
       await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
       await waitStatus(t, 'Asset « e2e_asset » créé');
+      await closeOtherTabs(page);
       t.check(existsSync(workspacePath(t, 'assets', 'e2e_asset.asset.json')), 'fichier de l’asset écrit');
-      await t.waitFor(async () => (await page.locator('.asset-coords').textContent())?.startsWith('64 × 32 px'), 'toile de 64 × 32 px');
+      await t.waitFor(async () => (await page.locator('.asset-coords').first().textContent())?.startsWith('64 × 32 px'), 'toile de 64 × 32 px');
 
       // Chaque outil peut ajouter un réglage à la barre d’outils : la toile est remesurée après.
       await page.keyboard.press('b');

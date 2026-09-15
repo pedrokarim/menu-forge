@@ -202,3 +202,13 @@ export async function api(t, pathname, { method = 'GET', body } = {}) {
   if (!response.ok) throw new Error(`${method} ${pathname} : ${response.status} ${text}`);
   return text ? JSON.parse(text) : null;
 }
+
+/**
+ * Le document créé s’ouvre dans son propre onglet : l’onglet d’origine est fermé (clic droit, « Fermer
+ * les autres onglets »), pour que la suite du test ne voie qu’un seul éditeur.
+ */
+export async function closeOtherTabs(page) {
+  await page.locator('.shell-editor .editor-tab.active').click({ button: 'right' });
+  await page.locator('.context-menu .context-item', { hasText: 'Fermer les autres onglets' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.shell-editor .editor-tab').length === 1);
+}

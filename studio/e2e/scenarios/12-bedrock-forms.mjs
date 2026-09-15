@@ -275,12 +275,12 @@ export const tests = [
       await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
       await page.locator('.form-editor .bf-screen').first().waitFor();
       t.check(await page.locator('.form-editor .bf-press').count() > 0, 'aperçu : boutons de départ');
-      await t.waitFor(async () => (await page.locator('.statusbar').textContent()).includes('formulaire Bedrock'), 'barre d’état : formulaire Bedrock');
+      await t.waitFor(async () => (await page.locator('.statusbar').first().textContent()).includes('formulaire Bedrock'), 'barre d’état : formulaire Bedrock');
       const created = await savedMenu(t, 'e2e_formulaire');
       t.equal(created?.form?.layout, 'grid', 'formulaire enregistré, disposition « grid »');
 
       await inspectorField(page, 'Disposition', '.form-editor .sidebar').selectOption('left_button');
-      await t.waitFor(async () => (await page.locator('.statusbar').textContent()).includes('left_button'), 'barre d’état : left_button');
+      await t.waitFor(async () => (await page.locator('.statusbar').first().textContent()).includes('left_button'), 'barre d’état : left_button');
       await t.waitFor(async () => (await page.locator('.form-editor .bf-list-button').count()) > 0, 'aperçu : boutons en liste');
       await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
       await t.waitFor(async () => (await savedMenu(t, 'e2e_formulaire'))?.form?.layout === 'left_button', 'disposition enregistrée');
@@ -336,7 +336,7 @@ export const tests = [
       for (const width of [1024, 1280, 1600]) {
         await page.setViewportSize({ width, height: 900 });
         await openForm(t, 'e2e_overflow');
-        await page.locator('.form-editor .inspector .icon-current').waitFor();
+        await page.locator('.form-editor .inspector .icon-current').first().waitFor();
         t.equal(await inspectorOverflow(page), [], `inspecteur à ${width} px`);
       }
     },
@@ -353,7 +353,7 @@ export const tests = [
         await page.setViewportSize(size);
         for (const layout of LAYOUTS) {
           await openForm(t, `e2e_extreme_${layout}`);
-          await page.locator('.form-editor .inspector .icon-current').waitFor();
+          await page.locator('.form-editor .inspector .icon-current').first().waitFor();
           const label = `${layout} à ${size.width} × ${size.height}`;
           t.equal(await inspectorOverflow(page), [], `inspecteur, ${label}`);
           t.equal(await editorOverflow(page), [], `colonnes, aperçu et barre d’état, ${label}`);

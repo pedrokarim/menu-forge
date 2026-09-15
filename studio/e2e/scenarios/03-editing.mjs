@@ -31,7 +31,7 @@ import { createBlankMenu } from './02-menu-editor.mjs';
 export const title = 'Gestes d’édition';
 
 const selectedCount = async (page) => {
-  const match = /(\d+) éléments sélectionnés/.exec(await textOf(page.locator('.statusbar-meta')));
+  const match = /(\d+) éléments sélectionnés/.exec(await textOf(page.locator('.statusbar-meta').first()));
   return match ? Number(match[1]) : 1;
 };
 
@@ -256,7 +256,7 @@ export const tests = [
       await page.getByRole('button', { name: 'Actions du menu', exact: true }).click();
       await contextItem(page, 'Dupliquer').click();
       await waitStatus(t, '« e2e_doc_2 » créé, copie de « e2e_doc »');
-      t.equal(await page.getByLabel('Menu ouvert').inputValue(), 'e2e_doc_2', 'la copie est ouverte');
+      await t.waitEqual(() => page.getByLabel('Menu ouvert').first().inputValue(), 'e2e_doc_2', 'la copie est ouverte');
       await page.getByRole('button', { name: 'Actions du menu', exact: true }).click();
       await contextItem(page, 'Renommer…').click();
       const dialog = modal(page, /^Renommer le menu/);
@@ -266,12 +266,13 @@ export const tests = [
       t.check(existsSync(workspacePath(t, 'menus', 'e2e_doc_renamed.menu.json')), 'fichier renommé');
       await page.getByRole('button', { name: 'Actions du menu', exact: true }).click();
       await contextItem(page, 'Mettre à la corbeille').click();
-      await waitStatus(t, '« e2e_doc_renamed » mis à la corbeille');
+      // L’onglet du menu se ferme : la confirmation est une notification.
+      await waitStatus(t, '« e2e_doc_renamed » mis à la corbeille', 'notification de mise à la corbeille', page.locator('.toast-title').first());
       t.check(!existsSync(workspacePath(t, 'menus', 'e2e_doc_renamed.menu.json')), 'le menu quitte menus/');
-      t.check((await page.getByLabel('Menu ouvert').inputValue()) !== 'e2e_doc_renamed', 'un autre menu est ouvert');
+      t.check((await page.getByLabel('Menu ouvert').first().inputValue()) !== 'e2e_doc_renamed', 'un autre menu est ouvert');
 
       await page.getByRole('tab', { name: 'Pixels', exact: true }).click();
-      await page.locator('canvas.pixel-canvas').waitFor();
+      await page.locator('canvas.pixel-canvas').first().waitFor();
       await page.getByRole('button', { name: 'Actions de l’image', exact: true }).click();
       await contextItem(page, 'Dupliquer').click();
       await waitStatus(t, '« shop_tab_icon_2 » créé, copie de « shop_tab_icon »');

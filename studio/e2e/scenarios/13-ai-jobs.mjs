@@ -164,7 +164,7 @@ export const tests = [
         await capture(t, found, 'dialogue interface · résultat');
         await dialog.getByRole('button', { name: 'Ouvrir dans l’éditeur', exact: true }).click();
         await waitStatus(t, `Menu « ${id} » généré`);
-        t.equal(await page.getByLabel('Menu ouvert').inputValue(), id, 'menu généré ouvert dans l’éditeur');
+        await t.waitEqual(() => page.getByLabel('Menu ouvert').first().inputValue(), id, 'menu généré ouvert dans l’éditeur');
 
         // Consommé : le dialogue rouvert repart d’un formulaire neuf.
         await page.getByRole('button', { name: 'Générer une interface par IA…', exact: true }).first().click();

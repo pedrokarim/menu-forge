@@ -3,7 +3,7 @@
  * rectangle plein, sélection et Suppr, pot de peinture, gomme, pipette),
  * calques, annuler / rétablir, export PNG relu octet pour octet.
  */
-import { inspectorField, modal, open, readJson, readPng, waitStatus, workspacePath } from '../lib/studio.mjs';
+import { closeOtherTabs, inspectorField, modal, open, readJson, readPng, waitStatus, workspacePath } from '../lib/studio.mjs';
 
 export const title = 'Éditeur de pixels';
 
@@ -14,8 +14,8 @@ const WHITE = [255, 255, 255, 255];
 
 /** Toile « Ajuster » : image centrée dans la zone, au zoom affiché par la barre d’outils. */
 async function pixelCanvas(page, width, height) {
-  const box = await page.locator('canvas.pixel-canvas').boundingBox();
-  const zoom = Number(await page.locator('select.pixel-zoom').inputValue());
+  const box = await page.locator('canvas.pixel-canvas').first().boundingBox();
+  const zoom = Number(await page.locator('select.pixel-zoom').first().inputValue());
   const ox = Math.round((Math.floor(box.width) - width * zoom) / 2);
   const oy = Math.round((Math.floor(box.height) - height * zoom) / 2);
   return { zoom, at: (x, y) => ({ x: box.x + ox + (x + 0.5) * zoom, y: box.y + oy + (y + 0.5) * zoom }) };
@@ -45,6 +45,7 @@ export const tests = [
       await inspectorField(page, 'Hauteur', '.modal').fill('8');
       await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
       await waitStatus(t, 'Image « e2e_pixels » créée');
+      await closeOtherTabs(page);
       await page.locator('canvas.pixel-canvas[aria-label^="Toile de 8 × 8"]').waitFor();
       await t.wait(300);
       const canvas = await pixelCanvas(page, 8, 8);
