@@ -8,7 +8,8 @@ interface TitleBarProps {
   /** Écran ou document en cours, à côté du nom du logiciel. */
   context: string;
   /** Vrai si la fenêtre peut se fermer (sinon l’utilisateur a choisi de rester). */
-  confirmClose: () => boolean;
+  /** Vrai : fermer ; une promesse quand un dialogue doit d’abord répondre. */
+  confirmClose: () => boolean | Promise<boolean>;
 }
 
 function WindowButton({ icon, label, danger = false, onClick }: { icon: IconName; label: string; danger?: boolean; onClick: () => void }) {
@@ -47,7 +48,15 @@ export function TitleBar({ context, confirmClose }: TitleBarProps) {
     // Fermeture (bouton, Alt+F4, barre des tâches) : on demande avant de perdre des modifications.
     void appWindow
       .onCloseRequested((event) => {
-        if (!confirmRef.current()) event.preventDefault();
+        const answer = confirmRef.current();
+        if (answer === true) return;
+        // Réponse différée (dialogue « enregistrer ? ») : la fenêtre se ferme ensuite, sans redemander.
+        event.preventDefault();
+        if (answer !== false) {
+          void answer.then((close) => {
+            if (close) void appWindow.destroy();
+          });
+        }
       })
       .then(keep);
     return () => {

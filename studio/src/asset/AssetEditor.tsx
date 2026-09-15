@@ -89,6 +89,8 @@ export interface AssetEditorProps {
   defaultZoom?: number;
   /** Demande d’enregistrement venue de la barre du haut ; change à chaque demande. */
   saveRequest?: number;
+  /** Résultat d’un enregistrement demandé par `saveRequest` (vrai : enregistré). */
+  onSaveSettled?: (saved: boolean) => void;
   /**
    * Importe une image venue de l’extérieur (fichier déposé, image collée) dans
    * `textures/` ; renvoie le chemin de la nouvelle texture.
@@ -137,6 +139,7 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
     defaultShowGrid = true,
     defaultZoom: openingZoom = 0,
     saveRequest = 0,
+    onSaveSettled,
     onImportImage,
   } = props;
   const [history, dispatch] = useReducer(historyReducer, initial, createHistory);
@@ -444,8 +447,8 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
 
   /* Enregistrement */
 
-  const save = async () => {
-    if (saving) return;
+  const save = async (): Promise<boolean> => {
+    if (saving) return false;
     const snapshot = asset;
     setSaving(true);
     setStatus('Export en cours…');
@@ -456,8 +459,10 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
       await onSave(snapshot, png);
       setSavedJson(JSON.stringify(snapshot));
       setStatus(`« ${snapshot.id} » enregistré, PNG exporté (${canvas.width} × ${canvas.height})`);
+      return true;
     } catch (error) {
       setStatus(`Échec de l’enregistrement : ${errorMessage(error)}`);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -472,8 +477,12 @@ export function AssetEditor(props: AssetEditorProps): JSX.Element {
   useEffect(() => {
     if (saveRequest === handledSaveRequest.current) return;
     handledSaveRequest.current = saveRequest;
-    void saveRef.current();
+    void saveRef.current().then((saved) => settledRef.current?.(saved));
   }, [saveRequest]);
+  const settledRef = useRef(onSaveSettled);
+  useEffect(() => {
+    settledRef.current = onSaveSettled;
+  });
 
   /* Menus contextuels */
 

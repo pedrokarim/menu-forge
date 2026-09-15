@@ -23,7 +23,11 @@ comprendre un shader existant et à mettre au point une technique d’interface
    modification recompile et redessine (après un court délai). Les erreurs sont
    ramenées au fichier et à la ligne d’origine, même dans un include ; un clic
    sur `fichier:ligne` ouvre ce fichier. **Revenir à l’original** annule les
-   retouches d’un exemple.
+   retouches de l’onglet.
+6. **Onglets** : chaque exemple ou dossier ouvert a son onglet et garde ses
+   brouillons, même quand on change d’écran ; un carré d’or marque un onglet
+   modifié (et un fichier modifié dans la liste). Rien n’est écrit sur le
+   disque : fermer un onglet modifié demande d’abandonner les modifications.
 
 ## Exemples intégrés
 

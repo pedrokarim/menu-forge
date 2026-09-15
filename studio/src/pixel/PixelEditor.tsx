@@ -69,6 +69,8 @@ export interface PixelEditorProps {
   defaultShowGrid: boolean;
   /** Demande d’enregistrement venue de la barre du haut ; change à chaque demande. */
   saveRequest: number;
+  /** Résultat d’un enregistrement demandé par `saveRequest` (vrai : enregistré). */
+  onSaveSettled?: (saved: boolean) => void;
   /** Enregistre le document et le PNG aplati. Lève une erreur en cas d’échec. */
   onSave: (file: PixelDocumentFile, png: Blob) => Promise<void>;
   onDirtyChange: (dirty: boolean) => void;
@@ -164,7 +166,7 @@ function bitmapOf(state: PixelState, layer: PixelLayer): Bitmap {
  * ouverte.
  */
 function PixelWorkbench(props: WorkbenchProps) {
-  const { active, initialMeta, initialState, onSave, onDirtyChange, saveRequest } = props;
+  const { active, initialMeta, initialState, onSave, onDirtyChange, saveRequest, onSaveSettled } = props;
   const [history, dispatch] = useReducer(historyReducer, initialState, createHistory);
   const present = history.present;
   const { width, height } = present;
@@ -537,11 +539,11 @@ function PixelWorkbench(props: WorkbenchProps) {
 
   /* ---------- Enregistrement ---------- */
 
-  const save = async () => {
-    if (saving) return;
+  const save = async (): Promise<boolean> => {
+    if (saving) return false;
     if (textureError) {
       setStatus(`Échec de l’enregistrement${NBSP}: texture d’export invalide (${textureError})`);
-      return;
+      return false;
     }
     const snapshot = present;
     const metaSnapshot = meta;
@@ -554,8 +556,10 @@ function PixelWorkbench(props: WorkbenchProps) {
       setSavedVersion(snapshot.contentVersion);
       setSavedMeta(JSON.stringify(metaSnapshot));
       setStatus(`${quote(metaSnapshot.name)} enregistré, PNG exporté dans textures/${metaSnapshot.texture} (${snapshot.width} × ${snapshot.height})`);
+      return true;
     } catch (failure) {
       setStatus(`Échec de l’enregistrement${NBSP}: ${errorMessage(failure)}`);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -569,8 +573,12 @@ function PixelWorkbench(props: WorkbenchProps) {
   useEffect(() => {
     if (saveRequest === handledSaveRequest.current) return;
     handledSaveRequest.current = saveRequest;
-    void saveRef.current();
+    void saveRef.current().then((saved) => settledRef.current?.(saved));
   }, [saveRequest]);
+  const settledRef = useRef(onSaveSettled);
+  useEffect(() => {
+    settledRef.current = onSaveSettled;
+  });
 
   /* ---------- Clavier ---------- */
 

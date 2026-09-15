@@ -7,6 +7,8 @@ interface ScreenFrameProps {
   icon: IconName;
   /** Pastille de l’espace de travail, calée à droite de l’en-tête. */
   pill?: ReactNode;
+  /** Barre sous l’en-tête, pleine largeur et hors du défilement (onglets). */
+  bar?: ReactNode;
   children: ReactNode;
 }
 
@@ -14,9 +16,9 @@ interface ScreenFrameProps {
  * Cadre commun des écrans « pleine page » : en-tête de la même hauteur que la
  * barre d’outils de l’éditeur, puis un corps centré qui défile.
  */
-export function ScreenFrame({ title, icon, pill, children }: ScreenFrameProps) {
+export function ScreenFrame({ title, icon, pill, bar, children }: ScreenFrameProps) {
   return (
-    <section className="screen" aria-label={title}>
+    <section className={bar ? 'screen has-bar' : 'screen'} aria-label={title}>
       <header className="screen-header">
         <h1 className="screen-title">
           <Icon name={icon} size={24} />
@@ -24,6 +26,7 @@ export function ScreenFrame({ title, icon, pill, children }: ScreenFrameProps) {
         </h1>
         {pill && <div className="screen-header-end">{pill}</div>}
       </header>
+      {bar}
       <div className="screen-scroll">
         <div className="screen-body">{children}</div>
       </div>

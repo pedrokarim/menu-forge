@@ -8,7 +8,11 @@ import { ShaderRenderer } from '../shader/renderer';
 import type { RenderResult } from '../shader/renderer';
 import { DEFAULT_INPUTS, SCENES } from '../shader/scenes';
 import type { SceneBitmap, SceneId, SceneInputs } from '../shader/scenes';
+import { NBSP } from '../lib/format';
 import { ScreenFrame } from '../shell/ScreenFrame';
+import { askUnsaved } from '../ui/dialogs';
+import { useContextMenu } from '../ui/menuContext';
+import type { MenuEntry } from '../ui/menuContext';
 import { Icon } from '../ui/Icon';
 import './shaderlab.css';
 
@@ -50,31 +54,80 @@ function colorToHex(color: [number, number, number, number]): string {
     .join('')}`;
 }
 
+/** Un onglet du visualiseur : un exemple ou un dossier ouvert, avec ses brouillons et sa scène. */
+interface ShaderSession {
+  key: string;
+  source: Source;
+  files: ShaderFile[];
+  /** Fichiers tels qu’ils ont été ouverts (pour savoir s’il y a des modifications et revenir en arrière). */
+  original: ShaderFile[];
+  program: string;
+  sceneId: SceneId;
+  inputs: SceneInputs;
+  editing: string | null;
+  animate: boolean;
+}
+
+let sessionCounter = 0;
+
+function exampleSession(example: ShaderExample): ShaderSession {
+  const files = exampleFiles(example.id);
+  sessionCounter += 1;
+  return {
+    key: `shader-${sessionCounter}`,
+    source: { kind: 'example', example },
+    files,
+    original: files,
+    program: example.program,
+    sceneId: example.scene,
+    inputs: { ...DEFAULT_INPUTS, color: example.color ?? DEFAULT_INPUTS.color },
+    editing: example.open,
+    animate: example.animate ?? false,
+  };
+}
+
+const sessionTitle = (session: ShaderSession) => (session.source.kind === 'example' ? session.source.example.title : session.source.name);
+const isModified = (session: ShaderSession) => JSON.stringify(session.files) !== JSON.stringify(session.original);
+
 /**
  * Visualiseur de shaders : exécute les shaders « core » d’un pack (ou un exemple intégré) en WebGL2, avec
  * des includes du jeu minimaux, sur une scène d’essai (courbe, portrait, quad libre). Chaque modification
- * d’un fichier recompile et redessine aussitôt.
+ * d’un fichier recompile et redessine aussitôt. Chaque exemple ou dossier ouvert a son onglet et garde ses
+ * brouillons ; fermer un onglet modifié demande confirmation.
  */
-export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
+export function ShaderLabScreen({ pill, active = true }: { pill: ReactNode; active?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const openContextMenu = useContextMenu();
   const rendererRef = useRef<ShaderRenderer | null>(null);
-  const [source, setSource] = useState<Source>({ kind: 'example', example: SHADER_EXAMPLES[0] });
-  const [files, setFiles] = useState<ShaderFile[]>(() => exampleFiles(SHADER_EXAMPLES[0].id));
-  const [program, setProgram] = useState(SHADER_EXAMPLES[0].program);
-  const [sceneId, setSceneId] = useState<SceneId>(SHADER_EXAMPLES[0].scene);
-  const [inputs, setInputs] = useState<SceneInputs>(DEFAULT_INPUTS);
-  const [editing, setEditing] = useState<string | null>(SHADER_EXAMPLES[0].open);
+  const [sessions, setSessions] = useState<ShaderSession[]>(() => [exampleSession(SHADER_EXAMPLES[0])]);
+  const [activeKey, setActiveKey] = useState<string | null>(() => sessions[0]?.key ?? null);
   const [scale, setScale] = useState(4);
-  const [animate, setAnimate] = useState(false);
   const [result, setResult] = useState<RenderResult | null>(null);
   const [setupError, setSetupError] = useState<string | null>(null);
+
+  const current = sessions.find((session) => session.key === activeKey) ?? null;
+  const source = current?.source ?? null;
+  const files = useMemo(() => current?.files ?? [], [current]);
+  const program = current?.program ?? '';
+  const sceneId = current?.sceneId ?? 'free';
+  const inputs = current?.inputs ?? DEFAULT_INPUTS;
+  const editing = current?.editing ?? null;
+  const animate = current?.animate ?? false;
+
+  /** Modifie l’onglet affiché. */
+  const patch = (change: (session: ShaderSession) => Partial<ShaderSession>) =>
+    setSessions((list) => list.map((session) => (session.key === activeKey ? { ...session, ...change(session) } : session)));
+  const setProgram = (value: string) => patch(() => ({ program: value }));
+  const setEditing = (value: string) => patch(() => ({ editing: value }));
+  const setAnimate = (value: boolean) => patch(() => ({ animate: value }));
+  const setInputs = (change: (value: SceneInputs) => SceneInputs) => patch((session) => ({ inputs: change(session.inputs) }));
 
   const scene = SCENES.find((candidate) => candidate.id === sceneId) ?? SCENES[0];
   const programs = useMemo(() => programsIn(files), [files]);
   const geometry = useMemo(() => scene.build(inputs), [scene, inputs]);
   const editedFile = files.find((file) => file.path === editing) ?? null;
-  const example = source.kind === 'example' ? source.example : null;
-  const modified = example !== null && JSON.stringify(files) !== JSON.stringify(exampleFiles(example.id));
+  const example = source?.kind === 'example' ? source.example : null;
+  const modified = current !== null && isModified(current);
 
   useEffect(() => {
     if (!canvasRef.current || rendererRef.current) return;
@@ -86,10 +139,10 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
     }
   }, []);
 
-  // Rendu (et animation de GameTime si demandée), léger différé pendant la frappe
+  // Rendu (et animation de GameTime si demandée), léger différé pendant la frappe ; rien quand l’écran est caché.
   useEffect(() => {
     const renderer = rendererRef.current;
-    if (!renderer || !program) return;
+    if (!renderer || !program || !active) return;
     let frame = 0;
     const started = performance.now();
     const draw = () => {
@@ -102,16 +155,18 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
       window.clearTimeout(timer);
       cancelAnimationFrame(frame);
     };
-  }, [program, files, geometry, scale, animate]);
+  }, [program, files, geometry, scale, animate, active]);
 
+  /** Ouvre un exemple : l’onglet qui le montre déjà, sinon un nouvel onglet. */
   const loadExample = (next: ShaderExample) => {
-    setSource({ kind: 'example', example: next });
-    setFiles(exampleFiles(next.id));
-    setProgram(next.program);
-    setSceneId(next.scene);
-    setEditing(next.open);
-    setAnimate(next.animate ?? false);
-    setInputs((current) => ({ ...current, color: next.color ?? DEFAULT_INPUTS.color }));
+    const existing = sessions.find((session) => session.source.kind === 'example' && session.source.example.id === next.id);
+    if (existing) {
+      setActiveKey(existing.key);
+      return;
+    }
+    const created = exampleSession(next);
+    setSessions((list) => [...list, created]);
+    setActiveKey(created.key);
   };
 
   const loadFolder = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -120,26 +175,52 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
     if (list.length === 0) return;
     const loaded = await Promise.all(list.map(async (file) => ({ path: shaderPath(file.webkitRelativePath || file.name), source: await file.text() })));
     loaded.sort((a, b) => a.path.localeCompare(b.path));
-    setFiles(loaded);
-    setSource({ kind: 'folder', name: (list[0].webkitRelativePath || list[0].name).split('/')[0] });
     const found = programsIn(loaded);
     const preferred = found.includes(scene.program) ? scene.program : found[0] ?? '';
-    setProgram(preferred);
-    setEditing(loaded.find((file) => file.path === `${preferred}.fsh`)?.path ?? loaded[0].path);
+    sessionCounter += 1;
+    const created: ShaderSession = {
+      key: `shader-${sessionCounter}`,
+      source: { kind: 'folder', name: (list[0].webkitRelativePath || list[0].name).split('/')[0] },
+      files: loaded,
+      original: loaded,
+      program: preferred,
+      sceneId,
+      inputs,
+      editing: loaded.find((file) => file.path === `${preferred}.fsh`)?.path ?? loaded[0].path,
+      animate: false,
+    };
+    setSessions((previous) => [...previous, created]);
+    setActiveKey(created.key);
   };
 
-  const changeScene = (id: SceneId) => {
-    setSceneId(id);
-    const next = SCENES.find((candidate) => candidate.id === id);
-    if (next && programs.includes(next.program)) {
-      setProgram(next.program);
-      setEditing(`${next.program}.fsh`);
+  /** Ferme des onglets ; ceux qui ont des brouillons demandent confirmation (rien ne s’enregistre sur le disque). */
+  const closeSessions = async (keys: string[]) => {
+    const touched = sessions.filter((session) => keys.includes(session.key) && isModified(session));
+    if (touched.length > 0) {
+      const action = keys.length === 1 ? `Fermer «${NBSP}${sessionTitle(touched[0])}${NBSP}»` : `Fermer ${keys.length} onglets`;
+      const choice = await askUnsaved(touched.map(sessionTitle), action, { discardOnly: true });
+      if (choice === 'cancel') return;
+    }
+    const remaining = sessions.filter((session) => !keys.includes(session.key));
+    setSessions(remaining);
+    if (activeKey && keys.includes(activeKey)) {
+      const index = sessions.findIndex((session) => session.key === activeKey);
+      setActiveKey(remaining[Math.min(index, remaining.length - 1)]?.key ?? null);
     }
   };
 
-  const editSource = (text: string) => {
+  const revert = () => patch((session) => ({ files: session.original }));
+
+  const changeScene = (id: SceneId) => {
+    const next = SCENES.find((candidate) => candidate.id === id);
+    patch(() =>
+      next && programs.includes(next.program) ? { sceneId: id, program: next.program, editing: `${next.program}.fsh` } : { sceneId: id },
+    );
+  };
+
+  const editSource = (value: string) => {
     if (!editing) return;
-    setFiles((current) => current.map((file) => (file.path === editing ? { ...file, source: text } : file)));
+    patch((session) => ({ files: session.files.map((file) => (file.path === editing ? { ...file, source: value } : file)) }));
   };
 
   const loadImage = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -147,11 +228,58 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
     event.target.value = '';
     if (!file) return;
     const image = await readBitmap(file);
-    setInputs((current) => ({ ...current, image }));
+    setInputs((value) => ({ ...value, image }));
   };
 
+  const tabMenu = (session: ShaderSession): MenuEntry[] => [
+    { heading: sessionTitle(session) },
+    { label: 'Revenir à l’original', icon: 'undo', disabled: !isModified(session), onSelect: () => {
+      setSessions((list) => list.map((candidate) => (candidate.key === session.key ? { ...candidate, files: candidate.original } : candidate)));
+    } },
+    { separator: true },
+    { label: 'Fermer', icon: 'close', onSelect: () => void closeSessions([session.key]) },
+    { label: 'Fermer les autres onglets', disabled: sessions.length < 2, onSelect: () => void closeSessions(sessions.filter((other) => other.key !== session.key).map((other) => other.key)) },
+    { label: 'Tout fermer', danger: true, onSelect: () => void closeSessions(sessions.map((other) => other.key)) },
+  ];
+
   return (
-    <ScreenFrame title="Shaders" icon="code" pill={pill}>
+    <ScreenFrame
+      title="Shaders"
+      icon="code"
+      pill={pill}
+      bar={
+        sessions.length > 0 ? (
+          <div className="editor-tabs shaderlab-tabs">
+            <div className="editor-tabs-list" role="tablist" aria-label="Shaders ouverts">
+              {sessions.map((session) => {
+                const touched = isModified(session);
+                const selected = session.key === activeKey;
+                const title = sessionTitle(session);
+                return (
+                  <div
+                    key={session.key}
+                    className={['editor-tab', selected ? 'active' : '', touched ? 'dirty' : ''].filter(Boolean).join(' ')}
+                    onAuxClick={(event) => {
+                      if (event.button === 1) void closeSessions([session.key]);
+                    }}
+                    onContextMenu={(event) => openContextMenu(event, tabMenu(session))}
+                  >
+                    <button type="button" role="tab" aria-selected={selected} className="editor-tab-button" title={touched ? `${title} (modifié)` : title} onClick={() => setActiveKey(session.key)}>
+                      <Icon name={session.source.kind === 'example' ? 'code' : 'folder'} />
+                      <span className="editor-tab-label" data-audit-ellipsis>{title}</span>
+                    </button>
+                    <button type="button" className="editor-tab-close" aria-label={`Fermer « ${title} »`} tabIndex={-1} onClick={() => void closeSessions([session.key])}>
+                      <span className="editor-tab-dot" aria-hidden="true" />
+                      <Icon name="close" size={12} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : undefined
+      }
+    >
       <div className="shaderlab">
         <aside className="shaderlab-side">
           <section className="card shaderlab-examples">
@@ -163,6 +291,7 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
                     type="button"
                     className={example?.id === candidate.id ? 'active' : undefined}
                     aria-pressed={example?.id === candidate.id}
+                    title="Ouvre l’exemple dans son onglet"
                     onClick={() => loadExample(candidate)}
                   >
                     <strong>{candidate.title}</strong>
@@ -183,7 +312,7 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
                 Ouvrir les shaders d’un pack…
               </span>
             </label>
-            {source.kind === 'folder' && (
+            {source?.kind === 'folder' && (
               <p className="muted shaderlab-note">
                 Dossier <span className="mono">{source.name}</span> chargé. Choisissez le dossier{' '}
                 <span className="mono">shaders/</span> d’un pack (ou un parent) ; les includes du jeu absents sont
@@ -192,7 +321,7 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
             )}
           </section>
 
-          <section className="card">
+          <section className="card" hidden={!current}>
             <div className="field">
               <span className="field-label">Programme</span>
               <select aria-label="Programme" value={program} onChange={(event) => setProgram(event.target.value)}>
@@ -214,6 +343,9 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
                       onClick={() => setEditing(file.path)}
                     >
                       <span className="mono shaderlab-file-name" title={file.path}>{file.path}</span>
+                      {current && current.original.find((initial) => initial.path === file.path)?.source !== file.source && (
+                        <span className="dirty-mark" title="Modifié" aria-label="modifié" />
+                      )}
                       {result?.errors.some((error) => error.file === file.path) && <Icon name="warning" />}
                     </button>
                   </li>
@@ -238,6 +370,12 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
         </aside>
 
         <section className="shaderlab-main">
+          {!current && (
+            <div className="card shaderlab-intro">
+              <h3>Aucun shader ouvert</h3>
+              <p>Choisissez un exemple dans la liste, ou ouvrez les shaders d’un pack : chacun s’ouvre dans son onglet.</p>
+            </div>
+          )}
           {example && (
             <div className="card shaderlab-intro">
               <h3>{example.title}</h3>
@@ -248,7 +386,7 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
             </div>
           )}
 
-          <div className="card shaderlab-scene">
+          <div className="card shaderlab-scene" hidden={!current}>
             <div className="field">
               <span className="field-label">Scène : ce que le jeu envoie au shader</span>
               <div className="segmented" role="group" aria-label="Scène">
@@ -327,7 +465,7 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
             </div>
           </div>
 
-          <div className="card shaderlab-preview">
+          <div className="card shaderlab-preview" hidden={!current}>
             {setupError && <p className="field-error">{setupError}</p>}
             <canvas ref={canvasRef} className="shaderlab-canvas" />
             {result && (
@@ -346,8 +484,8 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
                 <span className="mono">{editedFile.path}</span>
                 <span className="shaderlab-editor-actions">
                   <span className="muted">Modifications gardées dans le studio seulement.</span>
-                  {modified && example && (
-                    <button type="button" onClick={() => loadExample(example)}>
+                  {modified && (
+                    <button type="button" onClick={revert}>
                       <Icon name="undo" />
                       Revenir à l’original
                     </button>
@@ -365,7 +503,7 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
                 <ul className="shaderlab-errors">
                   {result.errors.map((error, index) => (
                     <li key={index} className="mono">
-                      <button type="button" className="ghost" onClick={() => error.file && setEditing(error.file)}>
+                      <button type="button" className="ghost" onClick={() => error.file && files.some((file) => file.path === error.file) && setEditing(error.file)}>
                         {error.file ? `${error.file}:${error.line}` : 'programme'}
                       </button>{' '}
                       {error.message}

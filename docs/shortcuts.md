@@ -26,6 +26,9 @@ Quelques règles valent partout :
 | `Ctrl+5` | Paramètres |
 | `Ctrl+6` | À propos |
 | `Ctrl+O` | Changer d’espace de travail |
+| `Ctrl+W` ou `Ctrl+F4` | Fermer l’onglet affiché (dialogue s’il a des modifications non enregistrées) ; dans un navigateur, `Ctrl+W` ferme d’abord l’onglet du navigateur |
+| `Ctrl+Tab`, `Ctrl+Pg. suiv.` | Onglet suivant de l’éditeur |
+| `Ctrl+Maj+Tab`, `Ctrl+Pg. préc.` | Onglet précédent |
 | `?` | L’aide-mémoire des raccourcis |
 
 ## Sélection et presse-papiers

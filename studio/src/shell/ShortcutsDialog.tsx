@@ -19,6 +19,8 @@ const GROUPS: ReadonlyArray<{ title: string; entries: Entry[] }> = [
       { keys: 'Ctrl+5', label: 'Paramètres' },
       { keys: 'Ctrl+6', label: 'À propos' },
       { keys: 'Ctrl+O', label: 'Changer d’espace de travail' },
+      { keys: 'Ctrl+W', label: 'Fermer l’onglet affiché (Ctrl+F4 aussi)' },
+      { keys: 'Ctrl+Tab', label: 'Onglet suivant (Ctrl+Pg. suiv. aussi) ; avec Maj : précédent' },
       { keys: '?', label: 'Cet aide-mémoire' },
     ],
   },

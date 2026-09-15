@@ -1,55 +1,60 @@
-/* Visualiseur de shaders (écran « Shaders ») */
+/*
+ * Visualiseur de shaders (écran « Shaders »).
+ * Espacements du studio seulement : 4 px (libellé → champ, titre → résumé), 8 px (éléments d’une liste,
+ * lignes d’un bloc), 12 px (blocs d’une carte, champs d’une rangée), 16 px (entre les cartes).
+ */
 
 .shaderlab {
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--space-4);
   align-items: start;
 }
 
-.shaderlab-side {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.shaderlab-side,
+.shaderlab-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
   min-width: 0;
 }
 
-.shaderlab-side .card,
-.shaderlab-intro {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.shaderlab-help p,
-.shaderlab-intro p {
+.shaderlab p {
   margin: 0;
 }
 
+.shaderlab-note {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* Liste des exemples : titre et résumé à 4 px, exemples à 8 px, même marge intérieure que les champs. */
 .shaderlab-examples ul {
-  list-style: none;
+  display: grid;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  list-style: none;
 }
 
-.shaderlab-examples li button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+.shaderlab-examples li button,
+.shaderlab-examples li button:where(:hover:not(:disabled)) {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
   width: 100%;
-  height: auto;
-  padding: 6px 10px;
+  padding: var(--space-2) var(--space-3);
   text-align: left;
   white-space: normal;
 }
 
+.shaderlab-examples li button:where(:active:not(:disabled)) {
+  padding: calc(var(--space-2) + 1px) calc(var(--space-3) - 1px) calc(var(--space-2) - 1px) calc(var(--space-3) + 1px);
+}
+
 .shaderlab-examples li button .muted {
-  font-size: 0.85em;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .shaderlab-examples li button.active {
@@ -60,10 +65,11 @@
   color: var(--ds-gold);
 }
 
-.shaderlab-editor-actions {
+/* Bouton d’un champ fichier : mêmes hauteur, bordure et relief que les boutons du studio. */
+.shaderlab-folder {
+  position: relative;
   display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  justify-self: start;
 }
 
 .shaderlab-folder input[type='file'] {
@@ -76,38 +82,61 @@
 .shaderlab-folder-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border: 1px solid var(--ds-edge);
-  border-radius: 4px;
+  gap: 6px;
+  min-height: var(--control-h);
+  padding: 3px 10px;
+  color: var(--ds-btn-ink);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  background: var(--ds-btn);
+  border: 2px solid var(--ds-edge);
+  box-shadow: var(--bevel-raised);
   cursor: pointer;
 }
 
+.shaderlab-folder:hover .shaderlab-folder-button {
+  background: var(--ds-btn-hover);
+  box-shadow: var(--bevel-raised-hover);
+}
+
 .shaderlab-folder:focus-within .shaderlab-folder-button {
-  outline: 2px solid var(--ds-gold);
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 2px;
 }
 
-.shaderlab-note {
-  margin: 0;
-  font-size: 0.85em;
-}
-
+/* Fichiers du programme : lignes de même hauteur, 4 px entre elles. */
 .shaderlab-files {
-  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+  max-height: 320px;
   margin: 0;
   padding: 0;
-  max-height: 320px;
   overflow: auto;
+  list-style: none;
 }
 
-.shaderlab-files button {
+.shaderlab-files button,
+.shaderlab-files button:where(:hover:not(:disabled)),
+.shaderlab-files button:where(:active:not(:disabled)) {
   display: flex;
-  width: 100%;
+  align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
   text-align: left;
-  background: transparent;
-  border-color: transparent;
+  text-shadow: none;
+  background: var(--ds-field);
+  border: 2px solid var(--ds-edge);
+  box-shadow: none;
+}
+
+.shaderlab-files button:where(:hover:not(:disabled)) {
+  background: var(--ds-field-hover);
+}
+
+.shaderlab-files button.active {
+  border-color: var(--ds-gold);
 }
 
 .shaderlab-file-name {
@@ -115,43 +144,49 @@
   overflow-wrap: anywhere;
 }
 
-.shaderlab-files button.active {
-  border-color: var(--ds-gold);
-}
-
-.shaderlab-main {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
-
+/* Cartes : 12 px entre leurs blocs ; l’encart d’un exemple, plus serré (8 px). */
+.shaderlab-side .card,
 .shaderlab-scene {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
+.shaderlab-intro {
+  gap: var(--space-2);
+}
+
+/* Scène : les champs d’une rangée ont leur libellé en haut et leur contrôle aligné en bas. */
 .shaderlab-inputs {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
   align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+}
+
+.shaderlab-inputs > .field {
+  align-content: end;
+}
+
+.shaderlab-inputs > .checkbox {
+  min-height: var(--control-h);
 }
 
 .shaderlab-values {
   flex: 1 1 320px;
 }
 
+.shaderlab-inputs input[type='number'] {
+  width: 88px;
+}
+
+/* Rendu */
 .shaderlab-preview {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  justify-items: center;
+  gap: var(--space-2);
   overflow: auto;
 }
 
 .shaderlab-canvas {
+  max-width: 100%;
   image-rendering: pixelated;
   background-color: #2b2f36;
   background-image:
@@ -161,47 +196,57 @@
     linear-gradient(-45deg, transparent 75%, #353a42 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  max-width: 100%;
 }
 
 .shaderlab-status {
-  margin: 0;
-  font-size: 0.85em;
+  font-size: 12px;
 }
 
+/* Éditeur de code */
 .shaderlab-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .shaderlab-editor-head {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 0.85em;
+  gap: var(--space-2) var(--space-3);
+  min-height: var(--control-h);
+  font-size: 12px;
+}
+
+.shaderlab-editor-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
 }
 
 .shaderlab-code {
   min-height: 360px;
+  padding: var(--space-2) var(--space-3);
   resize: vertical;
   white-space: pre;
   tab-size: 4;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .shaderlab-errors {
-  list-style: none;
+  display: grid;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
+  list-style: none;
   font-size: 12px;
   color: var(--ds-danger);
 }
 
 .shaderlab-errors button {
-  padding: 0 4px;
+  min-height: 0;
+  padding: 0 var(--space-1);
   color: inherit;
   text-decoration: underline;
 }
@@ -210,5 +255,4 @@
   .shaderlab {
     grid-template-columns: minmax(0, 1fr);
   }
-
 }

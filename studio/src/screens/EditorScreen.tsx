@@ -1,5 +1,5 @@
-import { Suspense, lazy, useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from 'react';
-import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useEffectEvent, useImperativeHandle, useMemo, useReducer, useRef, useState } from 'react';
+import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref } from 'react';
 import { navigate } from '../shell/router';
 import type { EditorMode } from '../shell/router';
 import type { AiTextureReference, AiTextureResult } from '../ai/AiTextureDialog';
@@ -7,6 +7,7 @@ import { getJob } from '../ai/jobs';
 import { useContextMenu } from '../ui/menuContext';
 import type { MenuEntry } from '../ui/menuContext';
 import { overlayOpen } from '../ui/overlay';
+import { askUnsaved } from '../ui/dialogs';
 import type { GeneratorResult } from '../components/GeneratorDialog';
 import { Inspector } from '../components/Inspector';
 import { MenuCanvas } from '../components/MenuCanvas';
@@ -184,9 +185,48 @@ export interface EditorPreferences {
   confirmDelete: boolean;
 }
 
+/** Document d’un onglet, signalé à la barre d’onglets. */
+export interface EditorSession {
+  kind: 'menu' | 'asset' | 'pixel' | null;
+  name: string | null;
+  dirty: boolean;
+}
+
+/** Ce que la barre d’onglets peut demander à l’éditeur d’un onglet. */
+export interface EditorHandle {
+  /** Enregistre le document ouvert ; faux en cas d’échec (message affiché dans l’onglet). */
+  save: () => Promise<boolean>;
+}
+
+export interface OpenDocumentOptions {
+  /** Menu pas encore enregistré (interface générée), ouvert tel quel. */
+  initialMenu?: MenuDefinition;
+  /** Document à ouvrir quand aucun onglet de ce type n’existe. */
+  fallbackId?: string | null;
+  /** Message d’état à afficher dans l’onglet ouvert (« Menu créé »…). */
+  status?: string;
+}
+
 export interface EditorScreenProps {
-  /** Écran affiché ; sinon l’éditeur reste monté (historique conservé) mais ignore le clavier. */
+  /** Onglet affiché ; sinon l’éditeur reste monté (historique conservé) mais ignore le clavier. */
   active: boolean;
+  ref?: Ref<EditorHandle>;
+  /**
+   * Ouvre un autre document dans son propre onglet (choisi dans la liste, créé, dupliqué…). L’éditeur
+   * ne remplace son document que tant que son onglet est vide. `id` absent (bouton Menus, Assets, Pixels) :
+   * le dernier onglet de ce type, sinon `fallbackId` (premier document de ce type).
+   */
+  onOpenDocument: (mode: EditorMode, id: string | null, options?: OpenDocumentOptions) => void;
+  /** Document de l’onglet mis à la corbeille : l’onglet se ferme. */
+  onDocumentTrashed: (mode: EditorMode, id: string) => void;
+  /** Document de l’onglet (nom, modifications), signalé même quand l’onglet n’est pas affiché. */
+  onSessionChange: (session: EditorSession) => void;
+  /** Menu ouvert au départ sans être lu sur disque (interface générée par IA, à relire puis enregistrer). */
+  initialMenu?: MenuDefinition | null;
+  /** Onglet ouvert pour créer un document : sans document demandé, il reste vide (sinon : le premier du type). */
+  startEmpty?: boolean;
+  /** Message d’état au départ (document créé ou dupliqué depuis un autre onglet). */
+  initialStatus?: string;
   /** Document demandé par l’adresse (`#/editeur/<mode>/<id>`). */
   route: { mode: EditorMode; id: string | null };
   /** Document effectivement ouvert, à refléter dans l’adresse. */
@@ -207,6 +247,13 @@ export interface EditorScreenProps {
 /** Éditeur : menus (toile, couches, slots, inspecteur) et assets du mode libre. */
 export function EditorScreen({
   active,
+  ref,
+  onOpenDocument,
+  onDocumentTrashed,
+  onSessionChange,
+  initialMenu = null,
+  startEmpty = false,
+  initialStatus = '',
   route,
   onRouteChange,
   request,
@@ -241,7 +288,7 @@ export function EditorScreen({
   const [background, setBackground] = useState<BackgroundMode>('slots-only');
   const [showSlots, setShowSlots] = useState(true);
   const [dialog, setDialog] = useState<DialogState>(null);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(initialStatus);
   const [leftTab, setLeftTab] = useState<'outline' | 'library'>('outline');
   const [alignReference, setAlignReference] = useState<AlignReference>('selection');
   // Fichier glissé au-dessus de la toile (repère de dépôt).
@@ -293,22 +340,33 @@ export function EditorScreen({
 
   // L’adresse de départ n’est lue qu’une fois, au premier chargement de l’espace.
   const initialRoute = useRef(route);
+  const initialMenuRef = useRef(initialMenu);
+  const startEmptyRef = useRef(startEmpty);
   useEffect(() => {
     // Chargement initial : les setState ont lieu après l’await du fetch, pas pendant l’effet.
     // oxlint-disable-next-line react/set-state-in-effect
     void Promise.all([refreshWorkspace(), refreshPixels()]).then(([snapshot, pixels]) => {
+      // Chaque onglet montre un seul document : celui demandé ; sans document demandé, le premier du type
+      // (onglet ouvert par l’adresse), ou rien (onglet ouvert pour une création, document disparu).
       const wanted = initialRoute.current;
+      const pickFirst = wanted.id === null && !startEmptyRef.current;
       if (snapshot && wanted.mode === 'assets') {
         setMode('assets');
-        setAssetId(snapshot.assets.find((candidate) => candidate.id === wanted.id)?.id ?? snapshot.assets[0]?.id ?? null);
+        setAssetId(snapshot.assets.find((candidate) => candidate.id === wanted.id)?.id ?? (pickFirst ? (snapshot.assets[0]?.id ?? null) : null));
       }
       if (wanted.mode === 'pixels') {
         setMode('pixels');
-        setPixelId(pixels.find((candidate) => candidate.id === wanted.id)?.id ?? pixels[0]?.id ?? null);
+        setPixelId(pixels.find((candidate) => candidate.id === wanted.id)?.id ?? (pickFirst ? (pixels[0]?.id ?? null) : null));
       }
-      const requested = wanted.mode === 'menus' ? snapshot?.menus.find((candidate) => candidate.id === wanted.id) : undefined;
-      const first = requested ?? snapshot?.menus.find((candidate) => !candidate.template) ?? snapshot?.menus[0];
-      if (first) dispatch({ type: 'load', menu: first });
+      if (wanted.mode === 'menus' && initialMenuRef.current) {
+        dispatch({ type: 'load', menu: initialMenuRef.current });
+        // Pas encore sur le disque : marqué modifié, l’enregistrement reste à faire après relecture.
+        dispatch({ type: 'saved', json: '' });
+      } else {
+        const requested = wanted.mode === 'menus' ? snapshot?.menus.find((candidate) => candidate.id === wanted.id) : undefined;
+        const first = pickFirst && wanted.mode === 'menus' ? (snapshot?.menus.find((candidate) => !candidate.template) ?? snapshot?.menus[0]) : undefined;
+        if (requested ?? first) dispatch({ type: 'load', menu: (requested ?? first)! });
+      }
       setReady(true);
     });
   }, [refreshWorkspace, refreshPixels]);
@@ -787,15 +845,10 @@ export function EditorScreen({
     };
   }, []);
 
-  const confirmDiscard = () =>
-    !dirty ||
-    !preferences.confirmDiscard ||
-    window.confirm('Des modifications ne sont pas enregistrées. Continuer quand même ?');
-
-  /** Ouvre un menu de l’espace ; faux si l’utilisateur garde le menu en cours (ou si le menu est introuvable). */
+  /** Ouvre un menu de l’espace dans cet onglet (encore vide) ; faux si le menu est introuvable. */
   const openMenu = (id: string) => {
     const target = workspace?.menus.find((candidate) => candidate.id === id);
-    if (!target || !confirmDiscard()) return false;
+    if (!target) return false;
     dispatch({ type: 'load', menu: target });
     setPreview(DEFAULT_PREVIEW);
     return true;
@@ -871,7 +924,6 @@ export function EditorScreen({
   };
 
   const handleNewMenu = async ({ id, name, rows, template, form }: NewMenuInput) => {
-    if (!confirmDiscard()) return;
     const created = form
       ? (await import('../model/bedrockForm')).createEmptyForm(id, name, form)
       : template
@@ -886,10 +938,8 @@ export function EditorScreen({
     await saveMenu(created);
     bumpTextures(baked);
     await refreshWorkspace();
-    dispatch({ type: 'load', menu: created });
-    setPreview(DEFAULT_PREVIEW);
     setDialog(null);
-    setStatus(`Menu « ${id} » créé`);
+    showMenu(created, `Menu « ${id} » créé`);
   };
 
   const handleLibraryLayer = async (source: LibrarySourceInfo, texture: LibraryTexture, top: number | null) => {
@@ -910,33 +960,18 @@ export function EditorScreen({
     if (workspace?.menus.some((candidate) => candidate.id === menuId)) {
       throw new Error(`Un menu « ${menuId} » existe déjà`);
     }
-    if (!confirmDiscard()) return;
     const { menu: created, warnings } = await buildMenuFromFont(source, index, fontId, menuId, fontId);
     await saveMenu(created);
     bumpTextures(created.layers.map((layer) => layer.texture));
     await refreshWorkspace();
-    dispatch({ type: 'load', menu: created });
-    setPreview(DEFAULT_PREVIEW);
     setLeftTab('outline');
-    const notes = warnings.length > 0 ? ` · ${warnings.length} avertissement(s), dont : ${warnings[0]}` : '';
-    setStatus(`Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
+    const notes = warnings.length > 0 ? ` · ${warnings.length} avertissement(s), dont : ${warnings[0]}` : '';
+    showMenu(created, `Menu « ${menuId} » importé (${created.layers.length} couches)${notes}`);
   };
 
-  const confirmLeaveAsset = () =>
-    !assetDirty ||
-    !preferences.confirmDiscard ||
-    window.confirm('L’asset a des modifications non enregistrées. Continuer quand même ?');
-
-  /** Change de mode ; faux si l’utilisateur reste sur l’asset en cours. */
-  const confirmLeavePixel = () =>
-    !pixelDirty ||
-    !preferences.confirmDiscard ||
-    window.confirm(`L’image a des modifications non enregistrées. Continuer quand même${NBSP}?`);
-
+  /** Change de mode dans cet onglet (encore vide). */
   const switchMode = (next: EditorMode) => {
     if (next === mode) return true;
-    if (mode === 'assets' && !confirmLeaveAsset()) return false;
-    if (mode === 'pixels' && !confirmLeavePixel()) return false;
     setAssetDirty(false);
     setPixelDirty(false);
     setMode(next);
@@ -946,25 +981,65 @@ export function EditorScreen({
     return true;
   };
 
-  /** Ouvre un asset ; faux s’il est introuvable ou si l’utilisateur reste sur l’asset en cours. */
+  /** Ouvre un asset dans cet onglet ; faux s’il est introuvable. */
   const openAsset = (id: string) => {
     if (id === assetId) return true;
-    if (!workspace?.assets.some((candidate) => candidate.id === id) || !confirmLeaveAsset()) return false;
+    if (!workspace?.assets.some((candidate) => candidate.id === id)) return false;
     setAssetDirty(false);
     setAssetId(id);
     return true;
   };
 
-  /** Ouvre une image de pixels (faux si elle est introuvable, ou si l’utilisateur reste sur l’image en cours). */
+  /** Ouvre une image de pixels dans cet onglet ; faux si elle est introuvable. */
   const openPixel = (id: string) => {
     if (id === pixelId) return true;
-    if (!pixelList.some((candidate) => candidate.id === id) || !confirmLeavePixel()) return false;
+    if (!pixelList.some((candidate) => candidate.id === id)) return false;
     setPixelDirty(false);
     setPixelId(id);
     return true;
   };
 
   const currentId = mode === 'menus' ? (menu?.id ?? null) : mode === 'assets' ? assetId : pixelId;
+
+  /** Premier document d’un type (le premier menu qui n’est pas un gabarit). */
+  const firstDocumentId = (next: EditorMode): string | null =>
+    next === 'menus'
+      ? (workspace?.menus.find((candidate) => !candidate.template)?.id ?? workspace?.menus[0]?.id ?? null)
+      : next === 'assets'
+        ? (workspace?.assets[0]?.id ?? null)
+        : (pixelList[0]?.id ?? null);
+
+  /**
+   * Ouvre un document : dans cet onglet tant qu’il est vide, sinon dans son propre onglet (l’onglet qui le
+   * montre déjà est affiché). `id` absent : le type seulement (bouton Menus, Assets, Pixels).
+   */
+  const requestOpen = (next: EditorMode, id: string | null) => {
+    if (currentId !== null) {
+      if (next !== mode || (id !== null && id !== currentId)) onOpenDocument(next, id, { fallbackId: firstDocumentId(next) });
+      return;
+    }
+    const target = id ?? (next !== mode ? firstDocumentId(next) : null);
+    if (!switchMode(next) || target === null) return;
+    if (next === 'menus') openMenu(target);
+    else if (next === 'assets') openAsset(target);
+    else openPixel(target);
+  };
+
+  /**
+   * Menu tout juste créé (enregistré, ou `unsaved` pour une interface à relire) : ouvert ici ou dans son
+   * onglet, avec son message d’état.
+   */
+  const showMenu = (created: MenuDefinition, message: string, unsaved = false) => {
+    if (currentId !== null) {
+      onOpenDocument('menus', created.id, { initialMenu: unsaved ? created : undefined, status: message });
+      return;
+    }
+    switchMode('menus');
+    dispatch({ type: 'load', menu: created });
+    if (unsaved) dispatch({ type: 'saved', json: '' });
+    setPreview(DEFAULT_PREVIEW);
+    setStatus(message);
+  };
 
   // Adresse → éditeur : un document demandé par l’adresse (accueil, Précédent / Suivant) est ouvert ;
   // s’il ne l’est pas (refus, introuvable), l’adresse revient au document resté ouvert.
@@ -974,7 +1049,7 @@ export function EditorScreen({
     const key = `${route.mode}/${route.id ?? ''}`;
     if (key === syncedRoute.current) return;
     syncedRoute.current = key;
-    let accepted = switchMode(route.mode);
+    let accepted = currentId === null || route.mode === mode ? switchMode(route.mode) : false;
     if (accepted && route.id) {
       if (route.mode === 'menus') accepted = route.id === menu?.id || openMenu(route.id);
       else if (route.mode === 'assets') accepted = openAsset(route.id);
@@ -993,9 +1068,9 @@ export function EditorScreen({
     applyRouteRef.current();
   }, [route.mode, route.id, ready, active]);
 
-  // Éditeur → adresse : le document ouvert est reflété dans l’adresse.
+  // Éditeur → onglet (et adresse) : le document ouvert est signalé, même quand l’onglet est caché.
   useEffect(() => {
-    if (!ready || !active) return;
+    if (!ready) return;
     syncedRoute.current = `${mode}/${currentId ?? ''}`;
     onRouteChange(mode, currentId);
   }, [ready, active, mode, currentId, onRouteChange]);
@@ -1024,8 +1099,8 @@ export function EditorScreen({
   useEffect(() => {
     handleRequestRef.current = handleRequest;
   });
-  // Une demande déjà présente au montage (éditeur recréé par un changement d’espace) est considérée comme traitée.
-  const handledRequest = useRef<number | null>(request?.nonce ?? null);
+  // La barre d’onglets ne transmet une demande qu’à l’onglet qui doit la traiter (jamais après un changement d’espace).
+  const handledRequest = useRef<number | null>(null);
   useEffect(() => {
     if (!request || !ready || request.nonce === handledRequest.current) return;
     handledRequest.current = request.nonce;
@@ -1037,22 +1112,41 @@ export function EditorScreen({
     onDirtyChange(anyDirty);
   }, [anyDirty, onDirtyChange]);
 
+  // Enregistrement demandé de l’extérieur (fermeture de l’onglet) : l’asset et l’image s’enregistrent
+  // dans leur éditeur, qui rend le résultat par `onSaveSettled`.
+  const saveWaiters = useRef<Array<(saved: boolean) => void>>([]);
+  const settleSave = useCallback((saved: boolean) => {
+    const waiters = saveWaiters.current;
+    saveWaiters.current = [];
+    for (const resolve of waiters) resolve(saved);
+  }, []);
+  const saveCurrent = (): Promise<boolean> => {
+    if (mode === 'menus') return dirty ? save() : Promise.resolve(true);
+    const pending = mode === 'assets' ? assetDirty : pixelDirty;
+    if (!pending) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      saveWaiters.current.push(resolve);
+      if (mode === 'assets') setAssetSaveRequest((count) => count + 1);
+      else setPixelSaveRequest((count) => count + 1);
+    });
+  };
+  const saveCurrentRef = useRef(saveCurrent);
+  useEffect(() => {
+    saveCurrentRef.current = saveCurrent;
+  });
+  useImperativeHandle(ref, () => ({ save: () => saveCurrentRef.current() }), []);
+
+  /** Avant de relire le document du disque : enregistrer, abandonner ou renoncer ; faux pour renoncer. */
+  const settleChanges = async (action: string) => {
+    if (!anyDirty || !preferences.confirmDiscard) return true;
+    const choice = await askUnsaved([documentName ?? currentId ?? ''], action);
+    if (choice === 'cancel') return false;
+    return choice === 'save' ? saveCurrentRef.current() : true;
+  };
+
   /* Documents : renommer, dupliquer, corbeille */
 
-  /** Premier document restant, après une mise à la corbeille. */
-  const openFallback = (type: DocumentType, snapshot: WorkspaceSnapshot | null) => {
-    if (type === 'menu') {
-      const next = snapshot?.menus.find((candidate) => !candidate.template) ?? snapshot?.menus[0] ?? null;
-      dispatch({ type: 'load', menu: next });
-      setPreview(DEFAULT_PREVIEW);
-    } else if (type === 'asset') {
-      setAssetDirty(false);
-      setAssetId(snapshot?.assets[0]?.id ?? null);
-    } else {
-      setPixelDirty(false);
-      void refreshPixels().then((list) => setPixelId(list?.[0]?.id ?? null));
-    }
-  };
+  const modeOf = (type: DocumentType): EditorMode => (type === 'menu' ? 'menus' : type === 'asset' ? 'assets' : 'pixels');
 
   /** Suit un renommage : le document ouvert prend son nouvel identifiant, ses références aussi. */
   const followRename = (
@@ -1102,7 +1196,7 @@ export function EditorScreen({
     if (event.kind === 'renamed' && event.to) {
       followRename(event.type, event.from, event.to, event.name ?? event.to, snapshot, event.updated ?? []);
     } else if (event.kind === 'trashed' && openDocumentId(event.type) === event.from) {
-      openFallback(event.type, snapshot);
+      onDocumentTrashed(modeOf(event.type), event.from);
     }
   });
   const handledEvent = useRef<number | null>(documentEvent?.nonce ?? null);
@@ -1119,11 +1213,12 @@ export function EditorScreen({
   /** Document ouvert pour ce type (`id` et `name`), ou `null`. */
   const documentSource = (type: DocumentType) => (type === 'menu' ? menu : type === 'asset' ? currentAsset : currentPixel);
 
-  const startRename = (type: DocumentType) => {
+  const startRename = async (type: DocumentType) => {
     if (type === 'menu' && menu) setDialog({ kind: 'rename', type, id: menu.id, name: menu.name });
-    else if (type === 'asset' && currentAsset && confirmLeaveAsset()) {
+    // Un asset ou une image renommés sont relus du disque : leurs modifications sont d’abord réglées.
+    else if (type === 'asset' && currentAsset && (await settleChanges('Renommer l’asset'))) {
       setDialog({ kind: 'rename', type, id: currentAsset.id, name: currentAsset.name });
-    } else if (type === 'pixel' && currentPixel && confirmLeavePixel()) {
+    } else if (type === 'pixel' && currentPixel && (await settleChanges('Renommer l’image'))) {
       setDialog({ kind: 'rename', type, id: currentPixel.id, name: currentPixel.name });
     }
   };
@@ -1152,19 +1247,12 @@ export function EditorScreen({
     try {
       const ids = (type === 'menu' ? knownMenus : type === 'asset' ? knownAssets : pixelList).map((candidate) => candidate.id);
       const summary = await duplicateWithFreeId(type, source.id, source.name, ids);
-      const snapshot = await refreshWorkspace();
+      await refreshWorkspace();
+      if (type === 'pixel') await refreshPixels();
       const unsaved = type === 'menu' ? dirty : type === 'asset' ? assetDirty : pixelDirty;
-      if (type === 'menu' && !unsaved) {
-        const created = snapshot?.menus.find((candidate) => candidate.id === summary.id);
-        if (created) dispatch({ type: 'load', menu: created });
-      } else if (type === 'asset' && !unsaved) {
-        setAssetId(summary.id);
-      } else if (type === 'pixel') {
-        await refreshPixels();
-        if (!unsaved) setPixelId(summary.id);
-      }
+      // La copie s’ouvre dans son propre onglet, avec le message ; l’original reste ouvert ici.
       const note = unsaved ? ' (copie de la version enregistrée)' : '';
-      setStatus(`« ${summary.id} » créé, copie de « ${source.id} »${note}`);
+      onOpenDocument(modeOf(type), summary.id, { status: `« ${summary.id} » créé, copie de « ${source.id} »${note}` });
     } catch (error) {
       setStatus(`Échec de la duplication : ${errorMessage(error)}`);
     }
@@ -1173,12 +1261,11 @@ export function EditorScreen({
   const trashDocumentNow = async (type: DocumentType) => {
     const source = documentSource(type);
     if (!source) return;
-    if (type === 'menu' ? !confirmDiscard() : type === 'asset' ? !confirmLeaveAsset() : !confirmLeavePixel()) return;
     try {
       const trashed = await trashWithConfirmation(type, source.id, source.name, preferences.confirmDelete);
       if (!trashed) return;
-      const snapshot = await refreshWorkspace();
-      openFallback(type, snapshot);
+      await refreshWorkspace();
+      onDocumentTrashed(modeOf(type), source.id);
       setStatus(`« ${source.id} » mis à la corbeille : ${trashed.trashed}`);
     } catch (error) {
       setStatus(`Échec de la mise à la corbeille : ${errorMessage(error)}`);
@@ -1191,7 +1278,7 @@ export function EditorScreen({
     const noun = type === 'menu' ? 'Menu' : type === 'asset' ? 'Asset' : 'Image';
     return [
       { heading: source ? `${noun} « ${source.name} »` : noun },
-      { label: 'Renommer…', icon: 'pencil', disabled: !onDisk, onSelect: () => startRename(type) },
+      { label: 'Renommer…', icon: 'pencil', disabled: !onDisk, onSelect: () => void startRename(type) },
       { label: 'Dupliquer', icon: 'copy', disabled: !onDisk, onSelect: () => void duplicateDocumentNow(type) },
       { separator: true },
       {
@@ -1214,25 +1301,30 @@ export function EditorScreen({
   };
 
   const handleNewAsset = async ({ id, name, width, height }: NewAssetInput) => {
-    if (!confirmLeaveAsset()) return;
     await saveAsset(createEmptyAsset(id, name, width, height));
     await refreshWorkspace();
-    setAssetDirty(false);
-    setAssetId(id);
     setDialog(null);
-    setStatus(`Asset « ${id} » créé`);
+    const message = `Asset « ${id} » créé`;
+    if (currentId !== null) {
+      onOpenDocument('assets', id, { status: message });
+    } else {
+      requestOpen('assets', id);
+      setStatus(message);
+    }
   };
 
-  /** Quitte le document ouvert en mode assets ou pixels (confirmation s’il reste des modifications). */
-  const confirmLeaveDocument = () => (mode === 'assets' ? confirmLeaveAsset() : mode === 'pixels' ? confirmLeavePixel() : true);
-
-  /** Montre une image de pixels (liste relue d’abord : elle vient peut-être d’être créée). */
-  const showPixel = async (id: string) => {
+  /** Montre une image de pixels : ici si l’onglet est vide (liste relue : elle vient peut-être d’être créée), sinon dans son onglet. */
+  const showPixel = async (id: string, message?: string) => {
+    if (currentId !== null) {
+      onOpenDocument('pixels', id, { status: message });
+      return;
+    }
     await refreshPixels();
     setAssetDirty(false);
     setPixelDirty(false);
     setMode('pixels');
     setPixelId(id);
+    if (message) setStatus(message);
   };
 
   /** Enregistre une nouvelle image (document et, si demandé, son PNG exporté) puis l’ouvre. */
@@ -1240,6 +1332,7 @@ export function EditorScreen({
     meta: { id: string; name: string; texture: string; source?: PixelSource },
     state: PixelState,
     exportPng: boolean,
+    message?: string,
   ) => {
     await savePixel(await encodeDocument(meta, state));
     if (exportPng) {
@@ -1247,16 +1340,14 @@ export function EditorScreen({
       bumpTextures([meta.texture]);
     }
     void refreshWorkspace();
-    await showPixel(meta.id);
+    await showPixel(meta.id, message);
   };
 
   const handleNewPixel = async ({ id, name, width, height, background }: NewPixelInput) => {
-    if (!confirmLeavePixel()) return;
     const fill: [number, number, number, number] | undefined =
       background === 'white' ? [255, 255, 255, 255] : background === 'black' ? [0, 0, 0, 255] : undefined;
-    await createPixel({ id, name, texture: defaultTexture(id) }, createState(width, height, fill), true);
     setDialog(null);
-    setStatus(`Image «${NBSP}${id}${NBSP}» créée`);
+    await createPixel({ id, name, texture: defaultTexture(id) }, createState(width, height, fill), true, `Image «${NBSP}${id}${NBSP}» créée`);
   };
 
   /**
@@ -1269,14 +1360,9 @@ export function EditorScreen({
     const existing = inPlace ? pixelList.find((candidate) => candidate.texture === inPlace) : undefined;
     if (existing) {
       if (mode === 'pixels' && pixelId === existing.id) return;
-      if (!confirmLeaveDocument()) return;
-      setAssetDirty(false);
-      setPixelDirty(false);
-      setMode('pixels');
-      setPixelId(existing.id);
+      await showPixel(existing.id);
       return;
     }
-    if (!confirmLeaveDocument()) return;
     try {
       const bitmap = await loadBitmap(url);
       if (bitmap.width > MAX_PIXEL_SIZE || bitmap.height > MAX_PIXEL_SIZE) {
@@ -1289,12 +1375,11 @@ export function EditorScreen({
       const blank = createState(bitmap.width, bitmap.height);
       const state: PixelState = { ...blank, layers: [{ ...blank.layers[0], data: bitmap.data }] };
       const texture = inPlace ?? defaultTexture(id);
-      await createPixel({ id, name: baseName, texture, source }, state, inPlace === null);
-      setStatus(
+      const message =
         inPlace
           ? `Image «${NBSP}${id}${NBSP}» créée${NBSP}: chaque enregistrement réécrit textures/${texture}`
-          : `Copie «${NBSP}${id}${NBSP}» créée dans textures/${texture}${NBSP}; l’original n’est pas modifié`,
-      );
+          : `Copie «${NBSP}${id}${NBSP}» créée dans textures/${texture}${NBSP}; l’original n’est pas modifié`;
+      await createPixel({ id, name: baseName, texture, source }, state, inPlace === null, message);
     } catch (error) {
       setStatus(`Échec de l’ouverture dans l’éditeur de pixels${NBSP}: ${errorMessage(error)}`);
     }
@@ -1347,7 +1432,7 @@ export function EditorScreen({
 
   /** Dessine l’icône d’un bouton : nouvelle image de 32 × 32, qui devient son icône, ouverte dans l’éditeur de pixels. */
   const handleDrawFormIcon = async (buttonId: string) => {
-    if (!menu?.form || !confirmLeavePixel()) return;
+    if (!menu?.form) return;
     const id = uniqueId(sanitizeId(`${menu.id}_${buttonId}`), pixelList.map((candidate) => candidate.id));
     const texture = defaultTexture(id);
     change((draft) => {
@@ -1366,17 +1451,14 @@ export function EditorScreen({
 
   /** Texture générée et contrainte : nouvelle image de pixels (PNG exporté), ouverte pour retouche. */
   const handleAiTexture = async ({ id, name, bitmap }: AiTextureResult) => {
-    if (!confirmLeaveDocument()) return;
     const blank = createState(bitmap.width, bitmap.height);
     const state: PixelState = { ...blank, layers: [{ ...blank.layers[0], data: bitmap.data }] };
-    await createPixel({ id, name, texture: defaultTexture(id) }, state, true);
     setDialog(null);
-    setStatus(`Image «${NBSP}${id}${NBSP}» générée et exportée dans textures/${defaultTexture(id)}${NBSP}: retouche-la ici`);
+    await createPixel({ id, name, texture: defaultTexture(id) }, state, true, `Image «${NBSP}${id}${NBSP}» générée et exportée dans textures/${defaultTexture(id)}${NBSP}: retouche-la ici`);
   };
 
   /** Menu produit par l’IA : textures dessinées par le studio écrites, menu ouvert **non enregistré** (à relire). */
   const handleAiInterface = async (generated: MenuDefinition) => {
-    if (!confirmDiscard()) return;
     const baked: string[] = [];
     for (const layer of generated.layers) {
       if (!layer.generator) continue;
@@ -1385,12 +1467,9 @@ export function EditorScreen({
     }
     bumpTextures(baked);
     await refreshWorkspace();
-    dispatch({ type: 'load', menu: generated });
-    // Pas encore sur le disque : marqué modifié, l’enregistrement (Ctrl+S) reste à faire après relecture.
-    dispatch({ type: 'saved', json: '' });
-    setPreview(DEFAULT_PREVIEW);
     setDialog(null);
-    setStatus(`Menu «${NBSP}${generated.id}${NBSP}» généré${NBSP}: relis-le, puis enregistre-le (Ctrl+S)`);
+    // Pas encore sur le disque : marqué modifié, l’enregistrement (Ctrl+S) reste à faire après relecture.
+    showMenu(generated, `Menu «${NBSP}${generated.id}${NBSP}» généré${NBSP}: relis-le, puis enregistre-le (Ctrl+S)`, true);
   };
 
   const openAiSettings = () => {
@@ -1467,12 +1546,8 @@ export function EditorScreen({
     void refreshWorkspace();
   };
 
-  const handleImportFontFromAssets = async (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) => {
-    if (!confirmLeaveAsset()) return;
-    await handleImportFont(source, index, fontId, menuId);
-    setAssetDirty(false);
-    setMode('menus');
-  };
+  const handleImportFontFromAssets = (source: LibrarySourceInfo, index: LibraryIndex, fontId: string, menuId: string) =>
+    handleImportFont(source, index, fontId, menuId);
 
   /** Zone de slots redimensionnée sur la toile : une seule entrée d’historique. */
   const handleSlotAreaChange = (id: string, area: SlotArea) =>
@@ -1755,6 +1830,9 @@ export function EditorScreen({
   useEffect(() => {
     if (active) onDocumentChange(documentKind, documentName);
   }, [active, documentKind, documentName, onDocumentChange]);
+  useEffect(() => {
+    onSessionChange({ kind: documentKind, name: documentName, dirty: anyDirty });
+  }, [documentKind, documentName, anyDirty, onSessionChange]);
 
   const renameDialog = dialog?.kind === 'rename' ? dialog : null;
 
@@ -1764,15 +1842,15 @@ export function EditorScreen({
         {workspacePill}
         <span className="tb-sep" aria-hidden="true" />
         <div className="segmented" role="tablist" aria-label="Type de document">
-          <button type="button" role="tab" aria-selected={mode === 'menus'} className={mode === 'menus' ? 'active' : ''} onClick={() => switchMode('menus')}>
+          <button type="button" role="tab" aria-selected={mode === 'menus'} className={mode === 'menus' ? 'active' : ''} onClick={() => requestOpen('menus', null)}>
             <Icon name="chest" />
             Menus
           </button>
-          <button type="button" role="tab" aria-selected={mode === 'assets'} className={mode === 'assets' ? 'active' : ''} onClick={() => switchMode('assets')}>
+          <button type="button" role="tab" aria-selected={mode === 'assets'} className={mode === 'assets' ? 'active' : ''} onClick={() => requestOpen('assets', null)}>
             <Icon name="image" />
             Assets
           </button>
-          <button type="button" role="tab" aria-selected={mode === 'pixels'} className={mode === 'pixels' ? 'active' : ''} onClick={() => switchMode('pixels')}>
+          <button type="button" role="tab" aria-selected={mode === 'pixels'} className={mode === 'pixels' ? 'active' : ''} onClick={() => requestOpen('pixels', null)}>
             <Icon name="pencil" />
             Pixels
           </button>
@@ -1784,7 +1862,7 @@ export function EditorScreen({
               <select
                 className="menu-picker"
                 value={menu?.id ?? ''}
-                onChange={(event) => openMenu(event.target.value)}
+                onChange={(event) => requestOpen('menus', event.target.value)}
                 onContextMenu={(event) => openContextMenu(event, documentMenu('menu'))}
                 disabled={knownMenus.length === 0}
                 aria-label="Menu ouvert"
@@ -1885,7 +1963,7 @@ export function EditorScreen({
             <select
               className="menu-picker"
               value={assetId ?? ''}
-              onChange={(event) => openAsset(event.target.value)}
+              onChange={(event) => requestOpen('assets', event.target.value)}
               onContextMenu={(event) => openContextMenu(event, documentMenu('asset'))}
               disabled={knownAssets.length === 0}
               aria-label="Asset ouvert"
@@ -1931,7 +2009,7 @@ export function EditorScreen({
             <select
               className="menu-picker"
               value={pixelId ?? ''}
-              onChange={(event) => openPixel(event.target.value)}
+              onChange={(event) => requestOpen('pixels', event.target.value)}
               onContextMenu={(event) => openContextMenu(event, documentMenu('pixel'))}
               disabled={pixelList.length === 0}
               aria-label="Image ouverte"
@@ -2034,7 +2112,7 @@ export function EditorScreen({
             flags={knownFlagList}
             errors={resolved?.errors ?? []}
             lookup={resolvedLookup}
-            onOpenMenu={(id) => void openMenu(id)}
+            onOpenMenu={(id) => requestOpen('menus', id)}
             onDrawIcon={(buttonId) => void handleDrawFormIcon(buttonId)}
             onImportIcon={(file) => importTexture(file, file.name)}
             iconRequest={iconRequest}
@@ -2352,7 +2430,7 @@ export function EditorScreen({
               variables={context?.variables ?? {}}
               lists={listSources}
               components={componentChoices}
-              onOpenMenu={(id) => void openMenu(id)}
+              onOpenMenu={(id) => requestOpen('menus', id)}
               onDetachInclude={handleDetachInclude}
             />
           )}
@@ -2409,6 +2487,7 @@ export function EditorScreen({
                 onSave={handleSaveAsset}
                 onDirtyChange={setAssetDirty}
                 saveRequest={assetSaveRequest}
+                onSaveSettled={settleSave}
                 onImportImage={importTexture}
               />
             </Suspense>
@@ -2447,6 +2526,7 @@ export function EditorScreen({
                 active={active}
                 defaultShowGrid={preferences.showGrid}
                 saveRequest={pixelSaveRequest}
+                onSaveSettled={settleSave}
                 onSave={handleSavePixel}
                 onDirtyChange={setPixelDirty}
               />

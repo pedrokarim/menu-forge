@@ -10,8 +10,8 @@ main pas à pas dans le [guide](guide.md).
 
 - **Rail** vertical à gauche : Accueil, Éditeur, Bibliothèques, Shaders,
   Paramètres, À propos (`Ctrl+1` à `Ctrl+6`), chacun avec une infobulle qui
-  rappelle son raccourci ; l’écran actif est marqué en or. Tant qu’une génération par IA
-  tourne, le bas du rail montre un picto animé et leur nombre (voir
+  rappelle son raccourci ; l’écran actif est marqué en or. Tant qu’une
+  génération par IA tourne, le bas du rail montre un picto animé et leur nombre (voir
   [Notifications](#fenêtre-colonnes-et-notifications)).
 - **Pastille de l’espace de travail**, en haut de chaque écran : un clic
   ouvre l’écran Espaces de travail (`Ctrl+O`).
@@ -30,9 +30,12 @@ main pas à pas dans le [guide](guide.md).
 | Paramètres | `#/parametres` |
 | À propos | `#/a-propos` |
 
-Quitter l’éditeur, ou changer d’écran, avec des changements non enregistrés
-demande une confirmation. Au premier lancement, sans espace de travail connu,
-le studio ouvre l’écran Espaces de travail avec un espace proposé,
+Changer d’écran ne perd rien : l’éditeur et ses onglets restent ouverts.
+Fermer un onglet modifié, changer d’espace de travail ou quitter le studio
+ouvre le dialogue « Enregistrer, Ne pas enregistrer, Annuler » (réglage
+Paramètres, Confirmations, « Avant d’abandonner des modifications non
+enregistrées »). Au premier lancement, sans espace de travail connu, le
+studio ouvre l’écran Espaces de travail avec un espace proposé,
 `Documents/menu-forge` (créé s’il manque), puis l’accueil.
 
 ## Fenêtre, colonnes et notifications
@@ -42,7 +45,8 @@ le studio ouvre l’écran Espaces de travail avec un espace proposé,
   comprise).
 - **Passage à la ligne** : noms, chemins et messages passent à la ligne au
   lieu d’être coupés ; les barres d’outils passent à la ligne par groupes. Seuls
-  la barre de titre et les listes déroulantes gardent des points de suspension.
+  la barre de titre, les listes déroulantes et les noms d’onglet (240 px au
+  plus, nom entier dans l’infobulle) gardent des points de suspension.
 - **Colonnes latérales** : dans les quatre éditeurs (menus, assets, pixels,
   formulaires Bedrock), les colonnes de gauche et de droite se règlent par la
   poignée de leur bord, à la souris ou au clavier, entre une largeur minimale
@@ -89,6 +93,29 @@ Trois modes : **Menus**, **Assets** et **Pixels** ; un menu qui porte la clé
 `form` s’ouvre dans l’éditeur de formulaires Bedrock. Le bouton « … » à côté
 du sélecteur de document renomme, duplique ou met à la corbeille le document
 ouvert. Les éditeurs secondaires sont chargés à la demande.
+
+### Onglets et session
+
+- **Un onglet par document** (menu, asset ou image), avec son propre
+  historique, sa sélection et ses modifications. Un document choisi dans la
+  liste, créé, dupliqué, généré ou ouvert depuis l’accueil s’ouvre dans son
+  onglet ; s’il est déjà ouvert, son onglet est affiché. Les boutons Menus,
+  Assets et Pixels affichent le dernier onglet de ce type (sinon le premier
+  document du type).
+- **Modifications non enregistrées** : un carré d’or remplace la croix de
+  l’onglet. Fermer l’onglet (croix, clic du milieu, `Ctrl+W`) demande
+  **Enregistrer**, **Ne pas enregistrer** ou **Annuler** ; plusieurs onglets
+  fermés ensemble sont réglés en une fois (« Tout enregistrer »).
+- **Clic droit** sur un onglet : Enregistrer, Fermer, Fermer les autres
+  onglets, Fermer les onglets à droite, Fermer les onglets enregistrés, Tout
+  fermer. Glisser un onglet le déplace ; les flèches passent d’un onglet à
+  l’autre, `Suppr` ferme l’onglet focalisé. Le bouton **+** crée un menu,
+  un asset ou une image.
+- **Session** : les documents ouverts et l’onglet affiché sont gardés par
+  espace de travail, sur ce poste, et rouverts au lancement (les
+  modifications non enregistrées, elles, ne sont pas gardées).
+- Sans onglet, l’éditeur propose de créer un menu, un asset ou une image,
+  ou de revenir aux documents récents.
 
 ### Éditeur de menus
 
