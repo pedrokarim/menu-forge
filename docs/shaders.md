@@ -6,20 +6,40 @@ ce que fait un script, on le modifie et le rendu suit à la frappe. Il sert à
 comprendre un shader existant et à mettre au point une technique d’interface
 (courbes, portraits, effets de texte) avant de l’essayer en jeu.
 
-![L’écran Shaders : fichiers chargés, scène « Courbe », rendu et éditeur](../site/assets/screens/shaders.png)
+![L’écran Shaders : les exemples, l’exemple « Déclencheur par couleur », sa scène et son rendu](../site/assets/screens/shaders.png)
 
 ## Utilisation
 
-1. **Ouvrir un dossier de shaders…** : le dossier `shaders/` d’un pack, ou
+1. **Exemples** : l’écran s’ouvre sur le premier exemple intégré ; un clic
+   en charge un autre (fichiers, scène, animation). Chaque exemple dit ce
+   qu’il fait et quoi essayer.
+2. **Ouvrir les shaders d’un pack…** : le dossier `shaders/` d’un pack, ou
    l’un de ses parents. Seuls les `.vsh`, `.fsh` et `.glsl` sont lus ; les
    chemins sont pris à partir de `shaders/` (`core/item.fsh`,
    `include/ma_lib.glsl`).
-2. **Programme** : une paire `.vsh` / `.fsh` trouvée dans le dossier.
-3. **Scène** : ce que le jeu enverrait au shader (voir plus bas).
-4. **Éditeur** : cliquer un fichier dans la liste l’ouvre ; chaque modification
-   recompile et redessine (après un court délai). Les erreurs sont ramenées au
-   fichier et à la ligne d’origine, même dans un include ; un clic sur
-   `fichier:ligne` ouvre ce fichier.
+3. **Programme** : une paire `.vsh` / `.fsh` trouvée parmi les fichiers.
+4. **Scène** : ce que le jeu enverrait au shader (voir plus bas).
+5. **Éditeur** : cliquer un fichier dans la liste l’ouvre ; chaque
+   modification recompile et redessine (après un court délai). Les erreurs sont
+   ramenées au fichier et à la ligne d’origine, même dans un include ; un clic
+   sur `fichier:ligne` ouvre ce fichier. **Revenir à l’original** annule les
+   retouches d’un exemple.
+
+## Exemples intégrés
+
+| Exemple | Scène | Ce qu’il montre |
+|---|---|---|
+| Les bases | libre | le plus petit shader utile, commenté ligne par ligne : le vertex shader place les coins, le fragment shader colore les pixels |
+| Noir et blanc | libre | un calcul de couleur pixel par pixel (luminosité perçue) |
+| Vague animée | libre | lire la texture à côté, d’un décalage qui suit `GameTime` |
+| Déclencheur par couleur | libre | la technique des serveurs : une teinte précise (`#FFFD01`) active un effet, toute autre teinte garde le rendu normal |
+| Courbe de prix (Enderium) | courbe | un graphe de menu dont chaque colonne porte ses valeurs dans sa teinte |
+| Portrait du profil (Enderium) | portrait | un buste en 3D calculé par lancer de rayons dans la skin |
+
+Les fichiers sont dans `studio/src/shader/examples/<id>/`, rangés comme dans
+un pack ; la liste et les textes, dans `studio/src/shader/examples.ts`. Les
+deux derniers exemples reprennent les includes d’Enderium, qui s’en sert en
+jeu.
 
 Les modifications restent dans le studio : le fichier du disque ne change pas.
 Recopier le texte dans le pack une fois satisfait.

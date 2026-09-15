@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
+import { SHADER_EXAMPLES, exampleFiles } from '../shader/examples';
+import type { ShaderExample } from '../shader/examples';
 import { programsIn } from '../shader/glsl';
-import type { ShaderError, ShaderFile } from '../shader/glsl';
+import type { ShaderFile } from '../shader/glsl';
 import { ShaderRenderer } from '../shader/renderer';
 import type { RenderResult } from '../shader/renderer';
 import { DEFAULT_INPUTS, SCENES } from '../shader/scenes';
@@ -12,6 +14,9 @@ import './shaderlab.css';
 
 const SHADER_FILE = /\.(vsh|fsh|glsl)$/i;
 const SCALES = [2, 3, 4, 6];
+
+/** Ce qui est chargé : un exemple intégré ou un dossier du disque. */
+type Source = { kind: 'example'; example: ShaderExample } | { kind: 'folder'; name: string };
 
 /** Chemin d’un fichier chargé, à partir du dossier `shaders/` s’il apparaît (`core/item.fsh`). */
 function shaderPath(relative: string): string {
@@ -46,19 +51,19 @@ function colorToHex(color: [number, number, number, number]): string {
 }
 
 /**
- * Visualiseur de shaders : charge les shaders d’un pack (dossier `shaders/`), les compile en WebGL2 avec des
- * includes vanilla minimaux, et les exécute sur une scène d’essai (courbe, portrait, quad libre). Chaque
- * modification d’un fichier recompile et redessine aussitôt.
+ * Visualiseur de shaders : exécute les shaders « core » d’un pack (ou un exemple intégré) en WebGL2, avec
+ * des includes du jeu minimaux, sur une scène d’essai (courbe, portrait, quad libre). Chaque modification
+ * d’un fichier recompile et redessine aussitôt.
  */
 export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<ShaderRenderer | null>(null);
-  const [files, setFiles] = useState<ShaderFile[]>([]);
-  const [folder, setFolder] = useState<string | null>(null);
-  const [program, setProgram] = useState('');
-  const [sceneId, setSceneId] = useState<SceneId>('chart');
+  const [source, setSource] = useState<Source>({ kind: 'example', example: SHADER_EXAMPLES[0] });
+  const [files, setFiles] = useState<ShaderFile[]>(() => exampleFiles(SHADER_EXAMPLES[0].id));
+  const [program, setProgram] = useState(SHADER_EXAMPLES[0].program);
+  const [sceneId, setSceneId] = useState<SceneId>(SHADER_EXAMPLES[0].scene);
   const [inputs, setInputs] = useState<SceneInputs>(DEFAULT_INPUTS);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(SHADER_EXAMPLES[0].open);
   const [scale, setScale] = useState(4);
   const [animate, setAnimate] = useState(false);
   const [result, setResult] = useState<RenderResult | null>(null);
@@ -68,6 +73,8 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
   const programs = useMemo(() => programsIn(files), [files]);
   const geometry = useMemo(() => scene.build(inputs), [scene, inputs]);
   const editedFile = files.find((file) => file.path === editing) ?? null;
+  const example = source.kind === 'example' ? source.example : null;
+  const modified = example !== null && JSON.stringify(files) !== JSON.stringify(exampleFiles(example.id));
 
   useEffect(() => {
     if (!canvasRef.current || rendererRef.current) return;
@@ -97,19 +104,29 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
     };
   }, [program, files, geometry, scale, animate]);
 
-  const loadFolder = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+  const loadExample = (next: ShaderExample) => {
+    setSource({ kind: 'example', example: next });
+    setFiles(exampleFiles(next.id));
+    setProgram(next.program);
+    setSceneId(next.scene);
+    setEditing(next.open);
+    setAnimate(next.animate ?? false);
+    setInputs((current) => ({ ...current, color: next.color ?? DEFAULT_INPUTS.color }));
+  };
+
+  const loadFolder = async (event: ChangeEvent<HTMLInputElement>) => {
     const list = [...(event.target.files ?? [])].filter((file) => SHADER_FILE.test(file.name));
     event.target.value = '';
     if (list.length === 0) return;
     const loaded = await Promise.all(list.map(async (file) => ({ path: shaderPath(file.webkitRelativePath || file.name), source: await file.text() })));
     loaded.sort((a, b) => a.path.localeCompare(b.path));
     setFiles(loaded);
-    setFolder((list[0].webkitRelativePath || list[0].name).split('/')[0]);
+    setSource({ kind: 'folder', name: (list[0].webkitRelativePath || list[0].name).split('/')[0] });
     const found = programsIn(loaded);
     const preferred = found.includes(scene.program) ? scene.program : found[0] ?? '';
     setProgram(preferred);
     setEditing(loaded.find((file) => file.path === `${preferred}.fsh`)?.path ?? loaded[0].path);
-  }, [scene.program]);
+  };
 
   const changeScene = (id: SceneId) => {
     setSceneId(id);
@@ -120,9 +137,9 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
     }
   };
 
-  const editSource = (source: string) => {
+  const editSource = (text: string) => {
     if (!editing) return;
-    setFiles((current) => current.map((file) => (file.path === editing ? { ...file, source } : file)));
+    setFiles((current) => current.map((file) => (file.path === editing ? { ...file, source: text } : file)));
   };
 
   const loadImage = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -133,74 +150,119 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
     setInputs((current) => ({ ...current, image }));
   };
 
-  const errorsByFile = (errors: ShaderError[]) => errors.filter((error) => !editing || error.file === editing || error.file === '');
-
   return (
     <ScreenFrame title="Shaders" icon="code" pill={pill}>
       <div className="shaderlab">
-        <aside className="shaderlab-side card">
-          <label className="shaderlab-folder">
-            <input
-              type="file"
-              multiple
-              onChange={(event) => void loadFolder(event)}
-              {...{ webkitdirectory: '', directory: '' }}
-            />
-            <span className="shaderlab-folder-button">
-              <Icon name="folder" />
-              {folder ? 'Changer de dossier…' : 'Ouvrir un dossier de shaders…'}
-            </span>
-          </label>
-          <p className="muted shaderlab-note">
-            Le dossier <span className="mono">shaders/</span> d’un pack (ou d’un de ses sous-dossiers). Les includes du jeu
-            absents sont remplacés par des versions minimales du studio.
-          </p>
-          {folder && (
-            <>
-              <div className="field">
-                <span className="field-label">Programme</span>
-                <select aria-label="Programme" value={program} onChange={(event) => setProgram(event.target.value)}>
-                  {programs.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <span className="field-label">Fichiers ({files.length})</span>
-                <ul className="shaderlab-files">
-                  {files.map((file) => (
-                    <li key={file.path}>
-                      <button
-                        type="button"
-                        className={file.path === editing ? 'active' : undefined}
-                        onClick={() => setEditing(file.path)}
-                      >
-                        <span className="mono shaderlab-file-name" title={file.path}>{file.path}</span>
-                        {result?.errors.some((error) => error.file === file.path) && <Icon name="warning" />}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
-          )}
+        <aside className="shaderlab-side">
+          <section className="card shaderlab-examples">
+            <h3>Exemples</h3>
+            <ul>
+              {SHADER_EXAMPLES.map((candidate) => (
+                <li key={candidate.id}>
+                  <button
+                    type="button"
+                    className={example?.id === candidate.id ? 'active' : undefined}
+                    aria-pressed={example?.id === candidate.id}
+                    onClick={() => loadExample(candidate)}
+                  >
+                    <strong>{candidate.title}</strong>
+                    <span className="muted">{candidate.summary}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <label className="shaderlab-folder">
+              <input
+                type="file"
+                multiple
+                onChange={(event) => void loadFolder(event)}
+                {...{ webkitdirectory: '', directory: '' }}
+              />
+              <span className="shaderlab-folder-button">
+                <Icon name="folder" />
+                Ouvrir les shaders d’un pack…
+              </span>
+            </label>
+            {source.kind === 'folder' && (
+              <p className="muted shaderlab-note">
+                Dossier <span className="mono">{source.name}</span> chargé. Choisissez le dossier{' '}
+                <span className="mono">shaders/</span> d’un pack (ou un parent) ; les includes du jeu absents sont
+                remplacés par des versions minimales.
+              </p>
+            )}
+          </section>
+
+          <section className="card">
+            <div className="field">
+              <span className="field-label">Programme</span>
+              <select aria-label="Programme" value={program} onChange={(event) => setProgram(event.target.value)}>
+                {programs.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <span className="field-label">Fichiers ({files.length})</span>
+              <ul className="shaderlab-files">
+                {files.map((file) => (
+                  <li key={file.path}>
+                    <button
+                      type="button"
+                      className={file.path === editing ? 'active' : undefined}
+                      onClick={() => setEditing(file.path)}
+                    >
+                      <span className="mono shaderlab-file-name" title={file.path}>{file.path}</span>
+                      {result?.errors.some((error) => error.file === file.path) && <Icon name="warning" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          <section className="card shaderlab-help">
+            <h3>Comment ça marche</h3>
+            <p>
+              Minecraft dessine chaque élément avec deux petits programmes : le <strong>vertex shader</strong>{' '}
+              (<span className="mono">.vsh</span>) place les coins, le <strong>fragment shader</strong>{' '}
+              (<span className="mono">.fsh</span>) choisit la couleur de chaque pixel. Un resource pack peut les
+              remplacer.
+            </p>
+            <p>
+              Ici, le studio imite ce que le jeu envoie (la <strong>scène</strong>) et exécute les shaders : modifiez
+              le code en bas, le rendu suit.
+            </p>
+          </section>
         </aside>
 
         <section className="shaderlab-main">
+          {example && (
+            <div className="card shaderlab-intro">
+              <h3>{example.title}</h3>
+              <p>{example.summary}</p>
+              <p>
+                <strong>À essayer :</strong> {example.tryThis}
+              </p>
+            </div>
+          )}
+
           <div className="card shaderlab-scene">
-            <div className="segmented" role="group" aria-label="Scène">
-              {SCENES.map((candidate) => (
-                <button
-                  key={candidate.id}
-                  type="button"
-                  className={candidate.id === sceneId ? 'active' : undefined}
-                  onClick={() => changeScene(candidate.id)}
-                >
-                  {candidate.label}
-                </button>
-              ))}
+            <div className="field">
+              <span className="field-label">Scène : ce que le jeu envoie au shader</span>
+              <div className="segmented" role="group" aria-label="Scène">
+                {SCENES.map((candidate) => (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    className={candidate.id === sceneId ? 'active' : undefined}
+                    onClick={() => changeScene(candidate.id)}
+                  >
+                    {candidate.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <p className="muted shaderlab-note">{scene.hint}</p>
             <div className="shaderlab-inputs">
@@ -267,12 +329,13 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
 
           <div className="card shaderlab-preview">
             {setupError && <p className="field-error">{setupError}</p>}
-            {!folder && !setupError && <p className="muted">Ouvrez un dossier de shaders pour voir le rendu.</p>}
-            <canvas ref={canvasRef} className="shaderlab-canvas" hidden={!folder} />
-            {result && folder && (
+            <canvas ref={canvasRef} className="shaderlab-canvas" />
+            {result && (
               <p className="muted shaderlab-status">
-                {result.errors.length === 0 ? `Compilé et dessiné en ${result.milliseconds.toFixed(1)} ms` : `${result.errors.length} erreur(s)`}
-                {result.missing.length > 0 && ` · includes absents : ${result.missing.join(', ')}`}
+                {result.errors.length === 0
+                  ? `Compilé et dessiné en ${result.milliseconds.toFixed(1)} ms`
+                  : `${result.errors.length} erreur${result.errors.length > 1 ? 's' : ''} : voir sous le code`}
+                {result.missing.length > 0 && ` · includes absents : ${result.missing.join(', ')}`}
               </p>
             )}
           </div>
@@ -281,17 +344,25 @@ export function ShaderLabScreen({ pill }: { pill: ReactNode }) {
             <div className="card shaderlab-editor">
               <div className="shaderlab-editor-head">
                 <span className="mono">{editedFile.path}</span>
-                <span className="muted">Modifications dans le studio seulement (le fichier du disque ne change pas).</span>
+                <span className="shaderlab-editor-actions">
+                  <span className="muted">Modifications gardées dans le studio seulement.</span>
+                  {modified && example && (
+                    <button type="button" onClick={() => loadExample(example)}>
+                      <Icon name="undo" />
+                      Revenir à l’original
+                    </button>
+                  )}
+                </span>
               </div>
               <textarea
                 className="mono shaderlab-code"
                 spellCheck={false}
+                aria-label={`Code de ${editedFile.path}`}
                 value={editedFile.source}
                 onChange={(event) => editSource(event.target.value)}
               />
               {result && result.errors.length > 0 && (
                 <ul className="shaderlab-errors">
-                  {errorsByFile(result.errors).length === 0 && <li className="muted">Erreurs dans d’autres fichiers : voir la liste.</li>}
                   {result.errors.map((error, index) => (
                     <li key={index} className="mono">
                       <button type="button" className="ghost" onClick={() => error.file && setEditing(error.file)}>

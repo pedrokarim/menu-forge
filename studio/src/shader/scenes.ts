@@ -114,7 +114,7 @@ export function encodeChart(values: number[], columns: number): number[] {
 const CHART: SceneDefinition = {
   id: 'chart',
   label: 'Courbe (core/item)',
-  hint: 'Une colonne par segment ; chaque colonne porte ses deux valeurs dans sa couleur de sommet. La texture « champ » donne la position (rouge = x, vert = y, bleu 167, alpha 251).',
+  hint: 'Une colonne par segment ; chaque colonne porte ses deux valeurs dans sa couleur de sommet. La texture « champ » donne la position (rouge = x, vert = y, bleu 167, alpha 251).',
   program: 'core/item',
   build(inputs) {
     const width = 158;
@@ -166,7 +166,7 @@ export function defaultSkin(): SceneBitmap {
 const PORTRAIT: SceneDefinition = {
   id: 'portrait',
   label: 'Portrait (core/entity)',
-  hint: 'Face avant d’une tête de joueur de 68 × 70 px (le rapport qui déclenche le buste), chapeau devant ; skin 64 × 64.',
+  hint: 'Face avant d’une tête de joueur de 68 × 70 px (le rapport qui déclenche le buste), chapeau devant ; skin 64 × 64.',
   program: 'core/entity',
   build(inputs) {
     const skin = inputs.image && inputs.image.width === 64 && inputs.image.height === 64 ? inputs.image : defaultSkin();

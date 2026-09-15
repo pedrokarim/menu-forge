@@ -2,7 +2,7 @@
 
 .shaderlab {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -10,9 +10,60 @@
 .shaderlab-side {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  position: sticky;
-  top: 0;
+  gap: 16px;
+  min-width: 0;
+}
+
+.shaderlab-side .card,
+.shaderlab-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shaderlab-help p,
+.shaderlab-intro p {
+  margin: 0;
+}
+
+.shaderlab-examples ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shaderlab-examples li button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  height: auto;
+  padding: 6px 10px;
+  text-align: left;
+  white-space: normal;
+}
+
+.shaderlab-examples li button .muted {
+  font-size: 0.85em;
+  line-height: 1.35;
+}
+
+.shaderlab-examples li button.active {
+  border-color: var(--ds-gold);
+}
+
+.shaderlab-examples li button.active strong {
+  color: var(--ds-gold);
+}
+
+.shaderlab-editor-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .shaderlab-folder input[type='file'] {
@@ -27,13 +78,13 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border: 1px solid var(--line, #3a3f48);
+  border: 1px solid var(--ds-edge);
   border-radius: 4px;
   cursor: pointer;
 }
 
 .shaderlab-folder:focus-within .shaderlab-folder-button {
-  outline: 2px solid var(--gold, #e0b23a);
+  outline: 2px solid var(--ds-gold);
 }
 
 .shaderlab-note {
@@ -65,7 +116,7 @@
 }
 
 .shaderlab-files button.active {
-  border-color: var(--gold, #e0b23a);
+  border-color: var(--ds-gold);
 }
 
 .shaderlab-main {
@@ -146,7 +197,7 @@
   margin: 0;
   padding: 0;
   font-size: 12px;
-  color: var(--danger, #f06a5e);
+  color: var(--ds-danger);
 }
 
 .shaderlab-errors button {
@@ -160,7 +211,4 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .shaderlab-side {
-    position: static;
-  }
 }
