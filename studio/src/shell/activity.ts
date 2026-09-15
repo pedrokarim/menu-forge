@@ -8,6 +8,7 @@ export const SCREEN_TITLES: Record<ScreenId, string> = {
   editor: 'Éditeur',
   workspaces: 'Espaces de travail',
   libraries: 'Bibliothèques',
+  shaders: 'Shaders',
   settings: 'Paramètres',
   about: 'À propos',
 };
@@ -23,6 +24,7 @@ const SCREEN_ACTIVITY: Record<PlainScreen, { details: string; image: PresenceIma
   home: { details: 'Sur l’accueil', image: 'home' },
   workspaces: { details: 'Choisit un espace de travail', image: 'workspace' },
   libraries: { details: 'Parcourt les bibliothèques', image: 'library' },
+  shaders: { details: 'Essaie des shaders', image: 'asset' },
   settings: { details: 'Règle le studio', image: 'settings' },
   about: { details: 'Lit la page À propos', image: 'about' },
 };

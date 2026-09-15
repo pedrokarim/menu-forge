@@ -6,7 +6,7 @@ où, puis ce qu’il reste à faire côté serveur, sur Java et sur Bedrock. Le 
 
 ## Avant le premier export
 
-Les dossiers cibles se règlent dans **Paramètres** (`Ctrl+4`) ; tant qu’un
+Les dossiers cibles se règlent dans **Paramètres** (`Ctrl+5`) ; tant qu’un
 dossier n’est pas réglé, l’export correspondant est refusé avec un message.
 
 | Section | Réglage | Rôle |

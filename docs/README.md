@@ -30,6 +30,7 @@ La même documentation se lit sur le site du projet :
 | Page | Pour |
 |---|---|
 | [Format des menus](format.md) | le format `*.menu.json` : couches, textes, slots, état, conditions, actions, gabarits, composants, formulaires Bedrock |
+| [Visualiseur de shaders](shaders.md) | exécuter et modifier les shaders « core » d’un pack dans le studio : scènes d’essai, includes, limites |
 | [Modèle de rendu Java](rendering.md) | comment une couche devient un glyphe : coordonnées, `ascent`, avance, police pixel, pièges connus |
 | [`menu.schema.json`](menu.schema.json), [`asset.schema.json`](asset.schema.json) | les schémas JSON des menus et des assets, pour valider un fichier écrit à la main ou généré |
 

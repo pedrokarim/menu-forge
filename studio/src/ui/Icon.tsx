@@ -8,6 +8,7 @@ import { AlignStartHorizontal } from 'pixelarticons/react/AlignStartHorizontal';
 import { AlignStartVertical } from 'pixelarticons/react/AlignStartVertical';
 import { AlignVerticalDistributeCenter } from 'pixelarticons/react/AlignVerticalDistributeCenter';
 import { Clipboard } from 'pixelarticons/react/Clipboard';
+import { Code } from 'pixelarticons/react/Code';
 import { Lock } from 'pixelarticons/react/Lock';
 import { MoreHorizontal } from 'pixelarticons/react/MoreHorizontal';
 import { Scissors } from 'pixelarticons/react/Scissors';
@@ -323,6 +324,7 @@ const ICONS = {
   'align-left': TextAlignLeft,
   'align-right': TextAlignRight,
   'arrow-down': ArrowDown,
+  code: Code,
   'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
   'arrow-up': ArrowUp,

@@ -7,7 +7,7 @@ import { useMemo, useSyncExternalStore } from 'react';
  */
 
 export type EditorMode = 'menus' | 'assets' | 'pixels';
-export type PlainScreen = 'home' | 'workspaces' | 'libraries' | 'settings' | 'about';
+export type PlainScreen = 'home' | 'workspaces' | 'libraries' | 'shaders' | 'settings' | 'about';
 export type ScreenId = PlainScreen | 'editor';
 export type Route = { screen: PlainScreen } | { screen: 'editor'; mode: EditorMode; id: string | null };
 
@@ -15,6 +15,7 @@ const SLUGS: Record<PlainScreen, string> = {
   home: 'accueil',
   workspaces: 'espaces',
   libraries: 'bibliotheques',
+  shaders: 'shaders',
   settings: 'parametres',
   about: 'a-propos',
 };

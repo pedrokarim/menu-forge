@@ -8,9 +8,9 @@ main pas à pas dans le [guide](guide.md).
 
 ## Navigation
 
-- **Rail** vertical à gauche : Accueil, Éditeur, Bibliothèques, Paramètres,
-  À propos (`Ctrl+1` à `Ctrl+5`), chacun avec une infobulle qui rappelle son
-  raccourci ; l’écran actif est marqué en or. Tant qu’une génération par IA
+- **Rail** vertical à gauche : Accueil, Éditeur, Bibliothèques, Shaders,
+  Paramètres, À propos (`Ctrl+1` à `Ctrl+6`), chacun avec une infobulle qui
+  rappelle son raccourci ; l’écran actif est marqué en or. Tant qu’une génération par IA
   tourne, le bas du rail montre un picto animé et leur nombre (voir
   [Notifications](#fenêtre-colonnes-et-notifications)).
 - **Pastille de l’espace de travail**, en haut de chaque écran : un clic
@@ -26,6 +26,7 @@ main pas à pas dans le [guide](guide.md).
 | Éditeur d’assets | `#/editeur/assets/<id>` |
 | Éditeur de pixels | `#/editeur/pixels/<id>` |
 | Bibliothèques | `#/bibliotheques` |
+| Shaders | `#/shaders` |
 | Paramètres | `#/parametres` |
 | À propos | `#/a-propos` |
 
@@ -219,6 +220,12 @@ extrait, avec son nom affiché, son identifiant et sa propriété), **Modifier
 le nom et la propriété**, **Réindexer**, **Afficher dans l’explorateur**,
 **Débrancher** (rien n’est supprimé sur le disque). Un rappel reste visible :
 les assets tiers restent sur ce poste.
+
+## Shaders
+
+Exécute les shaders « core » d’un pack sur une scène d’essai (courbe,
+portrait, quad libre), avec un éditeur qui recompile à la frappe et ramène
+les erreurs à leur fichier et leur ligne ([`shaders.md`](shaders.md)).
 
 ## Paramètres
 

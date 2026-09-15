@@ -11,8 +11,9 @@ const RAIL_ITEMS: ReadonlyArray<{ screen: RailScreen; label: string; icon: IconN
   { screen: 'home', label: 'Accueil', icon: 'home', shortcut: 'Ctrl+1' },
   { screen: 'editor', label: 'Éditeur', icon: 'chest', shortcut: 'Ctrl+2' },
   { screen: 'libraries', label: 'Bibliothèques', icon: 'library', shortcut: 'Ctrl+3' },
-  { screen: 'settings', label: 'Paramètres', icon: 'sliders', shortcut: 'Ctrl+4' },
-  { screen: 'about', label: 'À propos', icon: 'info', shortcut: 'Ctrl+5' },
+  { screen: 'shaders', label: 'Shaders', icon: 'code', shortcut: 'Ctrl+4' },
+  { screen: 'settings', label: 'Paramètres', icon: 'sliders', shortcut: 'Ctrl+5' },
+  { screen: 'about', label: 'À propos', icon: 'info', shortcut: 'Ctrl+6' },
 ];
 
 interface ScreenRailProps {

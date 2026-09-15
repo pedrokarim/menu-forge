@@ -52,11 +52,12 @@ import './shell/shell.css';
 /** Écrans secondaires et aide-mémoire : chargés à leur première ouverture, hors du paquet principal. */
 const AboutScreen = lazy(() => import('./screens/AboutScreen').then((module) => ({ default: module.AboutScreen })));
 const LibrariesScreen = lazy(() => import('./screens/LibrariesScreen').then((module) => ({ default: module.LibrariesScreen })));
+const ShaderLabScreen = lazy(() => import('./screens/ShaderLabScreen').then((module) => ({ default: module.ShaderLabScreen })));
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen').then((module) => ({ default: module.SettingsScreen })));
 const ShortcutsDialog = lazy(() => import('./shell/ShortcutsDialog').then((module) => ({ default: module.ShortcutsDialog })));
 
 const DEFAULT_PREFERENCES: EditorPreferences = { defaultZoom: 0, showGrid: true, confirmDiscard: true, confirmDelete: true };
-const SCREEN_ORDER: RailScreen[] = ['home', 'editor', 'libraries', 'settings', 'about'];
+const SCREEN_ORDER: RailScreen[] = ['home', 'editor', 'libraries', 'shaders', 'settings', 'about'];
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -172,7 +173,7 @@ export default function App() {
     function onKeyDown(event: KeyboardEvent) {
       const withModifier = event.ctrlKey || event.metaKey;
       // Touche physique (event.code) : sur AZERTY, Ctrl + la touche du 1 produit « & », pas « 1 ».
-      const digit = /^(?:Digit|Numpad)([1-5])$/.exec(event.code)?.[1];
+      const digit = /^(?:Digit|Numpad)([1-6])$/.exec(event.code)?.[1];
       if (withModifier && !event.shiftKey && !event.altKey && digit) {
         event.preventDefault();
         goTo(SCREEN_ORDER[Number(digit) - 1]);
@@ -452,6 +453,7 @@ export default function App() {
             onBrowseWorkspaces={() => navigate({ screen: 'workspaces' })}
           />
         )}
+        {screen === 'shaders' && <ShaderLabScreen pill={pill} />}
         {screen === 'about' && <AboutScreen pill={pill} app={app} />}
         </Suspense>
       </div>

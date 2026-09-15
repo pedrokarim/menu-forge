@@ -22,8 +22,9 @@ Quelques règles valent partout :
 | `Ctrl+1` | Accueil |
 | `Ctrl+2` | Éditeur |
 | `Ctrl+3` | Bibliothèques |
-| `Ctrl+4` | Paramètres |
-| `Ctrl+5` | À propos |
+| `Ctrl+4` | Shaders |
+| `Ctrl+5` | Paramètres |
+| `Ctrl+6` | À propos |
 | `Ctrl+O` | Changer d’espace de travail |
 | `?` | L’aide-mémoire des raccourcis |
 

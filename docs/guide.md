@@ -86,7 +86,7 @@ l’édition.
 
 ### 3.4 Enregistrer et exporter
 
-1. **Paramètres** (`Ctrl+4`), section **Export vers le plugin** : choisir le
+1. **Paramètres** (`Ctrl+5`), section **Export vers le plugin** : choisir le
    dossier cible (champ « Dossier du serveur Java (ressources du plugin) »),
    l’espace de noms et le `pack_format` de la version du serveur.
 2. `Ctrl+S` enregistre le menu ; `Ctrl+E` exporte tous les menus coffre de

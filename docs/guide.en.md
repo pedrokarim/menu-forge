@@ -89,7 +89,7 @@ editing.
 
 ### 3.4 Saving and exporting
 
-1. **Paramètres** ("Settings", `Ctrl+4`), **Export vers le plugin** ("Export
+1. **Paramètres** ("Settings", `Ctrl+5`), **Export vers le plugin** ("Export
    to the plugin") section: choose the target folder (the "Dossier du serveur
    Java (ressources du plugin)" field, "Java server folder (plugin
    resources)"), the namespace and the `pack_format` of the server's version.
