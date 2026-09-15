@@ -166,8 +166,10 @@ export function paintMarketStyle(
       // Étiquette de prix : cartouche creusée, pièce à gauche, place du montant à droite.
       painter.fill(x, y, w, h, color);
       frame(painter, x, y, w, h, 1, edge);
+      // Même marge à gauche qu’en haut et en bas : la pièce est centrée dans un carré de la hauteur.
       const size = Math.max(3, Math.min(h - 4, 9));
-      paintCoin(painter, x + 2, y + Math.floor((h - size) / 2), size, accent);
+      const inset = Math.floor((h - size) / 2);
+      paintCoin(painter, x + inset, y + inset, size, accent);
       break;
     }
     case 'market_chart': {
@@ -209,9 +211,10 @@ export function paintMarketStyle(
       const active = state !== 'normal';
       painter.fill(x, y, w, h, color);
       frame(painter, x, y, w, h, 1, active ? accent : edge);
-      const box = Math.min(h, 12);
-      paintIcon(painter, 'search', x + 1, y + Math.floor((h - box) / 2), box, box, active ? toHex(accent) : MARKET_COLORS.muted);
-      if (active && h >= 7 && w > box + 4) painter.fill(x + box + 3, y + 3, 1, h - 6, parseColor(MARKET_COLORS.text));
+      // Loupe à 2 px du cadre (gauche et haut), centrée en hauteur ; curseur 4 px après la loupe.
+      const inset = Math.max(2, Math.floor((h - 8) / 2));
+      paintIcon(painter, 'search', x + inset, y + Math.floor((h - 8) / 2), 8, 8, active ? toHex(accent) : MARKET_COLORS.muted);
+      if (active && h >= 7 && w > inset + 14) painter.fill(x + inset + 8 + 4, y + 3, 1, h - 6, parseColor(MARKET_COLORS.text));
       break;
     }
     case 'market_depth': {
@@ -235,7 +238,8 @@ export function paintMarketStyle(
       if (h > 2) painter.fill(x + 1, y + 1, Math.min(2, w - 2), h - 2, accent);
       if (w >= 28 && h >= 20) {
         const slotY = y + Math.floor((h - 18) / 2);
-        paintDarkStyle(painter, 'dark_slot', x + 4, slotY, 18, 18, MARKET_COLORS.hollow, { borderWidth: 1 });
+        // 2 px entre la bande de rareté et la case, 2 px entre la case et le séparateur.
+        paintDarkStyle(painter, 'dark_slot', x + 5, slotY, 18, 18, MARKET_COLORS.hollow, { borderWidth: 1 });
         painter.fill(x + 25, y + 3, 1, h - 6, opaque(lighten(color, 0.08)));
       }
       break;
@@ -244,8 +248,8 @@ export function paintMarketStyle(
       // Temps restant : horloge à gauche, barre fine en bas (part du temps qui reste).
       painter.fill(x, y, w, h, color);
       frame(painter, x, y, w, h, 1, edge);
-      const box = Math.min(h - 2, 10);
-      paintIcon(painter, 'clock', x + 1, y + Math.floor((h - 2 - box) / 2), box, box, MARKET_COLORS.muted);
+      // Horloge : 2 px sous le cadre et à gauche, 1 px au-dessus de la barre du bas.
+      paintIcon(painter, 'clock', x + 2, y + 2, 8, Math.max(8, h - 5), MARKET_COLORS.muted);
       if (h >= 5 && w > 2) {
         const inner = w - 2;
         const filled = Math.round((inner * marketNumber(style, options, 'progress')) / 100);
@@ -260,8 +264,8 @@ export function paintMarketStyle(
 export const MARKET_PRESETS: Array<{ label: string; spec: GeneratorSpec }> = [
   { label: 'Prix (petit)', spec: { style: 'market_price', width: 40, height: 12, color: MARKET_COLORS.hollow } },
   { label: 'Prix (grand)', spec: { style: 'market_price', width: 64, height: 16, color: MARKET_COLORS.hollow } },
-  { label: 'Pastille de hausse', spec: { style: 'dark_badge', width: 14, height: 11, color: '#14240c', accent: MARKET_COLORS.up, icon: 'trend_up', iconColor: '#8ef04a' } },
-  { label: 'Pastille de baisse', spec: { style: 'dark_badge', width: 14, height: 11, color: '#2a1010', accent: MARKET_COLORS.down, icon: 'trend_down', iconColor: '#ff8a70' } },
+  { label: 'Pastille de hausse', spec: { style: 'dark_badge', width: 13, height: 13, color: '#14240c', accent: MARKET_COLORS.up, icon: 'trend_up', iconColor: '#8ef04a' } },
+  { label: 'Pastille de baisse', spec: { style: 'dark_badge', width: 13, height: 13, color: '#2a1010', accent: MARKET_COLORS.down, icon: 'trend_down', iconColor: '#ff8a70' } },
   { label: 'Graphe de cours (158 × 82)', spec: { style: 'market_chart', width: 158, height: 82, color: MARKET_COLORS.hollow, tile: 12 } },
   { label: 'Petit graphe', spec: { style: 'market_chart', width: 70, height: 34, color: MARKET_COLORS.hollow, tile: 8 } },
   { label: 'Sélecteur de quantité', spec: { style: 'market_stepper', width: 52, height: 16, color: MARKET_COLORS.hollow } },
@@ -272,7 +276,7 @@ export const MARKET_PRESETS: Array<{ label: string; spec: GeneratorSpec }> = [
   { label: 'Ordre de vente (carnet)', spec: { style: 'market_depth', width: 80, height: 10, color: MARKET_COLORS.hollow, accent: MARKET_COLORS.down, progress: 35 } },
   { label: 'Carte d’annonce', spec: { style: 'market_listing', width: 80, height: 24, color: MARKET_COLORS.panel } },
   { label: 'Carte d’annonce rare', spec: { style: 'market_listing', width: 80, height: 24, color: MARKET_COLORS.panel, accent: '#b070ff', state: 'pressed' } },
-  { label: 'Temps restant', spec: { style: 'market_timer', width: 44, height: 12, color: MARKET_COLORS.hollow, progress: 35 } },
+  { label: 'Temps restant', spec: { style: 'market_timer', width: 44, height: 14, color: MARKET_COLORS.hollow, progress: 35 } },
   { label: 'Bouton acheter', spec: { style: 'dark_button', width: 16, height: 16, color: '#1c3410', accent: MARKET_COLORS.up, icon: 'coin', iconColor: MARKET_COLORS.gold } },
   { label: 'Bouton enchérir', spec: { style: 'dark_button', width: 16, height: 16, color: DARK_COLORS.panel, icon: 'auction' } },
   { label: 'Bouton retrait', spec: { style: 'dark_button', width: 16, height: 16, color: DARK_COLORS.panel, icon: 'withdraw' } },
