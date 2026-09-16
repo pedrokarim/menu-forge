@@ -142,6 +142,42 @@ class PackGeneratorTest {
   }
 
   @Test
+  void textFontsIncludeTheAccentedSheets() {
+    final JsonObject font = AsciiFont.font(-3);
+    final JsonArray providers = font.getAsJsonArray("providers");
+    assertEquals(4, providers.size());
+    assertEquals("space", providers.get(0).getAsJsonObject().get("type").getAsString());
+
+    // ascii.png : grille du jeu, sans accents (cases vides à leur place).
+    final JsonObject ascii = providers.get(1).getAsJsonObject();
+    assertEquals("minecraft:font/ascii.png", ascii.get("file").getAsString());
+    assertFalse(chars(ascii).contains("é"));
+    assertEquals(AsciiFont.EMPTY.repeat(16), ascii.getAsJsonArray("chars").get(0).getAsString());
+
+    // accented.png : ascent + 3 (vanilla : 10 pour 7), glyphes de 12 px.
+    final JsonObject accented = providers.get(2).getAsJsonObject();
+    assertEquals("bitmap", accented.get("type").getAsString());
+    assertEquals("minecraft:font/accented.png", accented.get("file").getAsString());
+    assertEquals(0, accented.get("ascent").getAsInt());
+    assertEquals(12, accented.get("height").getAsInt());
+    assertTrue(chars(accented).contains("é"), "é dans accented.png");
+    assertTrue(chars(accented).contains("É"), "É dans accented.png");
+
+    // nonlatin_european.png : même ascent que l’ASCII.
+    final JsonObject nonLatin = providers.get(3).getAsJsonObject();
+    assertEquals("minecraft:font/nonlatin_european.png", nonLatin.get("file").getAsString());
+    assertEquals(-3, nonLatin.get("ascent").getAsInt());
+    assertEquals(8, nonLatin.get("height").getAsInt());
+    assertTrue(chars(nonLatin).contains("’"), "’ dans nonlatin_european.png");
+  }
+
+  private static String chars(final JsonObject provider) {
+    final StringBuilder builder = new StringBuilder();
+    provider.getAsJsonArray("chars").forEach(row -> builder.append(row.getAsString()));
+    return builder.toString();
+  }
+
+  @Test
   void titleJsonUsesMenuAndTextFonts() {
     final CompiledMenu compiled = CompiledMenu.compile(TestMenus.parse(MENU), textures());
     final String json = compiled.titleJson(new TitleRenderer(), ConditionContext.EMPTY, VariableResolver.NONE);

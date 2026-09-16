@@ -5,15 +5,17 @@
  *
  * Seules les **métriques** suivent Minecraft : ligne de 8 px (capitales sur les
  * rangées 0 à 6, jambages sur la rangée 7), largeur de chaque dessin = avance
- * de `fontMetrics.ts` − 1 et, pour l’ASCII, dernière colonne encrée = avance − 2
- * (la règle du jeu). Les dessins sont les nôtres : aucune copie de `ascii.png`
- * ni d’une autre police. Ils prolongent le mot-symbole de
+ * de `fontMetrics.ts` − 1 et dernière colonne encrée = avance − 2 (la règle du
+ * jeu), accents et signes typographiques compris : les avances sont celles
+ * d’`ascii.png`, d’`accented.png` et de `nonlatin_european.png`. Les dessins
+ * sont les nôtres : aucune copie de ces planches ni d’une autre police. Ils prolongent le mot-symbole de
  * `scripts/discord_assets.py`.
  *
  * Format : un glyphe = ses rangées de haut en bas, séparées par « / »
  * (`#` = pixel encré, `.` = vide). La dernière rangée est toujours la rangée 7.
- * Les lettres accentuées sont composées (lettre de base + accent) ; comme dans
- * le jeu, l’accent d’une capitale dépasse de 3 px au-dessus de la ligne.
+ * Les lettres accentuées sont composées (lettre de base + accent), sauf les i,
+ * trop étroits, dessinés directement ; comme dans le jeu, l’accent d’une
+ * capitale dépasse de 3 px au-dessus de la ligne.
  *
  * Module chargé à la demande (`import()` dans `pixelFont.ts`) : il ne pèse pas
  * sur le paquet principal.
@@ -147,41 +149,53 @@ const BASE: Record<string, string> = {
   '~': '....../....../.##..#/#..##./....../....../....../......',
 
   // Hors ASCII : lettres et ligatures.
-  ı: '...../...../.##../..#../..#../..#../.###./.....',
+  ı: '././#/#/#/#/#/.',
   ß: '.##../#..#./#.#../#..#./#...#/#...#/#.##./.....',
-  œ: '...../...../.#.#./#.#.#/#.###/#.#../.#.##/.....',
-  æ: '...../...../##.#./..#.#/.####/#.#../.#.##/.....',
-  Œ: '.####/#.#../#.#../#.###/#.#../#.#../.####/.....',
-  Æ: '.####/#.#../#.#../#####/#.#../#.#../#.###/.....',
+  œ: '........./........./.###.###./#...#...#/#...#####/#...#..../.###.####/.........',
+  æ: '........./........./.###.###./....#...#/.########/#...#..../.###.####/.........',
+  Œ: '.########/#...#..../#...#..../#...####./#...#..../#...#..../.########/.........',
+  Æ: '.###.####/#...#..../#...#..../########./#...#..../#...#..../#...#####/.........',
   ø: '...../...../.####/#..##/#.#.#/##..#/####./.....',
   Ø: '.####/#..##/#..##/#.#.#/##..#/##..#/####./.....',
 
   // Hors ASCII : typographie française et symboles courants.
-  '«': '...../...../...../.#.#./#.#../.#.#./...../.....',
-  '»': '...../...../...../.#.#./..#.#/.#.#./...../.....',
-  '‘': '..#../.#.../.##../...../...../...../...../.....',
-  '’': '.##../..#../.#.../...../...../...../...../.....',
-  '“': '.#..#/#..#./##.##/...../...../...../...../.....',
-  '”': '##.##/.#..#/#..#./...../...../...../...../.....',
-  '…': '...../...../...../...../...../...../#.#.#/.....',
-  '–': '...../...../...../#####/...../...../...../.....',
-  '—': '...../...../...../#####/...../...../...../.....',
-  '•': '...../...../.###./.###./.###./...../...../.....',
-  '·': '...../...../...../..#../...../...../...../.....',
-  '€': '..###/.#.../####./.#.../####./.#.../..###/.....',
+  '«': '....../....../..#..#/.#..#./#..#../.#..#./..#..#/......',
+  '»': '....../....../#..#../.#..#./..#..#/.#..#./#..#../......',
+  '‘': '.#/#./#./../../../../..',
+  '’': '.#/.#/#./../../../../..',
+  '“': '.#.#/#.#./#.#./..../..../..../..../....',
+  '”': '.#.#/.#.#/#.#./..../..../..../..../....',
+  '…': '......./......./......./......./......./......./#..#..#/.......',
+  '–': '....../....../....../######/....../....../....../......',
+  '—': '......../......../......../########/......../......../......../........',
+  '•': '../../../##/##/../../..',
+  '·': './././#/./././.',
+  '€': '..####/.#..../#####./.#..../#####./.#..../..####/......',
   '£': '..##./.#..#/.#.../####./.#.../.#.../#####/.....',
   '§': '.####/#..../.###./#...#/.###./....#/####./.....',
-  '°': '..#../.#.#./..#../...../...../...../...../.....',
+  '°': '.##./#..#/.##./..../..../..../..../....',
   '±': '..#../..#../#####/..#../..#../#####/...../.....',
-  '×': '...../...../...../.#.#./..#../.#.#./...../.....',
+  '×': '...../...../#...#/.#.#./..#../.#.#./#...#/.....',
   '÷': '...../..#../...../#####/...../..#../...../.....',
-  '²': '##.../..#../.#.../###../...../...../...../.....',
-  '³': '###../.##../..#../###../...../...../...../.....',
-  '¡': '..#../...../..#../..#../..#../..#../..#../.....',
+  '²': '###./...#/.##./####/..../..../..../....',
+  '³': '###./.##./...#/###./..../..../..../....',
+  '¡': '#/./#/#/#/#/#/.',
   '¿': '..#../...../..#../.##../#..../#...#/.###./.....',
+
+  // Hors ASCII : i accentués, trop étroits pour les accents de 5 px (dessins de
+  // 9 rangées dès −1 pour les minuscules, de 11 rangées dès −3 pour les capitales).
+  ì: '#./.#/../.#/.#/.#/.#/.#/..',
+  í: '.#/#./../#./#./#./#./#./..',
+  î: '.#./#.#/.../.#./.#./.#./.#./.#./...',
+  ï: '.../#.#/.../.#./.#./.#./.#./.#./...',
+  Ì: '#../.#./.../###/.#./.#./.#./.#./.#./###/...',
+  Í: '..#/.#./.../###/.#./.#./.#./.#./.#./###/...',
+  Î: '.#./#.#/.../###/.#./.#./.#./.#./.#./###/...',
+  Ï: '.../#.#/.../###/.#./.#./.#./.#./.#./###/...',
+  İ: '.../.#./.../###/.#./.#./.#./.#./.#./###/...',
 };
 
-type Mark = 'acute' | 'grave' | 'circumflex' | 'diaeresis' | 'tilde' | 'caron' | 'dot';
+type Mark = 'acute' | 'grave' | 'circumflex' | 'diaeresis' | 'tilde' | 'caron';
 
 /** Accents : deux rangées, posées en −1 et 0 sur une minuscule, en −3 et −2 sur une capitale. */
 const MARKS: Record<Mark, readonly [string, string]> = {
@@ -191,24 +205,18 @@ const MARKS: Record<Mark, readonly [string, string]> = {
   diaeresis: ['.....', '.#.#.'],
   tilde: ['.##.#', '#.##.'],
   caron: ['.#.#.', '..#..'],
-  dot: ['.....', '..#..'],
 };
-
-/** I capital de 5 px : base des I accentués (hors ASCII, l’avance est celle par défaut). */
-const WIDE_I = '.###./..#../..#../..#../..#../..#../.###./.....';
 
 /** Lettres accentuées : [lettre de base (ou dessin), accent]. */
 const COMPOSED: Record<string, readonly [string, Mark]> = {
   à: ['a', 'grave'], á: ['a', 'acute'], â: ['a', 'circumflex'], ä: ['a', 'diaeresis'], ã: ['a', 'tilde'],
   è: ['e', 'grave'], é: ['e', 'acute'], ê: ['e', 'circumflex'], ë: ['e', 'diaeresis'],
-  ì: ['ı', 'grave'], í: ['ı', 'acute'], î: ['ı', 'circumflex'], ï: ['ı', 'diaeresis'],
   ò: ['o', 'grave'], ó: ['o', 'acute'], ô: ['o', 'circumflex'], ö: ['o', 'diaeresis'], õ: ['o', 'tilde'],
   ù: ['u', 'grave'], ú: ['u', 'acute'], û: ['u', 'circumflex'], ü: ['u', 'diaeresis'],
   ý: ['y', 'acute'], ÿ: ['y', 'diaeresis'], ñ: ['n', 'tilde'],
   č: ['c', 'caron'], š: ['s', 'caron'], ž: ['z', 'caron'],
   À: ['A', 'grave'], Á: ['A', 'acute'], Â: ['A', 'circumflex'], Ä: ['A', 'diaeresis'], Ã: ['A', 'tilde'],
   È: ['E', 'grave'], É: ['E', 'acute'], Ê: ['E', 'circumflex'], Ë: ['E', 'diaeresis'],
-  Ì: [WIDE_I, 'grave'], Í: [WIDE_I, 'acute'], Î: [WIDE_I, 'circumflex'], Ï: [WIDE_I, 'diaeresis'], İ: [WIDE_I, 'dot'],
   Ò: ['O', 'grave'], Ó: ['O', 'acute'], Ô: ['O', 'circumflex'], Ö: ['O', 'diaeresis'], Õ: ['O', 'tilde'],
   Ù: ['U', 'grave'], Ú: ['U', 'acute'], Û: ['U', 'circumflex'], Ü: ['U', 'diaeresis'],
   Ý: ['Y', 'acute'], Ÿ: ['Y', 'diaeresis'], Ñ: ['N', 'tilde'],

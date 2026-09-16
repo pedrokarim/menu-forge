@@ -30,6 +30,12 @@ test('le dessin tient dans l’avance du jeu (avance − 1, 1 px d’espacement)
   }
 });
 
+test('tous les glyphes, accents compris : avance du jeu = dernière colonne encrée + 2', () => {
+  for (const { char, rows } of glyphs) {
+    assert.equal(lastInkColumn(rows) + 2, charAdvance(char), `« ${char} » : dernière colonne encrée`);
+  }
+});
+
 test('ASCII imprimable : couvert, sur la ligne de 8 px, avance = dernière colonne encrée + 2', () => {
   for (let code = 0x21; code <= 0x7e; code++) {
     const char = String.fromCharCode(code);
@@ -54,5 +60,7 @@ test('accents : au-dessus de l’œil des minuscules, jusqu’à 3 px au-dessus 
     byChar.get(char)!.rows.flatMap((row, index) => (row.includes('#') ? [index - LINE_TOP] : []));
   assert.deepEqual(inkRows('é').slice(0, 2), [-1, 0]);
   assert.deepEqual(inkRows('É').slice(0, 2), [-3, -2]);
+  assert.deepEqual(inkRows('î').slice(0, 2), [-1, 0]);
+  assert.deepEqual(inkRows('Î').slice(0, 2), [-3, -2]);
   assert.equal(Math.max(...inkRows('ç')), 7);
 });

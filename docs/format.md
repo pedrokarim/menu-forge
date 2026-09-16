@@ -201,6 +201,12 @@ couleur au quart), en bas à droite.
 | `visibleWhen` | Condition |
 | `editor` | État dans l’éditeur (§ Métadonnées de l’éditeur) |
 
+Les textes sont écrits avec la police vanilla (planches `ascii.png`,
+`accented.png` et `nonlatin_european.png`) : les **accents sont permis** (é, è,
+à, ç, ô, É, œ, ’, « », €…). Centrage et alignement à droite utilisent les
+avances du jeu (voir `rendering.md`, § Texte dynamique). Un caractère absent de
+ces planches s’affiche en glyphe « manquant ».
+
 ## Slots (`slots`)
 
 | Clé | Rôle |

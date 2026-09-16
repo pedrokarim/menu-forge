@@ -1,23 +1,41 @@
 import type { TextAlign } from './menu';
+import { VANILLA_SHEETS } from './vanillaFontData';
+
+/** Avance de l’espace (provider `space` des polices de texte). */
+const SPACE_ADVANCE = 4;
+/** Avance du glyphe « manquant » (5 px + 1), pour un caractère absent de la police. */
+const MISSING_ADVANCE = 6;
+
+let advances: Map<number, number> | null = null;
 
 /**
- * Largeurs des glyphes de la police ASCII vanilla (avance = largeur + 1).
- * Même table que la lib Java ; à vérifier en jeu.
+ * Avances de la police vanilla (`ascii.png`, `accented.png`,
+ * `nonlatin_european.png`), lues dans `vanillaFontData.ts` : même table que
+ * `CharWidths` de la lib, générée depuis le jar client.
  */
-const GLYPH_WIDTHS: Record<string, number> = {
-  '!': 1, '"': 3, "'": 1, '(': 3, ')': 3, '*': 3, ',': 1, '.': 1, ':': 1, ';': 1,
-  '<': 4, '>': 4, '@': 6, I: 3, '[': 3, ']': 3, '`': 2, f: 4, i: 1, k: 4, l: 2,
-  t: 3, '{': 3, '|': 1, '}': 3, '~': 6,
-};
-const DEFAULT_WIDTH = 5;
-const SPACE_ADVANCE = 4;
+function vanillaAdvances(): Map<number, number> {
+  if (advances) return advances;
+  const table = new Map<number, number>();
+  for (const sheet of VANILLA_SHEETS) {
+    sheet.chars.forEach((row, index) => {
+      const chars = Array.from(row);
+      const digits = sheet.advances[index];
+      chars.forEach((char, column) => {
+        const codePoint = char.codePointAt(0) ?? 0;
+        if (codePoint !== 0 && !table.has(codePoint)) table.set(codePoint, Number.parseInt(digits[column], 36));
+      });
+    });
+  }
+  advances = table;
+  return table;
+}
 
 /** Hauteur d’une ligne de texte de la police vanilla, en pixels. */
 export const TEXT_HEIGHT = 8;
 
 export function charAdvance(char: string): number {
   if (char === ' ') return SPACE_ADVANCE;
-  return (GLYPH_WIDTHS[char] ?? DEFAULT_WIDTH) + 1;
+  return vanillaAdvances().get(char.codePointAt(0) ?? 0) ?? MISSING_ADVANCE;
 }
 
 export function textWidth(text: string): number {

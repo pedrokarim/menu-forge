@@ -3,67 +3,44 @@ package dev.menuforge.pack;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.menuforge.text.CharWidths;
-
-import java.util.List;
+import dev.menuforge.text.VanillaFontData;
 
 /**
- * Grille de caractères de {@code minecraft:font/ascii.png} (16 × 16 cases de
- * 8 px), telle que référencée par le {@code default.json} vanilla.
+ * Police des textes du titre : copie de la police vanilla à un {@code ascent}
+ * donné.
  *
- * <p><b>À vérifier en jeu.</b> Les lignes 2 à 7 (ASCII imprimable) sont
- * certaines. Les lignes 0–1 (capitales accentuées) et 8–15 (disposition de la
- * page de code 437 : lettres accentuées, cadres, grec, symboles) sont reprises
- * de mémoire : une erreur n’afficherait qu’un mauvais glyphe pour ces
- * caractères, sans casser la police. Le caractère nul ({@link #EMPTY}) marque
- * une case ignorée par Minecraft.
+ * <p>Comme dans le jeu ({@code font/include/default.json}), les caractères sont
+ * répartis sur trois planches, reprises telles quelles (grilles de
+ * {@link VanillaFontData}, générées depuis le jar client) :
+ * <ul>
+ *   <li>{@code ascii.png} : l’ASCII et quelques signes (cases vides là où le jeu
+ *   a retiré les accents) ;</li>
+ *   <li>{@code accented.png} : lettres accentuées, glyphes de 12 px de haut dont
+ *   les 3 premières rangées dépassent au-dessus de la ligne ; son ascent vanilla
+ *   (10) vaut celui d’{@code ascii.png} (7) + 3, décalage conservé ici pour
+ *   garder la même ligne de base ;</li>
+ *   <li>{@code nonlatin_european.png} : grec, cyrillique, ponctuation
+ *   typographique (’ « … »), même ascent que l’ASCII.</li>
+ * </ul>
+ * Les trois jeux de caractères sont disjoints : l’ordre des providers ne change
+ * donc rien au caractère retenu (vanilla les liste dans l’ordre inverse).
  */
 public final class AsciiFont {
 
-  /** Texture vanilla référencée. */
+  /** Texture de la planche ASCII. */
   public static final String FILE = "minecraft:font/ascii.png";
-  /** Hauteur des glyphes (échelle 1). */
+  /** Hauteur des glyphes ASCII (échelle 1). */
   public static final int HEIGHT = 8;
   /** Case vide (caractère nul, ignoré par Minecraft). */
   public static final String EMPTY = String.valueOf((char) 0);
-
-  /** Les 16 lignes de 16 caractères. */
-  public static final List<String> CHARS = List.of(
-    "ÀÁÂÈÊËÍÓÔÕÚßãõğİ",
-    "ıŒœŞşŴŵžȇ" + EMPTY.repeat(7),
-    " !\"#$%&'()*+,-./",
-    "0123456789:;<=>?",
-    "@ABCDEFGHIJKLMNO",
-    "PQRSTUVWXYZ[\\]^_",
-    "`abcdefghijklmno",
-    "pqrstuvwxyz{|}~" + EMPTY,
-    "ÇüéâäàåçêëèïîìÄÅ",
-    "ÉæÆôöòûùÿÖÜø£Ø×ƒ",
-    "áíóúñÑªº¿®¬½¼¡«»",
-    "░▒▓│┤╡╢╖╕╣║╗╝╜╛┐",
-    "└┴┬├─┼╞╟╚╔╩╦╠═╬╧",
-    "╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀",
-    "αβΓπΣσμτΦΘΩδ∞∅∈∩",
-    "≡±≥≤⌠⌡÷≈°∙·√ⁿ²■" + EMPTY
-  );
-
-  static {
-    if (CHARS.size() != 16) {
-      throw new IllegalStateException("la grille ASCII doit avoir 16 lignes");
-    }
-    for (final String row : CHARS) {
-      if (row.codePointCount(0, row.length()) != 16) {
-        throw new IllegalStateException("ligne de la grille ASCII de longueur incorrecte : " + row);
-      }
-    }
-  }
 
   private AsciiFont() {
   }
 
   /**
    * Police de texte complète pour un ascent : un provider {@code space} pour
-   * l’espace (sinon son avance serait calculée depuis une case vide), puis la
-   * grille bitmap.
+   * l’espace (sinon son avance serait calculée depuis la case de la grille),
+   * puis les trois planches.
    */
   public static JsonObject font(final int ascent) {
     final JsonObject space = new JsonObject();
@@ -72,18 +49,19 @@ public final class AsciiFont {
     advances.addProperty(" ", CharWidths.SPACE_ADVANCE);
     space.add("advances", advances);
 
-    final JsonObject bitmap = new JsonObject();
-    bitmap.addProperty("type", "bitmap");
-    bitmap.addProperty("file", FILE);
-    bitmap.addProperty("ascent", ascent);
-    bitmap.addProperty("height", HEIGHT);
-    final JsonArray chars = new JsonArray();
-    CHARS.forEach(chars::add);
-    bitmap.add("chars", chars);
-
     final JsonArray providers = new JsonArray();
     providers.add(space);
-    providers.add(bitmap);
+    for (final VanillaFontData.Sheet sheet : VanillaFontData.SHEETS) {
+      final JsonObject bitmap = new JsonObject();
+      bitmap.addProperty("type", "bitmap");
+      bitmap.addProperty("file", sheet.file());
+      bitmap.addProperty("ascent", ascent + sheet.ascentOffset());
+      bitmap.addProperty("height", sheet.height());
+      final JsonArray chars = new JsonArray();
+      sheet.chars().forEach(chars::add);
+      bitmap.add("chars", chars);
+      providers.add(bitmap);
+    }
     final JsonObject font = new JsonObject();
     font.add("providers", providers);
     return font;

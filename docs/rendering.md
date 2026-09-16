@@ -129,34 +129,60 @@ peut **pas** passer par une chaîne legacy (`§`), qui ne porte pas de police.
 ## 5. Texte dynamique
 
 Pour écrire « 3/46 » à une hauteur donnée, on génère une copie de la police
-ASCII vanilla avec l’`ascent` voulu (`minecraft:font/ascii.png`, `height: 8`),
-une police par hauteur utilisée. C’est ce que fait le pack de référence (`ascent: -11`,
-`-64`…).
+vanilla avec l’`ascent` voulu, une police par hauteur utilisée
+(`font/menus/text_<ascent>.json`). C’est ce que fait le pack de référence
+(`ascent: -11`, `-64`…).
+
+Dans le jeu, la police par défaut (`font/include/default.json`) répartit les
+caractères sur trois planches, et la copie les reprend toutes :
+
+| Planche | Contenu | `height` | `ascent` |
+|---|---|---|---|
+| `minecraft:font/ascii.png` | ASCII et quelques signes (cases 8 × 8) | 8 | `ascent` |
+| `minecraft:font/accented.png` | lettres accentuées (cases 9 × 12) | 12 | `ascent + 3` |
+| `minecraft:font/nonlatin_european.png` | grec, cyrillique, ’ « » … – € | 8 | `ascent` |
+
+`ascii.png` n’a **plus** de lettres accentuées : leurs anciennes cases sont vides
+(U+0000 dans la grille du jeu), et une grille qui y placerait « é » n’afficherait
+rien. Les cases d’`accented.png` ont 3 rangées au-dessus de la ligne (pour les
+accents des capitales) : vanilla lui donne un ascent de 10 pour 7 à l’ASCII, et
+la rangée 3 d’un « é » d’`accented.png` coïncide avec la rangée 0 d’un « e »
+d’`ascii.png`. D’où `ascent + 3`, qui garde la même ligne de base. Les trois
+jeux de caractères sont disjoints : l’ordre des providers ne change rien.
+
+**Les accents sont donc permis dans les textes du titre** (é, è, ê, à, ç, ô, É,
+œ, ’, « », €…). Un caractère absent des trois planches (idéogrammes…)
+s’affiche en glyphe « manquant ».
 
 Pour centrer ou aligner à droite, la lib a besoin de la largeur de chaque
-caractère : table des avances de la police vanilla (la plupart des caractères
-font 5 px + 1).
+caractère : table des avances des trois planches (`VanillaFontData`, même
+contenu que `studio/src/model/vanillaFontData.ts`), **générée** depuis le jar
+client par `studio/scripts/vanilla_font_tables.py` avec la règle du jeu
+(dernière colonne opaque + 1, à l’échelle `height / hauteur de case`, puis + 1
+d’espacement ; espace : 4). Seules les grilles et les avances sont écrites,
+aucune image. À relancer si une version du jeu change ces planches.
 
 **Validé en jeu** pour `C a l i b r t o n x 1 6 8` : « Calibration » démarre à
 x = 8, « x168 » aligné à droite sur 168 finit à 167, « 88 » centré sur 88
-occupe 82 à 93. La **table complète** est aussi validée hors jeu : les avances
-des 95 caractères ASCII imprimables, recalculées depuis le vrai `ascii.png`
-(Minecraft 1.21.5) avec la règle du jeu (dernière colonne opaque + 1, puis + 1
-d’espacement), sont identiques à celles du studio et de la lib. Les accents
-courants (`é è à ç É`) avancent de 6, `€` de 7.
+occupe 82 à 93. Les avances ASCII de la table générée (Minecraft 26.2) sont
+identiques à l’ancienne table validée. Exemples hors ASCII : `é è à ç É` 6,
+`î ï` 4, `œ æ` 10, `’` 3, `«` et `»` 7, `€` 7 ; « Récoltes » mesure 43 px.
+**[à calibrer]** en jeu : position verticale et largeur d’un texte accentué.
 
 ### Aperçu dans le studio
 
 Le studio dessine les textes du jeu avec la **police du jeu** quand la
 bibliothèque `vanilla` est branchée (lue dans le pack, jamais copiée dans le
-dépôt). Sinon, il se sert de la **police pixel de Menu Forge**
+dépôt) : c’est la police `minecraft:default` complète, donc les accents
+d’`accented.png` et les signes de `nonlatin_european.png` s’y dessinent comme
+en jeu. Sinon, il se sert de la **police pixel de Menu Forge**
 (`studio/src/lib/pixelFontGlyphs.ts`) : des lettres dessinées pour le
 projet, sous la licence MIT du dépôt, mais avec les **métriques** du jeu :
 
 - ligne de 8 px, capitales sur les rangées 0 à 6, jambages sur la rangée 7 ;
-- avance de chaque caractère lue dans la table de `fontMetrics.ts` (la même que
-  `CharWidths`) et, pour l’ASCII, dernière colonne encrée = avance − 2
-  (1 px d’espacement, comme la règle du jeu) ;
+- avance de chaque caractère lue dans `vanillaFontData.ts` (la même table que
+  `CharWidths`) et, pour tous les glyphes dessinés, accents compris, dernière
+  colonne encrée = avance − 2 (1 px d’espacement, comme la règle du jeu) ;
 - ombre, gras et codes « § » rendus par le même moteur que la police du jeu ;
 - accents des capitales jusqu’à 3 px au-dessus de la ligne, comme dans le jeu.
 

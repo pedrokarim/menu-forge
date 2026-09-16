@@ -4,59 +4,47 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Avances des caractères de la police ASCII vanilla ({@code minecraft:font/ascii.png}).
+ * Avances des caractères des textes du titre, celles de la police vanilla.
  *
- * <p><b>À vérifier en jeu.</b> Table reprise des largeurs connues de la police
- * vanilla : avance = largeur du dessin + 1, sauf l’espace (avance 4, fournie
- * par un provider {@code space}). Tout caractère absent de la table (y compris
- * hors ASCII : lettres accentuées…) est supposé large de 5 px, soit une avance
- * de 6. Le studio embarque la même table : toute correction doit être reportée
- * des deux côtés, sinon les textes centrés ou alignés à droite divergent.
+ * <p>Source : {@link VanillaFontData}, généré depuis le jar client par
+ * {@code studio/scripts/vanilla_font_tables.py} (avance = dernière colonne non
+ * transparente de la case + 1, à l’échelle de la planche, + 1 d’espacement,
+ * comme le jeu). Couvre {@code ascii.png}, {@code accented.png} et
+ * {@code nonlatin_european.png}. L’espace avance de 4 (provider {@code space}).
+ * Un caractère absent des trois planches s’affiche en glyphe « manquant »,
+ * large de 5 px (avance 6).
+ *
+ * <p>Le studio lit la même table ({@code studio/src/model/vanillaFontData.ts}) :
+ * sinon les textes centrés ou alignés à droite divergent.
  */
 public final class CharWidths {
 
   /** Avance de l’espace. */
   public static final int SPACE_ADVANCE = 4;
-  /** Largeur par défaut d’un caractère absent de la table. */
+  /** Largeur d’un caractère absent de la police (glyphe « manquant »). */
   public static final int DEFAULT_WIDTH = 5;
 
-  /** Largeurs (sans l’espacement de 1 px) des caractères qui dérogent à 5. */
-  private static final Map<Character, Integer> WIDTHS = new HashMap<>();
+  /** Avance de chaque point de code des planches. */
+  private static final Map<Integer, Integer> ADVANCES = new HashMap<>();
 
   static {
-    put('!', 1);
-    put('"', 3);
-    put('\'', 1);
-    put('(', 3);
-    put(')', 3);
-    put('*', 3);
-    put(',', 1);
-    put('.', 1);
-    put(':', 1);
-    put(';', 1);
-    put('<', 4);
-    put('>', 4);
-    put('@', 6);
-    put('I', 3);
-    put('[', 3);
-    put(']', 3);
-    put('`', 2);
-    put('f', 4);
-    put('i', 1);
-    put('k', 4);
-    put('l', 2);
-    put('t', 3);
-    put('{', 3);
-    put('|', 1);
-    put('}', 3);
-    put('~', 6);
+    for (final VanillaFontData.Sheet sheet : VanillaFontData.SHEETS) {
+      for (int row = 0; row < sheet.chars().size(); row++) {
+        final int[] chars = sheet.chars().get(row).codePoints().toArray();
+        final String advances = sheet.advances().get(row);
+        if (chars.length != advances.length()) {
+          throw new IllegalStateException(sheet.file() + " : ligne " + row + " incohérente");
+        }
+        for (int column = 0; column < chars.length; column++) {
+          if (chars[column] != 0) {
+            ADVANCES.putIfAbsent(chars[column], Character.digit(advances.charAt(column), 36));
+          }
+        }
+      }
+    }
   }
 
   private CharWidths() {
-  }
-
-  private static void put(final char character, final int width) {
-    WIDTHS.put(character, width);
   }
 
   /** Avance (en pixels GUI) d’un point de code. */
@@ -64,13 +52,8 @@ public final class CharWidths {
     if (codePoint == ' ') {
       return SPACE_ADVANCE;
     }
-    if (codePoint <= Character.MAX_VALUE) {
-      final Integer width = WIDTHS.get((char) codePoint);
-      if (width != null) {
-        return width + 1;
-      }
-    }
-    return DEFAULT_WIDTH + 1;
+    final Integer advance = ADVANCES.get(codePoint);
+    return advance != null ? advance : DEFAULT_WIDTH + 1;
   }
 
   /** Largeur d’un texte : somme des avances de ses caractères. */

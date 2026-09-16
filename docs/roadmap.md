@@ -91,14 +91,16 @@ la lib et les deux exports fonctionnent de bout en bout.
 - **En jeu, Bedrock** (2026-09-12, client Bedrock, mc-rs) : fond et couches
   au pixel, grille de boutons, formulaires Bedrock, commandes `/mf`.
 - **Hors jeu** : avances des 95 caractères ASCII imprimables recalculées
-  depuis le vrai `ascii.png` de Minecraft 1.21.5.
+  depuis le vrai `ascii.png` de Minecraft 1.21.5 ; grilles et avances
+  d’`ascii.png`, d’`accented.png` et de `nonlatin_european.png` générées
+  depuis le jar client 26.2 (`studio/scripts/vanilla_font_tables.py`).
 
 ## Pas encore vérifié
 
 - `/profile` d’Enderium ouvert par un vrai client (le serveur de test le
   charge sans erreur, mais aucun joueur ne s’y est connecté).
-- La grille des caractères accentués d’`ascii.png` (lignes 0–1 et 8–15) et
-  l’avance de ’ « » … – en jeu ; l’ordre de rendu titre / items en 1.21.x ;
+- Les textes accentués en jeu (`accented.png` à `ascent + 3`, avances de
+  ’ « » … –) ; l’ordre de rendu titre / items en 1.21.x ;
   les très grands `ascent` négatifs.
 - `pack_format` 46 par défaut, à ajuster selon la version du serveur.
 - La génération par IA avec de vraies clés : identifiants des modèles par

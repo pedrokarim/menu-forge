@@ -234,8 +234,9 @@ Vérifié dans un client le 2026-09-10 (Paper 1.20.6, détails dans
 
 Reste à vérifier :
 
-- la table d’avance complète (`CharWidths`) et la grille d’`ascii.png` hors
-  ASCII (`AsciiFont`, lignes 0–1 et 8–15, reprises de mémoire) ;
+- les textes accentués (`AsciiFont` : planches `accented.png` à `ascent + 3`
+  et `nonlatin_european.png` ; avances de `CharWidths` générées depuis le jar
+  client, pas encore mesurées en jeu) ;
 - le complément transparent en bas des images quand `ascent > hauteur`, et
   les très grands `ascent` négatifs ;
 - l’ordre de rendu titre / items en 1.21.x.

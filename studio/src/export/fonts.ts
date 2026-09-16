@@ -1,6 +1,8 @@
+import { VANILLA_SHEETS } from '../model/vanillaFontData';
+
 /**
  * Polices auxiliaires, identiques à celles de la lib : caractères d’espacement
- * (`SpaceFont`) et copies de la police ASCII vanilla à un `ascent` donné
+ * (`SpaceFont`) et copies de la police vanilla à un `ascent` donné
  * (`AsciiFont`).
  */
 
@@ -40,44 +42,25 @@ export function spaceProvider(): { type: 'space'; advances: Record<string, numbe
   return { type: 'space', advances };
 }
 
-/** Case vide de la grille (ignorée par Minecraft). */
-const EMPTY = String.fromCharCode(0);
-const QUOTE = String.fromCharCode(34);
-const BACKSLASH = String.fromCharCode(92);
-const BACKTICK = String.fromCharCode(96);
-
-/**
- * Grille de `minecraft:font/ascii.png` (16 × 16 cases), même table que
- * `AsciiFont` de la lib (lignes 0–1 et 8–15 à vérifier en jeu).
- */
-const ASCII_ROWS: readonly string[] = [
-  'ÀÁÂÈÊËÍÓÔÕÚßãõğİ',
-  'ıŒœŞşŴŵžȇ' + EMPTY.repeat(7),
-  ' !' + QUOTE + "#$%&'()*+,-./",
-  '0123456789:;<=>?',
-  '@ABCDEFGHIJKLMNO',
-  'PQRSTUVWXYZ[' + BACKSLASH + ']^_',
-  BACKTICK + 'abcdefghijklmno',
-  'pqrstuvwxyz{|}~' + EMPTY,
-  'ÇüéâäàåçêëèïîìÄÅ',
-  'ÉæÆôöòûùÿÖÜø£Ø×ƒ',
-  'áíóúñÑªº¿®¬½¼¡«»',
-  '░▒▓│┤╡╢╖╕╣║╗╝╜╛┐',
-  '└┴┬├─┼╞╟╚╔╩╦╠═╬╧',
-  '╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀',
-  'αβΓπΣσμτΦΘΩδ∞∅∈∩',
-  '≡±≥≤⌠⌡÷≈°∙·√ⁿ²■' + EMPTY,
-];
-
 /** Avance de l’espace dans les polices de texte. */
 const SPACE_ADVANCE = 4;
 
-/** Police de texte complète pour un `ascent` (provider `space` pour l’espace, puis la grille). */
+/**
+ * Police de texte complète pour un `ascent`, comme `AsciiFont` de la lib :
+ * provider `space` pour l’espace, puis les planches vanilla `ascii.png`,
+ * `accented.png` (ascent + 3, même ligne de base) et `nonlatin_european.png`.
+ */
 export function asciiFont(ascent: number): unknown {
   return {
     providers: [
       { type: 'space', advances: { ' ': SPACE_ADVANCE } },
-      { type: 'bitmap', file: 'minecraft:font/ascii.png', ascent, height: 8, chars: ASCII_ROWS },
+      ...VANILLA_SHEETS.map((sheet) => ({
+        type: 'bitmap',
+        file: sheet.file,
+        ascent: ascent + sheet.ascentOffset,
+        height: sheet.height,
+        chars: sheet.chars,
+      })),
     ],
   };
 }
