@@ -31,6 +31,10 @@
     "resources": {
       "../../templates/": "templates/"
     },
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "11.0"
+    },
     "windows": {
       "nsis": {
         "languages": ["French", "English"],

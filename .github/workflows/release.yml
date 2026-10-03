@@ -1,0 +1,107 @@
+# Construit l’application de bureau (Tauri) pour Windows, macOS et Linux, et
+# dépose les installateurs dans une release GitHub en brouillon, à relire puis
+# publier à la main.
+#
+# Déclencheurs :
+# - pousser une étiquette `v*` (par exemple `v0.2.0`) : version stable ;
+# - « Run workflow » dans l’onglet Actions : même chose, à la demande.
+#
+# La version vient de `studio/src-tauri/tauri.conf.json` (`version`) : la release
+# s’appelle `v<version>`. Penser à l’augmenter avant d’étiqueter.
+#
+# Sortie :
+# - Windows : installateur NSIS (`-setup.exe`) et MSI ;
+# - macOS : `.dmg` universel (Apple Silicon et Intel) ;
+# - Linux : `.AppImage`, `.deb`, `.rpm`.
+#
+# Les binaires ne sont pas signés (ni certificat Windows, ni compte Apple
+# Developer) : voir « Installer » dans studio/README.md pour les avertissements
+# attendus.
+name: Application de bureau (release)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Une seule construction par référence ; une nouvelle annule l’ancienne.
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            args: --bundles nsis,msi
+          - name: macOS (universel)
+            os: macos-latest
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: --target universal-apple-darwin --bundles app,dmg
+          # 22.04 plutôt que la dernière : l’AppImage hérite de la glibc de la
+          # machine de construction, la plus ancienne reste la plus compatible.
+          - name: Linux
+            os: ubuntu-22.04
+            args: --bundles appimage,deb,rpm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v5
+
+      - name: Dépendances système (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
+
+      - name: Installer Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: studio/package-lock.json
+
+      - name: Installer Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: studio/src-tauri -> target
+          key: ${{ matrix.os }}
+
+      - name: Dépendances de l’interface
+        working-directory: studio
+        run: npm ci
+
+      # `beforeBuildCommand` (npm run build) compile l’interface avant l’appli.
+      - name: Construire et joindre à la release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: studio
+          tauriScript: npx tauri
+          args: ${{ matrix.args }}
+          tagName: v__VERSION__
+          releaseName: Menu Forge v__VERSION__
+          releaseBody: |
+            Installateurs de Menu Forge pour Windows, macOS et Linux.
+
+            - **Windows** : `Menu.Forge_<version>_x64-setup.exe` (ou le `.msi`).
+            - **macOS** : `Menu.Forge_<version>_universal.dmg` (Apple Silicon et Intel).
+            - **Linux** : `.AppImage` (toutes distributions), `.deb` (Debian, Ubuntu) ou `.rpm` (Fedora).
+
+            Binaires non signés : voir « Installer » dans `studio/README.md`.
+          releaseDraft: true
+          prerelease: false

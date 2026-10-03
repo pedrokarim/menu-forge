@@ -54,6 +54,39 @@ npm run tauri:build
 Produit `src-tauri/target/release/menu-forge.exe` et l’installateur NSIS
 `src-tauri/target/release/bundle/nsis/Menu Forge_<version>_x64-setup.exe`.
 
+### Installateurs des trois systèmes (GitHub Actions)
+
+Le workflow [`release.yml`](../.github/workflows/release.yml) construit
+l’appli sur Windows, macOS et Linux et dépose les installateurs dans une
+release GitHub **en brouillon** :
+
+1. augmenter `version` dans `src-tauri/tauri.conf.json` ;
+2. pousser une étiquette `v<version>` (`git tag v0.2.0 && git push origin v0.2.0`),
+   ou lancer le workflow à la main (onglet Actions, « Run workflow ») ;
+3. relire le brouillon de release, puis le publier.
+
+| Système | Fichiers |
+|---|---|
+| Windows | `…_x64-setup.exe` (NSIS), `…_x64_en-US.msi` |
+| macOS | `…_universal.dmg` (Apple Silicon et Intel, macOS 11 et plus) |
+| Linux | `….AppImage`, `….deb`, `….rpm` |
+
+## Installer
+
+Les binaires ne sont **pas signés** (ni certificat de signature Windows, ni
+compte Apple Developer) :
+
+- **Windows** : SmartScreen affiche « Windows a protégé votre ordinateur » :
+  « Informations complémentaires », puis « Exécuter quand même ».
+- **macOS** : l’app est signée ad hoc seulement. Au premier lancement, macOS
+  refuse de l’ouvrir : Réglages Système → Confidentialité et sécurité →
+  « Ouvrir quand même ». Si macOS la dit « endommagée » :
+  `xattr -cr "/Applications/Menu Forge.app"`.
+- **Linux** : `chmod +x Menu.Forge_*.AppImage` puis la lancer, ou installer le
+  `.deb` (`sudo apt install ./….deb`) ou le `.rpm` (`sudo dnf install ./….rpm`).
+  Il faut WebKitGTK 4.1 (présent sur Ubuntu 22.04, Debian 12, Fedora 36 et plus
+  récents).
+
 En production, l’appli choisit un port libre, sert l’interface embarquée et
 l’API depuis le même serveur (`http://127.0.0.1:<port>/`), et écrit le port
 réel dans `%LOCALAPPDATA%\eu.enderium.menuforge\server.json`.
